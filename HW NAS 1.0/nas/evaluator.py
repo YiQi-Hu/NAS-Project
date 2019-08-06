@@ -1,10 +1,8 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from base import NetworkUnit
-from base import Dataset
-from datetime import datetime
-import math
+from .base import NetworkUnit
+from .base import Dataset
 import time
 import os
 import numpy as np
@@ -146,7 +144,7 @@ def learning_rate_schedule(epoch_num):
         return 0.001
 
 
-class Evaluater:
+class Evaluator:
     def __init__(self):
 
         self.dtrain = Dataset()
@@ -443,7 +441,7 @@ class Evaluater:
 
 
 if __name__ == '__main__':
-    eval = Evaluater()
+    eval = Evaluator()
     eval.add_data(50000)
     network = NetworkUnit()
     network.graph_part = [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17], []]

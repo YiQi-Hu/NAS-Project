@@ -4,7 +4,7 @@ import tensorflow as tf
 from multiprocessing import Process,Pool
 
 from .enumerater import Enumerater
-from .evaluater import Evaluater
+from .evaluator import Evaluator
 from .optimizer import Optimizer
 from .sampler import Sampler
 
@@ -99,7 +99,7 @@ class Nas:
             depth=self.__depth,
             width=self.__width,
             max_branch_depth=self.__max_bdepth)
-        eva = Evaluater()
+        eva = Evaluator()
         spl = Sampler()
         opt = Optimizer(spl.dim, spl.parameters_subscript)
 
