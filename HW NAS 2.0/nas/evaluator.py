@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from .base import NetworkUnit
-from .base import Dataset
+from base import NetworkUnit
+from base import Dataset
 from datetime import datetime
 import math
 import time
@@ -52,13 +52,13 @@ def load_data_one(file):
 
 
 def load_data(files, data_dir, label_count):
-    data, labels = load_data_one(os.path.join(data_dir , files[0]))
+    data, labels = load_data_one(os.path.join(data_dir, files[0]))
     for f in files[1:]:
         data_n, labels_n = load_data_one(os.path.join(data_dir, f))
         data = np.append(data, data_n, axis=0)
         labels = np.append(labels, labels_n, axis=0)
     labels = np.array([[float(i == label) for i in range(label_count)] for label in labels])
-    data = data.reshape([-1, 3,IMAGE_SIZE, IMAGE_SIZE])
+    data = data.reshape([-1, 3, IMAGE_SIZE, IMAGE_SIZE])
     data = data.transpose([0, 2, 3, 1])
     return data, labels
 
@@ -221,8 +221,7 @@ class Evaluator:
                    tensor.
         """
         i = 0
-        print(inputs.shape)
-        inputs = tf.reshape(inputs, [-1, 2 * 2 * 512])
+        inputs = tf.reshape(inputs, [batch_size, -1])
 
         for neural_num in hplist[1]:
             with tf.variable_scope('dense' + str(i)) as scope:
@@ -300,48 +299,66 @@ class Evaluator:
                     inqueue[j] = True
 
         # softmax
+        last_layer=tf.identity(layer,name="last_layer")
+
+        # inputdim = layer.shape[3]
+        # kernel = tf.get_variable('weights', shape=[1, 1, inputdim, NUM_CLASSES],
+        #                          initializer=tf.truncated_normal_initializer(stddev=0.1))
+        # layer = tf.nn.conv2d(layer, kernel, [1, 1, 1, 1], padding='SAME')
         # layer = tf.reshape(layer, [batch_size, -1])
-        with tf.variable_scope('softmax_linear') as scope:
-            weights = tf.get_variable('weights', shape=[layer.shape[-1], NUM_CLASSES],
-                                      initializer=tf.truncated_normal_initializer(stddev=0.04))  # 1 / float(dim)))
-            biases = tf.get_variable('biases', shape=[NUM_CLASSES], initializer=tf.constant_initializer(0.0))
-            # softmax_linear = tf.nn.softmax(tf.matmul(layer, weights)+ biases, name=scope.name)
-            softmax_linear = tf.add(tf.matmul(layer, weights), biases, name=scope.name)
-            # tf.add_to_collection('losses', regularizer(weights))
-        return softmax_linear
+        # with tf.variable_scope('softmax_linear') as scope:
+        #     weights = tf.get_variable('weights', shape=[layer.shape[-1], NUM_CLASSES],
+        #                               initializer=tf.truncated_normal_initializer(stddev=0.04))  # 1 / float(dim)))
+        #     biases = tf.get_variable('biases', shape=[NUM_CLASSES], initializer=tf.constant_initializer(0.0))
+        #     # softmax_linear = tf.nn.softmax(tf.matmul(layer, weights)+ biases, name=scope.name)
+        #     softmax_linear = tf.add(tf.matmul(layer, weights), biases, name="last_layer")
+        #     # tf.add_to_collection('losses', regularizer(weights))
+        return last_layer
 
-
-    def evaluate(self, network=None):
+    def evaluate(self, network=None,thisNetworkIsTheBest = False,theresNotSoManyNetworkLeft = False):
         # define placeholder x, y_ , keep_prob, learning_rate
-        x = tf.placeholder(tf.float32, [None, IMAGE_SIZE,IMAGE_SIZE, 3])
-        y_ = tf.placeholder(tf.int64, [None, NUM_CLASSES])
+        x = tf.placeholder(tf.float32, [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3])
+        y_ = tf.placeholder(tf.int64, [batch_size, NUM_CLASSES])
         learning_rate = tf.placeholder(tf.float32)
         train_flag = tf.placeholder(tf.bool)
 
-        output = self._inference(x, network.graph_part, network.cell_list[-1])
-
-        # output  = tf.reshape(output,[-1,10])
-
-        # loss function: cross_entropy
-        # train_step: training operation
-        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=output))
-        l2 = tf.add_n([tf.nn.l2_loss(var) for var in tf.trainable_variables()])
-        train_step = tf.train.MomentumOptimizer(learning_rate, momentum_rate, use_nesterov=True). \
-            minimize(cross_entropy + l2 * weight_decay)
-
-        correct_prediction = tf.equal(tf.argmax(output, 1), tf.argmax(y_, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
-        # initial an saver to save model
-        saver = tf.train.Saver()
-
         with tf.Session() as sess:
+
+            # TODO the symbol of whether to update pre_block's weight
+
+            if theresNotSoManyNetworkLeft:
+                for i in range(len(network.pre_block)):
+                    x = self._inference(x, network.pre_block[0], network.pre_block[1])
+            elif len(network.pre_block) > 0:
+                new_saver = tf.train.import_meta_graph(model_save_path)
+                new_saver.restore(sess, tf.train.latest_checkpoint(''))
+                graph = tf.get_default_graph()
+                x = graph.get_tensor_by_name("last_layer")
+
+            output = self._inference(x, network.graph_part, network.cell_list[-1])
+
+            # output  = tf.reshape(output,[-1,output.shape[-1]])
+            weights = tf.get_variable('weights', shape=[output.shape[-1], NUM_CLASSES],
+                                                                    initializer=tf.truncated_normal_initializer(stddev=0.04))  # 1 / float(dim)))
+            biases = tf.get_variable('biases', shape=[NUM_CLASSES], initializer=tf.constant_initializer(0.0))
+
+            y = tf.add(tf.matmul(output, weights), biases, name="last_layer")
+
+            # loss function: cross_entropy
+            # train_step: training operation
+            cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y))
+            l2 = tf.add_n([tf.nn.l2_loss(var) for var in tf.trainable_variables()])
+            train_step = tf.train.MomentumOptimizer(learning_rate, momentum_rate, use_nesterov=True). \
+                minimize(cross_entropy + l2 * weight_decay)
+
+            correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
+            accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+            # initial an saver to save model
+            saver = tf.train.Saver()
 
             sess.run(tf.global_variables_initializer())
             summary_writer = tf.summary.FileWriter(log_save_path, sess.graph)
-
-            # epoch = 164
-            # make sure [bath_size * iteration = data_set_number]
 
             for ep in range(1, epoch + 1):
                 lr = learning_rate_schedule(ep)
@@ -371,8 +388,8 @@ class Evaluator:
                         train_loss /= self.max_steps
                         train_acc /= self.max_steps
 
-                        loss_, acc_ = sess.run([cross_entropy, accuracy],
-                                               feed_dict={x: batch_x, y_: batch_y,  train_flag: True})
+                        # loss_, acc_ = sess.run([cross_entropy, accuracy],
+                        #                        feed_dict={x: batch_x, y_: batch_y, train_flag: True})
                         train_summary = tf.Summary(value=[tf.Summary.Value(tag="train_loss", simple_value=train_loss),
                                                           tf.Summary.Value(tag="train_accuracy",
                                                                            simple_value=train_acc)])
@@ -380,8 +397,8 @@ class Evaluator:
                         val_acc = 0.0
                         val_loss = 0.0
                         pre_index = 0
-                        add = 1000
-                        for it in range(10):
+                        add = batch_size
+                        for it in range(40):
                             batch_x = self.dvalid.feature[pre_index:pre_index + add]
                             batch_y = self.dvalid.label[pre_index:pre_index + add]
                             pre_index = pre_index + add
@@ -390,7 +407,7 @@ class Evaluator:
                             val_loss += loss_ / 10.0
                             val_acc += acc_ / 10.0
                         test_summary = tf.Summary(value=[tf.Summary.Value(tag="test_loss", simple_value=val_loss),
-                                                    tf.Summary.Value(tag="test_accuracy", simple_value=val_acc)])
+                                                         tf.Summary.Value(tag="test_accuracy", simple_value=val_acc)])
 
                         summary_writer.add_summary(train_summary, ep)
                         summary_writer.add_summary(test_summary, ep)
@@ -405,8 +422,11 @@ class Evaluator:
                     #     print("iteration: %d/%d, train_loss: %.4f, train_acc: %.4f"
                     #           % (it, self.max_steps, train_loss / it, train_acc / it))
 
-            save_path = saver.save(sess, model_save_path)
-            print("Model saved in file: %s" % save_path)
+            # TODO the symbol of whether it's the best network or not
+
+            if thisNetworkIsTheBest:
+                save_path = saver.save(sess, model_save_path)
+                print("Model saved in file: %s" % save_path)
         return val_acc
 
     def add_data(self, add_num=0):
@@ -434,8 +454,8 @@ class Evaluator:
                 self.trainindex += selected
                 self.leftindex = [i for i in self.leftindex if not (i in selected)]
                 random.shuffle(self.trainindex)
-                self.dtrain.feature=self.dataset.feature[self.trainindex]
-                self.dtrain.label=self.dataset.label[self.trainindex]
+                self.dtrain.feature = self.dataset.feature[self.trainindex]
+                self.dtrain.label = self.dataset.label[self.trainindex]
         return 0
 
     def get_train_size(self):
@@ -444,21 +464,30 @@ class Evaluator:
 
 if __name__ == '__main__':
     eval = Evaluator()
-    eval.add_data(50000)
-    network = NetworkUnit()
-    network.graph_part = [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17], []]
+    eval.add_data(5000)
+    lenet=NetworkUnit()
+    lenet.graph_part = [[1], [2], [3], [4], []]
+    cell_list = [('conv', 64, 5, 'relu'), ('pooling', 'max', 3), ('conv', 64, 5, 'relu'), ('pooling', 'max', 3),
+               ('dense', [384, 192], 'relu')]
+    lenet.cell_list = [cell_list]
+    e=eval.evaluate(lenet,thisNetworkIsTheBest=True)
+    print(e)
+    # cellist=[('conv', 128, 1, 'relu'), ('conv', 32, 1, 'relu'), ('conv', 256, 1, 'relu'), ('pooling', 'max', 2), ('pooling', 'global', 3), ('conv', 32, 1, 'relu')]
+    # cellist=[('pooling', 'global', 2), ('pooling', 'max', 3), ('conv', 21, 32, 'leakyrelu'), ('conv', 16, 32, 'leakyrelu'), ('pooling', 'max', 3), ('conv', 16, 32, 'leakyrelu')]
+
+    vgg = NetworkUnit()
+    vgg.graph_part = [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17],
+                          []]
     cell_list = [('conv', 64, 3, 'relu'), ('conv', 64, 3, 'relu'), ('pooling', 'max', 2), ('conv', 128, 3, 'relu'),
                  ('conv', 128, 3, 'relu'), ('pooling', 'max', 2), ('conv', 256, 3, 'relu'),
                  ('conv', 256, 3, 'relu'), ('conv', 256, 3, 'relu'), ('pooling', 'max', 2),
                  ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
                  ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
                  ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
-    # network.graph_part = [[1], [2], [3], [4], []]
-    # cellist = [('conv', 64, 5, 'relu'), ('pooling', 'max', 3), ('conv', 64, 5, 'relu'), ('pooling', 'max', 3),
-    #            ('dense', [384, 192], 'relu')]
-    # cellist=[('conv', 128, 1, 'relu'), ('conv', 32, 1, 'relu'), ('conv', 256, 1, 'relu'), ('pooling', 'max', 2), ('pooling', 'global', 3), ('conv', 32, 1, 'relu')]
-    # cellist=[('pooling', 'global', 2), ('pooling', 'max', 3), ('conv', 21, 32, 'leakyrelu'), ('conv', 16, 32, 'leakyrelu'), ('pooling', 'max', 3), ('conv', 16, 32, 'leakyrelu')]
-    network.cell_list = [cell_list]
-    e = eval.evaluate(network)
+    vgg.cell_list = [cell_list]
+    vgg.pre_block.append(lenet.graph_part)
+    vgg.pre_block.append(lenet.cell_list[-1])
+    e = eval.evaluate(vgg)
+
     # e=eval.train(network.graph_part,cellist)
     print(e)

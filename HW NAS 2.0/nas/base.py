@@ -4,6 +4,7 @@ PLEASE DO NOT USE 'from .base import *' !!!
 """
 
 class NetworkUnit:
+    pre_block=[]
     def __init__(self, graph_part=[[]], cell_list=[]):
         self.graph_part = graph_part
         self.cell_list = cell_list
