@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from base import NetworkUnit
-from base import Dataset
+from .base import NetworkUnit
+from .base import Dataset
 from datetime import datetime
 import math
 import time
@@ -12,13 +12,10 @@ import tensorflow as tf
 import random
 import pickle
 
-# from .cifar10_input import inputs
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-
 path = '/data/data/'  # + '/../'
 
-# FLAGS = tf.app.flags.FLAGS
 
 # Global constants describing the CIFAR-10 data set.
 IMAGE_SIZE = 32
@@ -68,7 +65,7 @@ def prepare_data():
     # download_data()
     data_dir = os.path.join(path, 'cifar-10-batches-py')
     # image_dim = IMAGE_SIZE * image_size * img_channels
-    meta = unpickle(os.path.join(data_dir,  'batches.meta'))
+    meta = unpickle(os.path.join(data_dir, 'batches.meta'))
 
     print(meta)
     label_names = meta[b'label_names']
@@ -161,7 +158,7 @@ class Evaluator:
         self.train_num = 0
         self.network_num = 0
         self.max_steps = 0
-        self.blocks=0
+        self.blocks = 0
 
     def _makeconv(self, inputs, hplist, node):
         """Generates a convolutional layer according to information in hplist
@@ -174,7 +171,7 @@ class Evaluator:
         tensor.
         """
         # print('Evaluater:right now we are making conv layer, its node is %d, and the inputs is'%node,inputs,'and the node before it is ',cellist[node-1])
-        with tf.variable_scope('conv' + str(node)+'block'+str(self.blocks)) as scope:
+        with tf.variable_scope('conv' + str(node) + 'block' + str(self.blocks)) as scope:
             inputdim = inputs.shape[3]
             kernel = tf.get_variable('weights', shape=[hplist[2], hplist[2], inputdim, hplist[1]],
                                      initializer=tf.truncated_normal_initializer(stddev=0.1))
@@ -300,7 +297,7 @@ class Evaluator:
                     inqueue[j] = True
 
         # softmax
-        last_layer=tf.identity(layer,name="last_layer"+str(self.blocks))
+        last_layer = tf.identity(layer, name="last_layer" + str(self.blocks))
 
         # inputdim = layer.shape[3]
         # kernel = tf.get_variable('weights', shape=[1, 1, inputdim, NUM_CLASSES],
@@ -316,49 +313,59 @@ class Evaluator:
         #     # tf.add_to_collection('losses', regularizer(weights))
         return last_layer
 
-    def evaluate(self, network=None,thisNetworkIsTheBest = False,theresNotSoManyNetworkLeft = False):
-        self.blocks=len(network.pre_block)
+    def evaluate(self, graph_part, cell_list, pre_block, is_bestNN=False,update_pre_weight=False):
+        '''Method for evaluate the given network.
+        Args:
+            graph_part: The topology structure of the network given by adjacency table
+            cell_list: The configuration of this network for each node in graph_part.
+            pre_block: The pre-block structure, every block has two parts: graph_part and cell_list of this block.
+            is_bestNN: Symbol for indicating whether the evaluating network is the best network of this round, default False.
+            update_pre_weight: Symbol for indicating whether to update previous blocks' weight, default by False.
+        Returns:
+            Accuracy'''
+        self.blocks = len(pre_block)
         # define placeholder x, y_ , keep_prob, learning_rate
         learning_rate = tf.placeholder(tf.float32)
         train_flag = tf.placeholder(tf.bool)
 
         with tf.Session() as sess:
-            # TODO the symbol of whether to update pre_block's weight
-            if theresNotSoManyNetworkLeft:
+            if update_pre_weight:
                 x = tf.placeholder(tf.float32, [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3], name='input')
                 y_ = tf.placeholder(tf.int64, [batch_size, NUM_CLASSES], name="label")
-                input=x
+                input = x
                 for i in range(self.blocks):
-                    self.blocks=i
-                    input = self._inference(input, network.pre_block[i][0], network.pre_block[i][1])
-                self.blocks = len(network.pre_block)
+                    self.blocks = i
+                    input = self._inference(input, pre_block[i][0], pre_block[i][1])
+                self.blocks = len(pre_block)
             elif self.blocks > 0:
-                new_saver = tf.train.import_meta_graph(model_save_path+'my_model.meta')
+                new_saver = tf.train.import_meta_graph(model_save_path + 'my_model.meta')
                 new_saver.restore(sess, tf.train.latest_checkpoint(model_save_path))
                 graph = tf.get_default_graph()
-                x=graph.get_tensor_by_name("input:0")
-                y_=graph.get_tensor_by_name("label:0")
-                input = graph.get_tensor_by_name("last_layer"+str(self.blocks-1)+":0")
+                x = graph.get_tensor_by_name("input:0")
+                y_ = graph.get_tensor_by_name("label:0")
+                input = graph.get_tensor_by_name("last_layer" + str(self.blocks - 1) + ":0")
             else:
                 x = tf.placeholder(tf.float32, [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3], name='input')
                 y_ = tf.placeholder(tf.int64, [batch_size, NUM_CLASSES], name="label")
-                input=x
+                input = x
 
-            output = self._inference(input, network.graph_part, network.cell_list[-1])
+            output = self._inference(input, graph_part, cell_list)
 
-            output  = tf.reshape(output,[batch_size,-1])
+            output = tf.reshape(output, [batch_size, -1])
             with tf.variable_scope('lastdense' + str(self.blocks)) as scope:
-             weights = tf.get_variable('weights'+str(self.blocks), shape=[output.shape[-1], NUM_CLASSES],
-                                                                    initializer=tf.truncated_normal_initializer(stddev=0.04))  # 1 / float(dim)))
-             biases = tf.get_variable('biases'+str(self.blocks), shape=[NUM_CLASSES], initializer=tf.constant_initializer(0.0))
+                weights = tf.get_variable('weights' + str(self.blocks), shape=[output.shape[-1], NUM_CLASSES],
+                                          initializer=tf.truncated_normal_initializer(stddev=0.04))  # 1 / float(dim)))
+                biases = tf.get_variable('biases' + str(self.blocks), shape=[NUM_CLASSES],
+                                         initializer=tf.constant_initializer(0.0))
 
-            y = tf.add(tf.matmul(output, weights), biases, name="result"+str(self.blocks))
+            y = tf.add(tf.matmul(output, weights), biases, name="result" + str(self.blocks))
 
             # loss function: cross_entropy
             # train_step: training operation
             cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y))
             l2 = tf.add_n([tf.nn.l2_loss(var) for var in tf.trainable_variables()])
-            train_step = tf.train.MomentumOptimizer(learning_rate, momentum_rate, use_nesterov=True,name='opt'+str(self.blocks)). \
+            train_step = tf.train.MomentumOptimizer(learning_rate, momentum_rate, use_nesterov=True,
+                                                    name='opt' + str(self.blocks)). \
                 minimize(cross_entropy + l2 * weight_decay)
 
             correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
@@ -367,7 +374,6 @@ class Evaluator:
             sess.run(tf.global_variables_initializer())
             # initial an saver to save model
             saver = tf.train.Saver()
-
 
             summary_writer = tf.summary.FileWriter(log_save_path, sess.graph)
 
@@ -409,7 +415,7 @@ class Evaluator:
                         val_loss = 0.0
                         pre_index = 0
                         add = batch_size
-                        val_iter=NUM_EXAMPLES_PER_EPOCH_FOR_EVAL/add
+                        val_iter = NUM_EXAMPLES_PER_EPOCH_FOR_EVAL / add
                         for i in range(int(val_iter)):
                             batch_x = self.dvalid.feature[pre_index:pre_index + add]
                             batch_y = self.dvalid.label[pre_index:pre_index + add]
@@ -434,10 +440,8 @@ class Evaluator:
                     #     print("iteration: %d/%d, train_loss: %.4f, train_acc: %.4f"
                     #           % (it, self.max_steps, train_loss / it, train_acc / it))
 
-            # TODO the symbol of whether it's the best network or not
-
-            if thisNetworkIsTheBest:
-                save_path = saver.save(sess, model_save_path+'my_model')
+            if is_bestNN:
+                save_path = saver.save(sess, model_save_path + 'my_model')
                 print("Model saved in file: %s" % save_path)
         return val_acc
 
@@ -477,18 +481,18 @@ class Evaluator:
 if __name__ == '__main__':
     eval = Evaluator()
     eval.add_data(5000)
-    lenet=NetworkUnit()
+    lenet = NetworkUnit()
     lenet.graph_part = [[1], [2], [3], []]
     cell_list = [('conv', 64, 5, 'relu'), ('pooling', 'max', 3), ('conv', 64, 5, 'relu'), ('pooling', 'max', 3)]
     lenet.cell_list = [cell_list]
-    # e=eval.evaluate(lenet,thisNetworkIsTheBest=True)
-    # print(e)
+    e=eval.evaluate(lenet.graph_part,lenet.cell_list[-1],lenet.pre_block,is_bestNN=True)
+    print(e)
     # cellist=[('conv', 128, 1, 'relu'), ('conv', 32, 1, 'relu'), ('conv', 256, 1, 'relu'), ('pooling', 'max', 2), ('pooling', 'global', 3), ('conv', 32, 1, 'relu')]
     # cellist=[('pooling', 'global', 2), ('pooling', 'max', 3), ('conv', 21, 32, 'leakyrelu'), ('conv', 16, 32, 'leakyrelu'), ('pooling', 'max', 3), ('conv', 16, 32, 'leakyrelu')]
 
     vgg = NetworkUnit()
     vgg.graph_part = [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17],
-                          []]
+                      []]
     cell_list = [('conv', 64, 3, 'relu'), ('conv', 64, 3, 'relu'), ('pooling', 'max', 2), ('conv', 128, 3, 'relu'),
                  ('conv', 128, 3, 'relu'), ('pooling', 'max', 2), ('conv', 256, 3, 'relu'),
                  ('conv', 256, 3, 'relu'), ('conv', 256, 3, 'relu'), ('pooling', 'max', 2),
@@ -496,8 +500,7 @@ if __name__ == '__main__':
                  ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
                  ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
     vgg.cell_list = [cell_list]
-    vgg.pre_block.append([lenet.graph_part,lenet.cell_list[-1]])
-    e = eval.evaluate(vgg,theresNotSoManyNetworkLeft=True)
-
+    vgg.pre_block.append([lenet.graph_part, lenet.cell_list[-1]])
+    e = eval.evaluate(vgg.graph_part,vgg.cell_list[-1],vgg.pre_block, update_pre_weight=True)
     # e=eval.train(network.graph_part,cellist)
     print(e)
