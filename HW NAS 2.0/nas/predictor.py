@@ -348,7 +348,7 @@ class Predictor:
         graph_list = []
         if blocks:
             for block in blocks:
-                graph_list.append(block.graph_part)
+                graph_list.append(block)
         graph_list.append(graph_part)
         graphs_mat, graphs_orders = self._trans(graph_list)
         new_graph = graph_concat(graphs_mat)
@@ -366,6 +366,6 @@ if __name__ == '__main__':
     for ind in range(2, len(network_pool)):
         gra = network_pool[ind].graph_part
         pred = Predictor()
-        Blocks = [network_pool[ind - 2], network_pool[ind - 1]]
+        Blocks = [network_pool[ind - 2].graph_part, network_pool[ind - 1].graph_part]
         cell_list = pred.predictor(Blocks, gra)
         print(cell_list)
