@@ -447,10 +447,10 @@ class Evaluator:
 
     def add_data(self, add_num=0):
 
-        if self.train_num + add_num > 50000:
+        if self.train_num + add_num > 50000 or add_num<0:
             add_num = 50000 - self.train_num
             self.train_num = 50000
-            print('Warning! ')
+            print('Warning! Add number has been changed to ',add_num,', all data is loaded.')
         else:
             self.train_num += add_num
         # print('************A NEW ROUND************')
