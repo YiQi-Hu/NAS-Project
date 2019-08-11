@@ -7,7 +7,7 @@ from .base import NetworkUnit
 from .enumerater import Enumerater
 from .evaluator import Evaluator
 from .optimizer import Optimizer
-from .sampler import Sampler_table
+from .sampler import Sampler
 from .predictor import Predictor
 
 NETWORK_POOL = []
@@ -17,13 +17,12 @@ def run_proc(NETWORK_POOL, eva, finetune_signal, first_round, scores):
     for i, nn in enumerate(NETWORK_POOL):
         try:
             if first_round:
-                temp_nn = NetworkUnit(nn.graph_full, nn.cell_list[-1])
+                cell, graph = nn.cell_list[-1], nn.graph_full
             else:
                 cell, graph = nn.spl.sample()
                 nn.graph_full = graph
                 nn.cell_list.append(cell)
-                temp_nn = NetworkUnit(graph, cell)
-            score = eva.evaluate(temp_nn, False, finetune_signal)
+            score = eva.evaluate(graph, cell, nn.pre_block, False, finetune_signal)
             scores.append(score)
             nn.opt.update_model(nn.pros, score)  # ??? here, is the parameter score a list ? or a number ?
             nn.pros = nn.opt.sample()
@@ -154,26 +153,36 @@ class Nas:
         best_nn = NETWORK_POOL[0]
         best_opt_score = 0
         best_cell_i = 0
-        eva.add_data(-1)  # why is here -1 ?
+        nn_list = []
+        eva.add_data(-1)  # -1 represent that we add all data for training
         for i in range(self.__opt_best_k):
             cell, graph = best_nn.spl.sample()
-            best_nn.graph_full = graph
+            best_nn.graph_full = graph  # here, the graph_full is covered by new graph, hence the log of graph is stored in the nn_list
             best_nn.cell_list.append(cell)
-            temp_nn = NetworkUnit(graph, cell)
-            opt_score = eva.evaluate(temp_nn, True, True)
+            nn_list.append([graph, cell])
+            opt_score = eva.evaluate(graph, cell, best_nn.pre_block, True, True)
             if opt_score > best_opt_score:
                 best_opt_score = opt_score
                 best_cell_i = i
         print(best_opt_score)
-        return best_nn, best_cell_i
+        best_nn.graph_full = nn_list[best_cell_i][0]
+        best_nn.cell_list.append(nn_list[best_cell_i][1])
+        return best_nn
 
     def initialize_ops(self, pred, pattern, NETWORK_POOL):
+        print(len(NETWORK_POOL))
+        i = 0
         for network in NETWORK_POOL:  # initialize the full network by adding the skipping and ops to graph_part
+            i += 1
+            print(i)
             network.pros = network.opt.sample()
             network.spl.renewp(network.pros)
             cell, graph = network.spl.sample()
             network.graph_full = graph
-            network.cell_list.append(pred.predictor(network.pre_block, graph))
+            blocks = []
+            for block in network.pre_block:  # get the graph_full adjacency list in the previous blocks
+                blocks.append(block[0])  # only get the graph_full in the pre_bock
+            network.cell_list.append(pred.predictor(blocks, graph))
             if pattern == "Block":  # NASing based on block mode
                 network.cell_list[-1] = self.remove_pooling(network.cell_list[-1])
 
@@ -201,7 +210,9 @@ class Nas:
         # Step 2: Search best structure
         finetune_signal = False
         self.initialize_ops(pred, pattern, NETWORK_POOL)
+        print("initialize...")
         scores = self.__game(eva, finetune_signal, True, NETWORK_POOL)
+        print("first game...")
         self.__eliminate(NETWORK_POOL, scores)
         while (len(NETWORK_POOL) > 1):
             # Step 3: Sample, train and evaluate every network
@@ -232,10 +243,10 @@ class Nas:
             assert block_num, "you must give the number of blocks(block_num) in the Block mode"
             for i in range(block_num):
                 block = self.algorithm(pattern)
-                block.pre_block.append([block.graph_full, block.cell_list])  # or NetworkUnit.pre_block.append()
+                block.pre_block.append([block.graph_full, block.cell_list[-1]])  # or NetworkUnit.pre_block.append()
             return block.pre_block  # or NetworkUnit.pre_block
 
 
 if __name__ == '__main__':
-    nas = Nas()
-    print(nas.run())
+    nas = Nas(randseed=1000)
+    print(nas.run(pattern="Block",block_num=5))

@@ -1,10 +1,11 @@
 import numpy as np
-from enumerater import Enumerater
-from predict_op.label_encoding import decoder
+from .enumerater import Enumerater
+from .predict_op.label_encoding import decoder
 from keras.models import model_from_json
+
 MAX_NETWORK_LENGTH = 71
-model_json_path = './predict_op/model.json'
-model_weights_path = './predict_op/model.json.h5'
+model_json_path = './nas/predict_op/model.json'
+model_weights_path = './nas/predict_op/model.json.h5'
 
 
 class Feature:
