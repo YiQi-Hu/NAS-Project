@@ -16,6 +16,7 @@ NETWORK_POOL = []
 def run_proc(NETWORK_POOL, eva, finetune_signal, first_round, scores):
     for i, nn in enumerate(NETWORK_POOL):
         try:
+            print("if_else")
             if first_round:
                 cell, graph = nn.cell_list[-1], nn.graph_full
             else:
@@ -23,13 +24,15 @@ def run_proc(NETWORK_POOL, eva, finetune_signal, first_round, scores):
                 nn.graph_full = graph
                 nn.cell_list.append(cell)
             score = eva.evaluate(graph, cell, nn.pre_block, False, finetune_signal)
+            print("score:", score)
             scores.append(score)
-            nn.opt.update_model(nn.pros, score)  # ??? here, is the parameter score a list ? or a number ?
+            nn.opt.update_model(nn.pros, score)
             nn.pros = nn.opt.sample()
             nn.spl.renewp(nn.pros)
         except Exception as e:
             print(e)
             return i
+    return len(NETWORK_POOL)
 
 
 class Nas:
@@ -123,9 +126,16 @@ class Nas:
         while i < len(NETWORK_POOL):
             print(i)
 
-            with Pool(1) as p:
-                key=p.apply(run_proc, args=(NETWORK_POOL[i:], eva, finetune_signal,first_round, scores))
-                i+=key
+            # with Pool(1) as p:
+            '''
+            p = Pool(1)
+            key=p.apply(run_proc, args=(NETWORK_POOL[i:], eva, finetune_signal,first_round, scores))
+            i+=key
+            p.close()
+            p.join()
+            '''
+            key = run_proc(NETWORK_POOL[i:], eva, finetune_signal, first_round, scores)
+            i += key
             # try:
             #     p=Pool(1)
             #     key=p.apply(run_proc, args=(NETWORK_POOL[i:], spl, eva, scores,))
