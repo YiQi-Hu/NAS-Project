@@ -314,7 +314,6 @@ class Evaluator:
         return last_layer
 
     def evaluate(self, graph_part, cell_list, pre_block, is_bestNN=False,update_pre_weight=False):
-        return 0.6  # for debug
         '''Method for evaluate the given network.
         Args:
             graph_part: The topology structure of the network given by adjacency table

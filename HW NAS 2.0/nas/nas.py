@@ -204,11 +204,22 @@ class Nas:
             blocks = []
             for block in network.pre_block:  # get the graph_full adjacency list in the previous blocks
                 blocks.append(block[0])  # only get the graph_full in the pre_bock
-            network.cell_list.append(pred.predictor(blocks, graph))
-            if self.__pattern == "Block":  # NASing based on block mode
-                network.cell_list[-1] = self.remove_pooling(network.cell_list[-1])
+            pred_ops = pred.predictor(blocks, graph)
+            cell = self.merge_ops(cell, pred_ops)
+            network.cell_list.append(cell)
+            # if self.__pattern == "Block":  # NASing based on block mode
+            #     network.cell_list[-1] = self.remove_pooling(network.cell_list[-1])
 
-    def remove_pooling(self, cell):
+    def merge_ops(self, cell, pred_ops):
+        assert len(cell) == len(pred_ops), "the number of ops predicted must equal that of ops sampled!"
+        for i in range(len(cell)):
+            if cell[i][0] == "conv" and pred_ops[i][0] != "pooling":  # both two ops are conv
+                cell[i] = (cell[i][0], int(pred_ops[i][0]), int(pred_ops[i][1]), cell[i][3])
+            elif cell[i][0] == "pooling" and pred_ops[i][0] != "pooling":  # sampling pooling, but predicting conv
+                cell[i] = ('conv', int(pred_ops[i][0]), int(pred_ops[i][1]), 'relu')
+        return cell
+
+    def remove_pooling(self, cell):  # replace pooling by conv
         for i in range(len(cell)):
             if cell[i][0] == "pooling":
                 if i == 0:
