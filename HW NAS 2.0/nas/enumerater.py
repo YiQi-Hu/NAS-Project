@@ -7,13 +7,14 @@ import pickle
 from .base import NetworkUnit
 # from .base import NetworkUnit, NETWORK_POOL
 class Enumerater:
-    def __init__(self,depth=6,width=3,max_branch_depth=6):
+    def __init__(self,depth=6,width=3,max_branch_depth=6,pattern="Global"):
         self.depth = depth
         self.width = width
         self.max_branch_depth = max_branch_depth
         self.info_dict = {}
         self.info_group = []
         self.log = ""
+        self.pattern = pattern
 
 
     # 生成Adjacney 填充全局变量NETWORK_POOL
@@ -40,7 +41,8 @@ class Enumerater:
             for j in range(self.depth):
                 if j <= i+1:
                     continue
-                for k in range(j-i):
+                # for k in range(j-i):  # 生成跨层连接的部分转移到了采样模块，为了节省计算资源
+                for k in range(1, j-i):
                     if k < self.max_branch_depth:
                         # print(i,j,k)
                         self.info_dict[cnt] = [i,j,k]
@@ -95,7 +97,7 @@ class Enumerater:
                     s = p
                 tmp[s].append(e)
             if self.judgemultiple(tmp) == 1:
-                tmp_net = NetworkUnit(tmp,[])
+                tmp_net = NetworkUnit(tmp, [], self.pattern)
                 # print(tmp)
                 pool.append(tmp_net)
         return pool

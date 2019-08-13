@@ -1,14 +1,13 @@
 import random
-from sampling.load_configuration import load_conf
-from optimizer import Dimension
+from .sampling.load_configuration import load_conf
+from .optimizer import Dimension
 import pickle
-from optimizer import Optimizer
-from optimizer import RacosOptimization
+from .optimizer import Optimizer
+from .optimizer import RacosOptimization
 import numpy as np
-from evaluater import Evaluater
+from .evaluator import Evaluator
 from multiprocessing import Process,Pool
 import multiprocessing
-from base import NetworkUnit
 import time
 import pickle
 import copy
@@ -78,7 +77,6 @@ class Sampler:
 
         # 读取配置表得到操作的对应映射
         self.setting, self.pros, self.parameters_subscript_node, = load_conf()
-        #
         del self.setting['dense']
         del self.setting['pooling']
 

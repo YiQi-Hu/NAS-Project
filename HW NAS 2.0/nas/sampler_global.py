@@ -3,11 +3,12 @@ from .sampling.load_configuration import load_conf
 from .optimizer import Dimension
 import pickle
 from .optimizer import Optimizer
-from .optimizer import RacosOptimization
+# from .optimizer import RacosOptimization
 import numpy as np
 from .evaluator import Evaluator
 from multiprocessing import Process,Pool
 import multiprocessing
+# from .base import NetworkUnit
 import time
 import pickle
 import copy
@@ -59,7 +60,7 @@ def connect(graph_part, max_dist):
 
 class Sampler:
 
-    def __init__(self, graph_part, crosslayer_dis, conv_filter_size):
+    def __init__(self, graph_part, crosslayer_dis):
 
         '''
         :param nn: NetworkUnit
@@ -76,12 +77,9 @@ class Sampler:
         # self.crosslayer = self.get_crosslayer()
 
         # 读取配置表得到操作的对应映射
-        # self.setting, self.pros, self.parameters_subscript_node, = load_conf()
-        self.setting, self.pros, = load_conf()
+        self.setting, self.pros, self.parameters_subscript_node, = load_conf()
+        #
         del self.setting['dense']
-        del self.setting['pooling']
-
-        self.setting['conv']['filter_size']['val'] = conv_filter_size
 
         self.dic_index = self._init_dict()
 
@@ -182,8 +180,6 @@ class Sampler:
             # first = p_node[0]
             tmp = ()
             # 首位置确定 conv 还是 pooling
-            # 基于block 都是conv起作用
-            first = 0
             if first == 0:
                 # 搜索conv下的操作
                 # 基于操作的对应映射取配置所在的地址，进行取值
@@ -274,7 +270,6 @@ class Sampler:
                         c = j
                         # p_node[self.dic_index['conv activation'][-1]] = j
                         # print(j, '##', self.dic_index['conv activation'][-1])
-
                 # print(a,b,c)
                 p_node[self.dic_index['conv'][-1]] = 0
                 if a != -1:
@@ -289,6 +284,7 @@ class Sampler:
 
                     # tmp = tmp + (self.setting['conv'][key.split(' ')[-1]]['val'][p_node[self.dic_index[key][-1]]],)
             else:
+                p_node[self.dic_index['conv'][-1]] = 1
                 table = table + p_node
 
         return table
@@ -310,13 +306,11 @@ if __name__ == '__main__':
 
     for graph_part in NU:
         print('##'*40)
-        # 加入参数 卷积中的 filter_size的大小
-        spl = Sampler(graph_part, 50, [32,48,64,128])
+        spl = Sampler(graph_part, 50)
 
         dic_index = spl.dic_index
         cl = spl.crosslayer
 
-        print(len(dic_index))
         print(dic_index)
         #
         opt = Optimizer(spl.get_dim(), spl.get_parametets_subscript())
