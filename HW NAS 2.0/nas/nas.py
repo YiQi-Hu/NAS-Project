@@ -43,6 +43,7 @@ class Nas:
         self.__max_bdepth = max_branch_depth
         self.__pattern = pattern
         self.__block_num = block_num
+        self.__finetune_threshold = 5
 
         if randseed is not -1:
             random.seed(randseed)
@@ -236,7 +237,7 @@ class Nas:
         self.__eliminate(NETWORK_POOL, scores)
         while (len(NETWORK_POOL) > 1):
             # Step 3: Sample, train and evaluate every network
-            if len(NETWORK_POOL) < 5:
+            if len(NETWORK_POOL) < self.__finetune_threshold:
                 finetune_signal = True
             scores = self.__game(eva, finetune_signal, False, NETWORK_POOL)
 
