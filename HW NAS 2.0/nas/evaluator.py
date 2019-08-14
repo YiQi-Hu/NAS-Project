@@ -15,6 +15,7 @@ import pickle
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 path = './data/'  # + '/../'
+path='C:\\Users\\Jalynn\\Desktop'
 
 
 # Global constants describing the CIFAR-10 data set.
@@ -443,6 +444,8 @@ class Evaluator:
             if is_bestNN:
                 save_path = saver.save(sess, model_save_path + 'my_model')
                 print("Model saved in file: %s" % save_path)
+            sess.close()
+        tf.reset_default_graph()
         return val_acc
 
     def add_data(self, add_num=0):
@@ -485,7 +488,7 @@ if __name__ == '__main__':
     lenet.graph_part = [[1], [2], [3], []]
     cell_list = [('conv', 64, 5, 'relu'), ('pooling', 'max', 3), ('conv', 64, 5, 'relu'), ('pooling', 'max', 3)]
     lenet.cell_list = [cell_list]
-    e=eval.evaluate(lenet.graph_part,lenet.cell_list[-1],lenet.pre_block,is_bestNN=True)
+    e=eval.evaluate(lenet.graph_part,lenet.cell_list[-1],lenet.pre_block)#,is_bestNN=True)
     print(e)
     # cellist=[('conv', 128, 1, 'relu'), ('conv', 32, 1, 'relu'), ('conv', 256, 1, 'relu'), ('pooling', 'max', 2), ('pooling', 'global', 3), ('conv', 32, 1, 'relu')]
     # cellist=[('pooling', 'global', 2), ('pooling', 'max', 3), ('conv', 21, 32, 'leakyrelu'), ('conv', 16, 32, 'leakyrelu'), ('pooling', 'max', 3), ('conv', 16, 32, 'leakyrelu')]
@@ -501,6 +504,6 @@ if __name__ == '__main__':
                  ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
     vgg.cell_list = [cell_list]
     vgg.pre_block.append([lenet.graph_part, lenet.cell_list[-1]])
-    e = eval.evaluate(vgg.graph_part,vgg.cell_list[-1],vgg.pre_block, update_pre_weight=True)
+    e = eval.evaluate(vgg.graph_part,vgg.cell_list[-1],vgg.pre_block)#, update_pre_weight=True)
     # e=eval.train(network.graph_part,cellist)
     print(e)
