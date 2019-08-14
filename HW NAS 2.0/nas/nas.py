@@ -145,7 +145,7 @@ class Nas:
             '''
             p = Pool(1)
             key=p.apply(run_proc, args=(NETWORK_POOL[i:], eva, finetune_signal,first_round, scores))
-            i+=key
+            i+=key 
             p.close()
             p.join()
             '''
@@ -200,16 +200,19 @@ class Nas:
             network.pros = network.opt.sample()
             network.spl.renewp(network.pros)
             cell, graph = network.spl.sample()
-            network.graph_full = graph
+            # network.graph_full = graph
             blocks = []
             for block in network.pre_block:  # get the graph_full adjacency list in the previous blocks
                 blocks.append(block[0])  # only get the graph_full in the pre_bock
             pred_ops = pred.predictor(blocks, graph)
-            cell = self.merge_ops(cell, pred_ops)
+            table = network.spl.init_p(pred_ops)  # spl refer to the pred_ops
+            network.spl.renewp(table)
+            cell, graph = network.spl.sample()  # sample again after renew the table
+            network.graph_full = graph  # graph from first sample and second sample are the same, so that we don't have to assign network.graph_full at first time
             network.cell_list.append(cell)
             # if self.__pattern == "Block":  # NASing based on block mode
             #     network.cell_list[-1] = self.remove_pooling(network.cell_list[-1])
-
+    '''
     def merge_ops(self, cell, pred_ops):
         assert len(cell) == len(pred_ops), "the number of ops predicted must equal that of ops sampled!"
         for i in range(len(cell)):
@@ -227,7 +230,7 @@ class Nas:
                     continue
                 cell[i] = cell[i-1]  # keep same as the next one
         return cell
-
+    '''
     def algorithm(self):
         """
         Algorithm Main Function
