@@ -443,6 +443,10 @@ class Evaluator:
             if is_bestNN:
                 save_path = saver.save(sess, model_save_path + 'my_model')
                 print("Model saved in file: %s" % save_path)
+
+            sess.close()
+
+        tf.reset_default_graph()
         return val_acc
 
     def add_data(self, add_num=0):
@@ -501,6 +505,6 @@ if __name__ == '__main__':
                  ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
     vgg.cell_list = [cell_list]
     vgg.pre_block.append([lenet.graph_part, lenet.cell_list[-1]])
-    e = eval.evaluate(vgg.graph_part,vgg.cell_list[-1],vgg.pre_block, update_pre_weight=True)
+    e = eval.evaluate(vgg.graph_part,vgg.cell_list[-1],vgg.pre_block)#, update_pre_weight=True)
     # e=eval.train(network.graph_part,cellist)
     print(e)
