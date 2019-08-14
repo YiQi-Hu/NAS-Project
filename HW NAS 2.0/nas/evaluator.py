@@ -15,7 +15,7 @@ import pickle
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 path = './data/'  # + '/../'
-path='C:\\Users\\Jalynn\\Desktop'
+# path='C:\\Users\\Jalynn\\Desktop'
 
 
 # Global constants describing the CIFAR-10 data set.
@@ -324,6 +324,8 @@ class Evaluator:
             update_pre_weight: Symbol for indicating whether to update previous blocks' weight, default by False.
         Returns:
             Accuracy'''
+        tf.reset_default_graph()
+
         self.blocks = len(pre_block)
         # define placeholder x, y_ , keep_prob, learning_rate
         learning_rate = tf.placeholder(tf.float32)
@@ -445,7 +447,7 @@ class Evaluator:
                 save_path = saver.save(sess, model_save_path + 'my_model')
                 print("Model saved in file: %s" % save_path)
             sess.close()
-        tf.reset_default_graph()
+
         return val_acc
 
     def add_data(self, add_num=0):
