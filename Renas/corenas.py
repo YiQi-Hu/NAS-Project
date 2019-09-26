@@ -1,3 +1,5 @@
+import copy
+
 from numpy import zeros
 
 from nas import NAS_CONFIG
@@ -5,6 +7,7 @@ from nas import __wait_for_event
 from nas import (
     __NETWORK_INFO_PATH,
     __WINNER_LOG_PATH,
+    __LOG_EVAINFO_TEM,
     __LOG_WINNER_TEM,
     __SYS_CONFIG_ING, 
     __SYS_GET_WINNER,
@@ -80,7 +83,7 @@ def __datasize_ctrl(eva=None):
     eva.set_train_size(nxt_size)
     return
 
-def __game_assign_task(net_pool, scores, com, round, pool_len):
+def __game_assign_task(net_pool, scores, com, round, pool_len, eva):
     finetune_sign = (pool_len < NAS_CONFIG.finetune_threshold)
     for nn, score, i in zip(net_pool, scores, range(pool_len)):
         if round == 1:
@@ -106,7 +109,7 @@ def __game(eva, net_pool, scores, com, round):
     pool_len = len(net_pool)
     print(__SYS_START_GAME_TEM.format(pool_len))
     # put all the network in this round into the task queue
-    __game_assign_task(net_pool, scores, com, round, pool_len)
+    __game_assign_task(net_pool, scores, com, round, pool_len, eva)
     # TODO ps -> worker
     pass
     # TODO replaced by multiprocessing.Event
@@ -134,7 +137,7 @@ def __train_winner(net_pool, round, eva):
         best_nn.graph_full_list.append(graph)
         best_nn.cell_list.append(cell)
         with open(__WINNER_LOG_PATH, 'a') as f:
-            f.write(__LOG_WINNER_TEM.format(len(best_nn.pre_block) + 1, i, self.__opt_best_k))
+            f.write(__LOG_WINNER_TEM.format(len(best_nn.pre_block) + 1, i, NAS_CONFIG.__opt_best_k))
             opt_score = eva.evaluate(graph, cell, best_nn.pre_block, True, True, f)
         best_nn.score_list.append(opt_score)
         if opt_score > best_opt_score:
@@ -163,11 +166,11 @@ def __init_ops(net_pool):
         nn.graph_full_list.append(graph)  # graph from first sample and second sample are the same, so that we don't have to assign network.graph_full at first time
         nn.cell_list.append(cell)
 
-    scores = np.zeros(len(net_pool))
+    scores = zeros(len(net_pool))
     scores = scores.tolist()
     return scores, net_pool
 
-def corenas(block_num, eva, com, npool_tem):
+def Corenas(block_num, eva, com, npool_tem):
     # Different code is ran on different machine depends on whether it's a ps host or a worker host.
     # PS host is used for generating all the networks and collect the final result of evaluation.
     # And PS host together with worker hosts(as long as they all have GPUs) train as well as 
@@ -192,6 +195,6 @@ def corenas(block_num, eva, com, npool_tem):
         # __datasize_ctrl('same', epic)
     print(__SYS_GET_WINNER)
     # Step 5: Global optimize the best network
-    best_nn, best_index = __train_winner(net_pool, round+1)
+    best_nn, best_index = __train_winner(net_pool, round+1, eva)
 
     return best_nn, best_index

@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from .base import NetworkUnit
 from datetime import datetime
 import math
 import time
@@ -10,6 +9,8 @@ import numpy as np
 import tensorflow as tf
 import random
 import pickle
+
+from base import NetworkUnit
 
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"

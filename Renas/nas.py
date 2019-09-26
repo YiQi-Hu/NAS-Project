@@ -2,13 +2,15 @@ import json
 import time
 import random
 import os
-from multiprocessing import Queue
+from multiprocessing import Queue, Pool
 from tensorflow import set_random_seed
 
 from enumerater import Enumerater
 from evaluator import Evaluator
 from communicator import Communicator
-from corenas import corenas
+import corenas
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 # File path
 __NAS_CONFIG_PATH = 'nas_config.json'
@@ -39,11 +41,11 @@ __SYS_START_GAME_TEM = 'NAS: Now we have {} networks. Start game!'
 __SYS_CONFIG_OPS_ING = "NAS: Configuring ops and skipping for the best structure and training them..."
 
 # Global variables
-NAS_CONFIG = json.load(open(__CONFIG_PATH, encoding='utf-8'))
+NAS_CONFIG = json.load(open(__NAS_CONFIG_PATH, encoding='utf-8'))
 IDLE_GPUQ = Queue()
 
 def __gpu_eva(params):
-    graph, cell, nn_pb, r_, p_, ft_sign, pl_, eva, ngpu = params
+    graph, cell, nn_pb, _, p_, ft_sign, pl_, eva, ngpu = params
     # params = (graph, cell, nn_preblock, round, pos, 
     # finetune_signal, pool_len, eva, ngpu)
     start_time = time.time()
@@ -51,7 +53,7 @@ def __gpu_eva(params):
     os.environ['CUDA_VISIBLE_DEVICES'] = str(params.ngpu)
     with open(__EVALOG_PATH_TEM.format(ngpu)) as f:
         f.write(__LOG_EVAINFO_TEM.format(
-            len(nn_pb)+1, round, pos, pl_
+            len(nn_pb)+1, round, p_, pl_
         ))
         while True:
             try:
@@ -65,7 +67,7 @@ def __gpu_eva(params):
     end_time = time.time()
     start_time = time.time()
     time_cost = end_time - start_time
-    return score, time_cost, pos
+    return score, time_cost, p_
 
 
 def __module_init():
@@ -97,13 +99,13 @@ class Nas():
         return 
 
     def __ps_run(self, enum, eva, cmnct):
-        __filln_queue(IDLE_GPUQ)
+        __filln_queue(IDLE_GPUQ, NAS_CONFIG.num_gpu)
         print(__SYS_ENUM_ING)
         network_pool_tem = enum.enumerate()
 
-        for i range(NAS_CONFIG.block_num):
+        for i in range(NAS_CONFIG.block_num):
             print(__SYS_SEARCH_BLOCK_TEM.format(i+1, NAS_CONFIG.block_num))
-            block, best_index = corenas(i, eva, cmnct, network_pool_tem)
+            block, best_index = corenas.Corenas(i, eva, cmnct, network_pool_tem)
             block.pre_block.append([
                 block.graph_part, 
                 block.graph_full_list[best_index], 
@@ -116,7 +118,7 @@ class Nas():
     # TODO ps -> worker
     # @staticmethod 
     def __worker_run(self, eva, cmnct):
-        __filln_queue(IDLE_GPUQ)
+        __filln_queue(IDLE_GPUQ, NAS_CONFIG.num_gpu)
         pool = Pool(processes=NAS_CONFIG.num_gpu)
         while cmnct.end_flag.empty():
             __wait_for_event(cmnct.data_sync.empty)
@@ -131,9 +133,9 @@ class Nas():
                 try:
                     task_params = cmnct.task.get(timeout=1)
                 except:
-                    gpu_list.put(gpu)
+                    IDLE_GPUQ.put(gpu)
                     break
-                result = pool.apply_async(call_eva, args=task_params)
+                result = pool.apply_async(__gpu_eva, args=task_params)
                 result_list.append(result)
             for r_ in result_list:
                 score, time_cost, network_index = r_.get()
@@ -147,14 +149,14 @@ class Nas():
 
     def run(self):
         print(__SYS_INIT_ING)
-        enu, eva = __module_init()
+        enum, eva = __module_init()
         cmnct = Communicator(self.__is_ps, self.__ps_host)
         if self.__is_ps:
             print(__SYS_I_AM_PS)
-            return __ps_run(enum, eva, cmnct)
+            return self.__ps_run(enum, eva, cmnct)
         else:
             print(__SYS_I_AM_WORKER)
-            __worker_run(eva, cmnct)
+            self.__worker_run(eva, cmnct)
             print(__SYS_WORKER_DONE)
 
         return
