@@ -2,20 +2,18 @@ import copy
 from queue import Queue
 import time
 import networkx as nx
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import pickle
-from .base import NetworkUnit
+from base import NetworkUnit
 # from .base import NetworkUnit, NETWORK_POOL
 class Enumerater:
-    def __init__(self,depth=6,width=3,max_branch_depth=6,pattern="Global"):
+    def __init__(self,depth=6,width=3,max_branch_depth=6):
         self.depth = depth
         self.width = width
         self.max_branch_depth = max_branch_depth
         self.info_dict = {}
         self.info_group = []
         self.log = ""
-        self.pattern = pattern
-
 
     # 生成Adjacney 填充全局变量NETWORK_POOL
     def enumerate(self):
@@ -97,7 +95,7 @@ class Enumerater:
                     s = p
                 tmp[s].append(e)
             if self.judgemultiple(tmp) == 1:
-                tmp_net = NetworkUnit(tmp, [], self.pattern)
+                tmp_net = NetworkUnit(tmp, [])  # filter_size 放到配置文件里，从opt模块初始化读进来
                 # print(tmp)
                 pool.append(tmp_net)
         return pool
@@ -116,18 +114,18 @@ class Enumerater:
         return 1
 
     # 一个比较烂的可视化
-    def adjaceny2visualzation(self,adja):
-        nodelist = []
-        edgelist = []
-        for i in range(len(adja)):
-            nodelist.append(i)
-            for j in adja[i]:
-                edgelist.append((i, j))
-        G = nx.DiGraph()
-        G.add_nodes_from(nodelist)
-        G.add_edges_from(edgelist)
-        nx.draw(G, pos=None, with_labels=True)
-        plt.show()
+    # def adjaceny2visualzation(self,adja):
+    #     nodelist = []
+    #     edgelist = []
+    #     for i in range(len(adja)):
+    #         nodelist.append(i)
+    #         for j in adja[i]:
+    #             edgelist.append((i, j))
+    #     G = nx.DiGraph()
+    #     G.add_nodes_from(nodelist)
+    #     G.add_edges_from(edgelist)
+    #     nx.draw(G, pos=None, with_labels=True)
+    #     plt.show()
 
 
 if __name__=='__main__':

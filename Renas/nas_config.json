@@ -1,0 +1,15 @@
+{
+    "ps_host":"", 
+    "worker_host":"", 
+    "job_name":"ps", 
+    "task_index":-1, 
+    "m_best":1, 
+    "opt_best_k":5, 
+    "randseed":-1, 
+    "depth":6,     
+    "width":3, 
+    "max_depth":6, 
+    "num_gpu":1, 
+    "pattern":"Global", 
+    "block_num":1
+}

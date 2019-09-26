@@ -7,20 +7,25 @@ PLEASE DO NOT USE 'from .base import *' !!!
 class NetworkUnit:
     pre_block = []
 
-    def __init__(self, graph_part=[[]], cell_list=[], pattern="Global"):
+    def __init__(self, graph_part=[[]], cell_list=[]):
         self.graph_part = graph_part
-        self.graph_full = [[]]  # to store the structure including skipping layers
+        self.graph_full_list = []  # to store the structure ever used including skipping layers
         self.cell_list = cell_list
+        self.score_list = []
+        self.spl = None
+        self.opt = None
+        self.table = []
+
+    def init_sample(self, pattern="Global", block_num=0):
         from .optimizer import Optimizer
         if pattern == "Block":
             from .sampler_block import Sampler
-            self.spl = Sampler(self.graph_part, len(self.graph_part),
-                               [32, 48, 64, 128, 192, 256, 512, 1024])  # waiting to be modified
+            self.spl = Sampler(self.graph_part, len(self.graph_part), block_num)
         else:
             from .sampler_global import Sampler
             self.spl = Sampler(self.graph_part, len(self.graph_part))
         self.opt = Optimizer(self.spl.get_dim(), self.spl.get_parametets_subscript())
-        self.pros = []  # to store the probability space derived from opt for sampling
+        self.table = []  # to store the encoding derived from opt for sampling
         sample_size = 3  # the instance number of sampling in an iteration
         budget = 20000  # budget in online style
         positive_num = 2  # the set size of PosPop
@@ -30,15 +35,4 @@ class NetworkUnit:
         self.opt.set_parameters(ss=sample_size, bud=budget, pn=positive_num, rp=rand_probability, ub=uncertain_bit)
         # clear optimization model
         self.opt.clear()
-        return
-
-class Dataset():
-    def __init__(self):
-        self.feature = None
-        self.label = None
-        self.shape = None
-        return
-        
-    def load_from(self, path=""):
-        # TODO
         return

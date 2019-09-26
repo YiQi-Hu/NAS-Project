@@ -3,34 +3,47 @@ import time
 import tensorflow as tf
 from multiprocessing import Process,Pool
 
+# from .base import NetworkUnit
 from .enumerater import Enumerater
-from .evaluater import Evaluater
-from .optimizer import Optimizer
-from .sampler import Sampler
+from .evaluator import Evaluator
+# from .optimizer import Optimizer
+# from .sampler_block import Sampler
+from .predictor import Predictor
 
 NETWORK_POOL = []
 
 
-def run_proc(NETWORK_POOL, spl, eva, scores):
+def run_proc(NETWORK_POOL, eva, finetune_signal, first_round, scores):
     for i, nn in enumerate(NETWORK_POOL):
         try:
-            spl_list = spl.sample(len(nn.graph_part))
-            nn.cell_list.append(spl_list)
-            score = eva.evaluate(nn)
+            if first_round:
+                cell, graph = nn.cell_list[-1], nn.graph_full
+            else:
+                cell, graph = nn.spl.sample()
+                nn.graph_full = graph
+                nn.cell_list.append(cell)
+            score = eva.evaluate(graph, cell, nn.pre_block, False, finetune_signal)
             scores.append(score)
+            nn.opt.update_model(nn.pros, score)
+            nn.pros = nn.opt.sample()
+            nn.spl.renewp(nn.pros)
         except Exception as e:
             print(e)
             return i
+    return len(NETWORK_POOL)
 
 
 class Nas:
-    def __init__(self, m_best=1, opt_best_k=5, randseed=-1, depth=6, width=3, max_branch_depth=6):
+    def __init__(self, m_best=1, opt_best_k=5, randseed=-1, depth=6, width=3, max_branch_depth=6, pattern="Global", block_num=1):
         self.__m_best = m_best
         self.__m_pool = []
         self.__opt_best_k = opt_best_k
         self.__depth = depth
         self.__width = width
         self.__max_bdepth = max_branch_depth
+        self.__pattern = pattern
+        self.__block_num = block_num
+        self.__finetune_threshold = 5
 
         if randseed is not -1:
             random.seed(randseed)
@@ -49,11 +62,24 @@ class Nas:
         """
         scores_cpy = scores.copy()
         scores_cpy.sort()
-        mid_val = scores_cpy[len(scores) // 2]
+        mid_index = len(scores) // 2
+        print("NAS: eliminating {}, remaining {}...".format(len(scores) - mid_index, mid_index))
+        mid_val = scores_cpy[mid_index]
+        scores_cpy.reverse()
+        mid_last_index = scores_cpy.index(mid_val)
+        mid_last_index = len(scores) - 1 - mid_last_index
+        equal_count = mid_last_index - mid_index  # for that there are many mid_val in sorted list
+        count = 0
 
         i = 0
-        while (i < len(network_pool)):
-            if scores[i] < mid_val:
+        while i < len(network_pool):
+            if scores[i] <= mid_val:
+                if scores[i] == mid_val:  # for that there are many mid_val in sorted list
+                    if count <= equal_count:  # "<=" has "=" represent that we remove the mid_val
+                        count += 1
+                    else:
+                        i += 1
+                        continue
                 # del network_pool[i]   # TOO SLOW !!
                 # del scores[i]
                 self.__list_swap(network_pool, i, len(network_pool) - 1)
@@ -62,6 +88,7 @@ class Nas:
                 scores.pop()
             else:
                 i += 1
+
         return mid_val
 
     def __datasize_ctrl(self, type="", eva=None):
@@ -98,36 +125,32 @@ class Nas:
         enu = Enumerater(
             depth=self.__depth,
             width=self.__width,
-            max_branch_depth=self.__max_bdepth)
-        eva = Evaluater()
-        spl = Sampler()
-        opt = Optimizer(spl.dim, spl.parameters_subscript)
+            max_branch_depth=self.__max_bdepth,
+            pattern=self.__pattern)
+        eva = Evaluator()
+        pred = Predictor()
 
-        sample_size = 3  # the instance number of sampling in an iteration
-        budget = 20000  # budget in online style
-        positive_num = 2  # the set size of PosPop
-        rand_probability = 0.99  # the probability of sample in model
-        uncertain_bit = 3  # the dimension size that is sampled randomly
-        # set hyper-parameter for optimization, budget is useless for single step optimization
-        opt.set_parameters(ss=sample_size, bud=budget, pn=positive_num, rp=rand_probability, ub=uncertain_bit)
-        # clear optimization model
-        opt.clear()
-
-        return enu, eva, spl, opt
+        return enu, eva, pred
 
 
-    def __game(self, pros, spl, opt, eva, NETWORK_POOL):
+    def __game(self, eva, finetune_signal,first_round, NETWORK_POOL):
         print("NAS: Now we have {0} networks. Start game!".format(len(NETWORK_POOL)))
         scores = []
-        spl.renewp(pros)
         eva.add_data(800)
         i = 0
 
         while i < len(NETWORK_POOL):
-            print(i)
-            with Pool(1) as p:
-                key=p.apply(run_proc, args=(NETWORK_POOL[i:], spl, eva, scores,))
-                i+=key
+
+            # with Pool(1) as p:
+            '''
+            p = Pool(1)
+            key=p.apply(run_proc, args=(NETWORK_POOL[i:], eva, finetune_signal,first_round, scores))
+            i+=key 
+            p.close()
+            p.join()
+            '''
+            key = run_proc(NETWORK_POOL[i:], eva, finetune_signal, first_round, scores)
+            i += key
             # try:
             #     p=Pool(1)
             #     key=p.apply(run_proc, args=(NETWORK_POOL[i:], spl, eva, scores,))
@@ -151,40 +174,86 @@ class Nas:
 
         return scores
 
-    def __train_winner(self, pros, spl, opt, eva, NETWORK_POOL):
+    def __train_winner(self, eva, NETWORK_POOL):
         best_nn = NETWORK_POOL[0]
         best_opt_score = 0
         best_cell_i = 0
-        spl.renewp(pros)
-        eva.add_data(-1)
+        nn_list = []
+        eva.add_data(-1)  # -1 represent that we add all data for training
+        print("NAS: Configuring ops and skipping for the best structure and training them...")
         for i in range(self.__opt_best_k):
-            best_nn.cell_list.append(spl.sample(len(best_nn.graph_part)))
-            opt_score = eva.evaluate(best_nn)
+            cell, graph = best_nn.spl.sample()
+            best_nn.graph_full = graph  # here, the graph_full is covered by new graph, hence the log of graph is stored in the nn_list
+            best_nn.cell_list.append(cell)
+            nn_list.append([graph, cell])
+            opt_score = eva.evaluate(graph, cell, best_nn.pre_block, True, True)
             if opt_score > best_opt_score:
                 best_opt_score = opt_score
                 best_cell_i = i
-        print(best_opt_score)
-        return best_nn, best_cell_i
+        print("NAS: We have got the best network and its score is {}".format(best_opt_score))
+        best_nn.graph_full = nn_list[best_cell_i][0]
+        best_nn.cell_list.append(nn_list[best_cell_i][1])
+        return best_nn
 
-    def run(self):
+    def initialize_ops(self, pred, NETWORK_POOL):
+        for network in NETWORK_POOL:  # initialize the full network by adding the skipping and ops to graph_part
+            network.pros = network.opt.sample()
+            network.spl.renewp(network.pros)
+            cell, graph = network.spl.sample()
+            # network.graph_full = graph
+            blocks = []
+            for block in network.pre_block:  # get the graph_full adjacency list in the previous blocks
+                blocks.append(block[0])  # only get the graph_full in the pre_bock
+            pred_ops = pred.predictor(blocks, graph)
+            table = network.spl.init_p(pred_ops)  # spl refer to the pred_ops
+            network.spl.renewp(table)
+            cell, graph = network.spl.sample()  # sample again after renew the table
+            network.graph_full = graph  # graph from first sample and second sample are the same, so that we don't have to assign network.graph_full at first time
+            network.cell_list.append(cell)
+            # if self.__pattern == "Block":  # NASing based on block mode
+            #     network.cell_list[-1] = self.remove_pooling(network.cell_list[-1])
+    '''
+    def merge_ops(self, cell, pred_ops):
+        assert len(cell) == len(pred_ops), "the number of ops predicted must equal that of ops sampled!"
+        for i in range(len(cell)):
+            if cell[i][0] == "conv" and pred_ops[i][0] != "pooling":  # both two ops are conv
+                cell[i] = (cell[i][0], int(pred_ops[i][0]), int(pred_ops[i][1]), cell[i][3])
+            elif cell[i][0] == "pooling" and pred_ops[i][0] != "pooling":  # sampling pooling, but predicting conv
+                cell[i] = ('conv', int(pred_ops[i][0]), int(pred_ops[i][1]), 'relu')
+        return cell
+
+    def remove_pooling(self, cell):  # replace pooling by conv
+        for i in range(len(cell)):
+            if cell[i][0] == "pooling":
+                if i == 0:
+                    cell[i] = cell[i+1]  # keep same as the previous one
+                    continue
+                cell[i] = cell[i-1]  # keep same as the next one
+        return cell
+    '''
+    def algorithm(self):
         """
         Algorithm Main Function
         """
         # Step 0: Initialize
-        print("NAS start running...")
-        enu, eva, spl, opt = self.__run_init()
+        print("NAS: Initializing...")
+        enu, eva, pred = self.__run_init()
 
-        # Step 1: Brute Enumerate all possible network structures
+        # Step 1: Brute Enumerate all possible network structures and initialize spl and opt for every network
+        print("NAS: Enumerating all possible networks...")
         NETWORK_POOL = enu.enumerate()
 
-        print("NAS: Enumerated all possible networks!")
         # Step 2: Search best structure
-        pros = opt.sample()
+        print("NAS: Configuring the networks in the first round...")
+        finetune_signal = False
+        self.initialize_ops(pred, NETWORK_POOL)
+        scores = self.__game(eva, finetune_signal, True, NETWORK_POOL)
+        self.__eliminate(NETWORK_POOL, scores)
         while (len(NETWORK_POOL) > 1):
             # Step 3: Sample, train and evaluate every network
-            scores = self.__game(pros, spl, opt, eva, NETWORK_POOL)
-            opt.update_model(pros, scores)
-            pros = opt.sample()
+            if len(NETWORK_POOL) < self.__finetune_threshold:
+                finetune_signal = True
+            scores = self.__game(eva, finetune_signal, False, NETWORK_POOL)
 
             # Step 4: Eliminate half structures and increase dataset size
             self.__eliminate(NETWORK_POOL, scores)
@@ -192,13 +261,31 @@ class Nas:
 
         print("NAS: We got a WINNER!")
         # Step 5: Global optimize the best network
-        best_nn, best_cell_i = self.__train_winner(pros, spl, opt, eva, NETWORK_POOL)
+        best_nn = self.__train_winner(eva, NETWORK_POOL)
 
         # self.__save_log("", opt, spl, enu, eva)
 
-        return best_nn, best_cell_i
+        return best_nn
+
+    def run(self):
+
+        assert self.__pattern == "Global" or self.__pattern == "Block", "running mode must be chose from 'Global' and 'Block'"
+
+        if self.__pattern == "Global":
+            assert self.__block_num == 1, "you don't have to give the number of blocks(block_num) in the Global mode, or you can assign it to 1"
+        else:
+            assert self.__block_num > 1, "you must give the number of blocks(block_num > 1) in the Block mode"
+        for i in range(self.__block_num):
+            # save the bese_nn and search next block
+            if self.__pattern == "Block":
+                print("NAS: Searching for block {}/{}...".format(i + 1, self.__block_num))
+            else:
+                print("NAS: Searching for Global...")
+            block = self.algorithm()
+            block.pre_block.append([block.graph_full, block.cell_list[-1]])  # or NetworkUnit.pre_block.append()
+        return block.pre_block  # or NetworkUnit.pre_block
 
 
 if __name__ == '__main__':
-    nas = Nas()
+    nas = Nas(randseed=1000)
     print(nas.run())
