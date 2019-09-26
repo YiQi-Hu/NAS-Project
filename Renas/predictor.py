@@ -6,11 +6,13 @@ from enumerater import Enumerater
 from predict_op.label_encoding import decoder
 from keras.models import model_from_json
 
+from nas import CUR_VER_DIR
+
 MAX_NETWORK_LENGTH = 71
 
 cwd = os.getcwd()
-model_json_path = os.path.join(cwd, 'predict_op', 'model.json')
-model_weights_path = os.path.join(cwd, 'predict_op', 'model.json.h5')
+model_json_path = os.path.join(cwd, CUR_VER_DIR, 'predict_op', 'model.json')
+model_weights_path = os.path.join(cwd, CUR_VER_DIR, 'predict_op', 'model.json.h5')
 
 
 class Feature:

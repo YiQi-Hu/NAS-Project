@@ -11,10 +11,11 @@ import random
 import pickle
 
 from base import NetworkUnit
+from info_str import CUR_VER_DIR
 
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-path = './data/'  # + '/../'
+path = os.path.join(os.getcwd(), CUR_VER_DIR)  # + '/../'
 # path='C:\\Users\\Jalynn\\Desktop'
 
 
@@ -149,7 +150,7 @@ class Dataset():
         self.label = None
         self.shape = None
         return
-        
+
     def load_from(self, path=""):
         # TODO
         return

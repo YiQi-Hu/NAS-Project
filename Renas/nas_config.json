@@ -8,7 +8,7 @@
     "randseed":-1, 
     "depth":6,     
     "width":3, 
-    "max_branch_depth":6, 
+    "max_depth":6, 
     "num_gpu":1, 
     "pattern":"Global", 
     "block_num":1

@@ -1,4 +1,7 @@
 __pycache__/
+cifar-10-batches-py/
+.vscode/
+
 .idea/
 
 *.bin
