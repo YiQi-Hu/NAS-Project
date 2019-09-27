@@ -98,7 +98,9 @@ class Nas():
     def __ps_run(self, enum, eva, cmnct):
         _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
         print(SYS_ENUM_ING)
+
         network_pool_tem = enum.enumerate()
+        # print(network_pool_tem, flush=True)
 
         for i in range(NAS_CONFIG["block_num"]):
             print(SYS_SEARCH_BLOCK_TEM.format(i+1, NAS_CONFIG["block_num"]))
@@ -146,8 +148,8 @@ class Nas():
 
     def run(self):
         print(SYS_INIT_ING)
-        enum, eva = _module_init()
         cmnct = Communicator(self.__is_ps, self.__ps_host)
+        enum, eva = _module_init()
         if self.__is_ps:
             print(SYS_I_AM_PS)
             return self.__ps_run(enum, eva, cmnct)

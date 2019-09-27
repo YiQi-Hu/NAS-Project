@@ -179,7 +179,7 @@ def Corenas(block_num, eva, com, npool_tem):
     # implement the copy when searching for every block
     net_pool = copy.deepcopy(npool_tem)
     for network in net_pool:  # initialize the sample module
-        network.init_sample(NAS_CONFIG.pattern, block_num)
+        network.init_sample(NAS_CONFIG['pattern'], block_num)
 
     # Step 2: Search best structure
     print(_SYS_CONFIG_ING)

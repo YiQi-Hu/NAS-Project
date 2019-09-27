@@ -17,12 +17,12 @@ class NetworkUnit:
         self.table = []
 
     def init_sample(self, pattern="Global", block_num=0):
-        from .optimizer import Optimizer
+        from optimizer import Optimizer
         if pattern == "Block":
-            from .sampler_block import Sampler
+            from sampler_block import Sampler
             self.spl = Sampler(self.graph_part, len(self.graph_part), block_num)
         else:
-            from .sampler_global import Sampler
+            from sampler_global import Sampler
             self.spl = Sampler(self.graph_part, len(self.graph_part))
         self.opt = Optimizer(self.spl.get_dim(), self.spl.get_parametets_subscript())
         self.table = []  # to store the encoding derived from opt for sampling
