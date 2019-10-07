@@ -306,7 +306,7 @@ def padding(node_feature, length):
 def load_model(model_json, weights):
     with open(model_json, 'r') as file:
         model_json1 = file.read()
-    new_model = model_from_json(model_json1)
+        new_model = model_from_json(model_json1)
     new_model.load_weights(weights)
     return new_model
 
