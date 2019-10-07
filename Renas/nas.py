@@ -3,7 +3,7 @@ import time
 import random
 import os
 from multiprocessing import Queue, Pool
-from tensorflow import set_random_seed
+# from tensorflow import set_random_seed
 
 import corenas
 from enumerater import Enumerater
@@ -92,7 +92,7 @@ class Nas():
         self.__is_ps = (job_name == 'ps')
         self.__ps_host = ps_host
 
-        set_random_seed(NAS_CONFIG["randseed"])
+        # set_random_seed(NAS_CONFIG["randseed"])
         return
 
     def __ps_run(self, enum, eva, cmnct):
