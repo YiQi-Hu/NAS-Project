@@ -114,9 +114,31 @@ class Nas():
 
         return block.pre_block
 
-    # TODO ps -> worker
     @staticmethod
-    def worker_run(eva, cmnct):
+    def do_task(pool, cmnct):
+        result_list = []
+        while not cmnct.task.empty():
+            gpu = IDLE_GPUQ.get()
+            try:
+                task_params = cmnct.task.get(timeout=1)
+            except:
+                IDLE_GPUQ.put(gpu)
+                break
+            result = pool.apply_async(_gpu_eva, args=task_params)
+            result_list.append(result)
+
+        return result_list
+
+    @staticmethod
+    def arrange_result(result_list, cmnct):
+        for r_ in result_list:
+            score, time_cost, network_index = r_.get()
+            print(SYS_EVA_RESULT_TEM.format(network_index, score, time_cost))
+            cmnct.result.put([score, network_index, time_cost])
+        return
+
+    # TODO ps -> worker
+    def _worker_run(eva, cmnct):
         _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
         pool = Pool(processes=NAS_CONFIG["num_gpu"])
         while cmnct.end_flag.empty():
@@ -125,21 +147,9 @@ class Nas():
             cmnct.data_count += 1
             data_count_ps = cmnct.data_sync.get(timeout=1)
             eva.add_data(1600*(data_count_ps-cmnct.data_count+1))
-            result_list = []
 
-            while not cmnct.task.empty():
-                gpu = IDLE_GPUQ.get()
-                try:
-                    task_params = cmnct.task.get(timeout=1)
-                except:
-                    IDLE_GPUQ.put(gpu)
-                    break
-                result = pool.apply_async(_gpu_eva, args=task_params)
-                result_list.append(result)
-            for r_ in result_list:
-                score, time_cost, network_index = r_.get()
-                print(SYS_EVA_RESULT_TEM.format(network_index, score, time_cost))
-                cmnct.result.put([score, network_index, time_cost])
+            result_list = do_task(pool, cmnct)
+            arrange_result(result_list, cmnct)
 
             _wait_for_event(cmnct.task.empty)
         pool.close()
@@ -155,7 +165,7 @@ class Nas():
             return self.__ps_run(enum, eva, cmnct)
         else:
             print(SYS_I_AM_WORKER)
-            self.worker_run(eva, cmnct)
+            self._worker_run(eva, cmnct)
             print(SYS_WORKER_DONE)
 
         return

@@ -10,7 +10,7 @@ from info_str import (
     WINNER_LOG_PATH,
     LOG_EVAINFO_TEM,
     LOG_WINNER_TEM,
-    SYS_CONFIG_ING, 
+    SYS_CONFIG_ING,
     SYS_GET_WINNER,
     SYS_ELIINFO_TEM,
     SYS_BEST_AND_SCORE_TEM,
@@ -39,7 +39,7 @@ def _save_info(path, network, round, original_index, network_num):
         _wirte_list(f, network.graph_part)
         for item in zip(network.graph_full_list, network.cell_list, network.score_list):
             f.write('    graph_full:')
-            _wirte_list(f, item[0]) 
+            _wirte_list(f, item[0])
             f.write('    cell_list:')
             _wirte_list(f, item[1])
             f.write('    score:')
@@ -104,15 +104,17 @@ def _game_assign_task(net_pool, scores, com, round, pool_len, eva):
     # TODO data size control
     com.data_sync.put(com.data_count)  # for multi host
     eva.add_data(1600)
-    return 
+    return
 
 def _game(eva, net_pool, scores, com, round):
     pool_len = len(net_pool)
     print(SYS_START_GAME_TEM.format(pool_len))
     # put all the network in this round into the task queue
     _game_assign_task(net_pool, scores, com, round, pool_len, eva)
-    # TODO ps -> worker
-    Nas.worker_run(eva, com)
+    # TODO ps -> worker DONE
+    pool = Pool(processes=NAS_CONFIG["num_gpu"])
+    result_list = Nas.do_task(pool, com)
+    Nas.arrange_result(result_list, com)
     # TODO replaced by multiprocessing.Event
     _wait_for_event(lambda: com.result.qsize() != pool_len)
     # fill the score list
@@ -174,7 +176,7 @@ def _init_ops(net_pool):
 def Corenas(block_num, eva, com, npool_tem):
     # Different code is ran on different machine depends on whether it's a ps host or a worker host.
     # PS host is used for generating all the networks and collect the final result of evaluation.
-    # And PS host together with worker hosts(as long as they all have GPUs) train as well as 
+    # And PS host together with worker hosts(as long as they all have GPUs) train as well as
     # evaluate all the networks asynchronously inside one round and synchronously between rounds
 
     # implement the copy when searching for every block
