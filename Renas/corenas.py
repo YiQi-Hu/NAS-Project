@@ -3,6 +3,7 @@ import copy
 from numpy import zeros
 
 from nas import NAS_CONFIG
+from nas import Nas
 from nas import _wait_for_event
 from info_str import (
     NETWORK_INFO_PATH,
@@ -111,7 +112,7 @@ def _game(eva, net_pool, scores, com, round):
     # put all the network in this round into the task queue
     _game_assign_task(net_pool, scores, com, round, pool_len, eva)
     # TODO ps -> worker
-    pass
+    Nas.worker_run(eva, com)
     # TODO replaced by multiprocessing.Event
     _wait_for_event(lambda: com.result.qsize() != pool_len)
     # fill the score list

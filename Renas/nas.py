@@ -115,8 +115,8 @@ class Nas():
         return block.pre_block
 
     # TODO ps -> worker
-    # @staticmethod
-    def __worker_run(self, eva, cmnct):
+    @staticmethod
+    def worker_run(eva, cmnct):
         _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
         pool = Pool(processes=NAS_CONFIG["num_gpu"])
         while cmnct.end_flag.empty():
@@ -155,7 +155,7 @@ class Nas():
             return self.__ps_run(enum, eva, cmnct)
         else:
             print(SYS_I_AM_WORKER)
-            self.__worker_run(eva, cmnct)
+            self.worker_run(eva, cmnct)
             print(SYS_WORKER_DONE)
 
         return
