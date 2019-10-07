@@ -84,7 +84,7 @@ def _datasize_ctrl(eva=None):
     return
 
 def _game_assign_task(net_pool, scores, com, round, pool_len, eva):
-    finetune_sign = (pool_len < NAS_CONFIG.finetune_threshold)
+    finetune_sign = (pool_len < NAS_CONFIG['finetune_threshold'])
     for nn, score, i in zip(net_pool, scores, range(pool_len)):
         if round == 1:
             cell, graph = nn.cell_list[-1], nn.graph_full_list[-1]
