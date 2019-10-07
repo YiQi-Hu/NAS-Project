@@ -14,11 +14,11 @@ class Communicator:
         server_port = int(ps_host.split(":")[1])
 
         self.__is_ps = is_ps
-        # self.manager = SyncManager(
-        #     address=(server_addr, server_port),
-        #     authkey=b'abc'
-        # )
-        self.manager = BaseManager(address=(), authkey=b'abc')
+        self.manager = SyncManager(
+            address=(server_addr, server_port),
+            authkey=b'abc'
+        )
+        # self.manager = BaseManager(address=(), authkey=b'abc')
         self.__start()
 
         self.task = self.manager.Queue()
