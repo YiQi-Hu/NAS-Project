@@ -1,11 +1,11 @@
 import random
-from .sampling.load_configuration import load_conf
-from .optimizer import Dimension
+from sampling.load_configuration import load_conf
+from optimizer import Dimension
 import pickle
-from .optimizer import Optimizer
+from optimizer import Optimizer
 # from .optimizer import RacosOptimization
 import numpy as np
-from .evaluator import Evaluator
+from evaluator import Evaluator
 from multiprocessing import Process,Pool
 import multiprocessing
 # from .base import NetworkUnit
