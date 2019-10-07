@@ -3,7 +3,7 @@ from multiprocessing import Pool
 
 from numpy import zeros
 
-from nas import NAS_CONFIG
+from nas import NAS_CONFIG, IDLE_GPUQ
 from nas import Nas
 from nas import _wait_for_event
 from info_str import (
