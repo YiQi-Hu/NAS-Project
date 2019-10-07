@@ -1,7 +1,7 @@
 import os
 
 # Current file name
-CUR_VER_DIR = 'Renas'
+CUR_VER_DIR = '.'
 
 # File path
 NAS_CONFIG_PATH = os.path.join(CUR_VER_DIR, 'nas_config.json')
