@@ -6,9 +6,9 @@ from enumerater import Enumerater
 from predict_op.label_encoding import decoder
 from keras.models import model_from_json
 
-# from nas import CUR_VER_DIR
+from nas import CUR_VER_DIR
 
-CUR_VER_DIR = 'Renas'
+# CUR_VER_DIR = 'Renas'
 
 MAX_NETWORK_LENGTH = 71
 
