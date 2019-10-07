@@ -32,7 +32,7 @@ def _wirte_list(f, graph):
 def _save_info(path, network, round, original_index, network_num):
     # TODO too ugly...
     with open(path, 'a') as f:
-        f.write(_LOG_EVAINFO_TEM.format(len(network.pre_block)+1, round, original_index, network_num))
+        f.write(LOG_EVAINFO_TEM.format(len(network.pre_block)+1, round, original_index, network_num))
         f.write('number of scheme: {}\n'.format(len(network.score_list)))
         f.write('graph_part:')
         _wirte_list(f, network.graph_part)
@@ -71,7 +71,7 @@ def _eliminate(net_pool=None, scores=[], round=0):
             scores.pop()
         else:
             i += 1
-    print(_SYS_ELIINFO_TEM.format(original_num - len(scores), len(scores)))
+    print(SYS_ELIINFO_TEM.format(original_num - len(scores), len(scores)))
     return mid_val
 
 def _datasize_ctrl(eva=None):
@@ -107,7 +107,7 @@ def _game_assign_task(net_pool, scores, com, round, pool_len, eva):
 
 def _game(eva, net_pool, scores, com, round):
     pool_len = len(net_pool)
-    print(_SYS_START_GAME_TEM.format(pool_len))
+    print(SYS_START_GAME_TEM.format(pool_len))
     # put all the network in this round into the task queue
     _game_assign_task(net_pool, scores, com, round, pool_len, eva)
     # TODO ps -> worker
@@ -129,24 +129,24 @@ def _train_winner(net_pool, round, eva):
     best_opt_score = 0
     best_cell_i = 0
     eva.add_data(-1)  # -1 represent that we add all data for training
-    print(_SYS_CONFIG_OPS_ING)
+    print(SYS_CONFIG_OPS_ING)
     for i in range(NAS_CONFIG.opt_best_k):
         best_nn.table = best_nn.opt.sample()
         best_nn.spl.renewp(best_nn.table)
         cell, graph = best_nn.spl.sample()
         best_nn.graph_full_list.append(graph)
         best_nn.cell_list.append(cell)
-        with open(_WINNER_LOG_PATH, 'a') as f:
+        with open(WINNER_LOG_PATH, 'a') as f:
             f.write(_LOG_WINNER_TEM.format(len(best_nn.pre_block) + 1, i, NAS_CONFIG.__opt_best_k))
             opt_score = eva.evaluate(graph, cell, best_nn.pre_block, True, True, f)
         best_nn.score_list.append(opt_score)
         if opt_score > best_opt_score:
             best_opt_score = opt_score
             best_cell_i = i
-    print(_SYS_BEST_AND_SCORE_TEM.format(best_opt_score))
+    print(SYS_BEST_AND_SCORE_TEM.format(best_opt_score))
     best_index = best_cell_i - NAS_CONFIG.opt_best_k
 
-    _save_info(_NETWORK_INFO_PATH, best_nn, round, 0, 1)
+    _save_info(NETWORK_INFO_PATH, best_nn, round, 0, 1)
     return best_nn, best_index
 
 # TODO understand this code
@@ -182,7 +182,7 @@ def Corenas(block_num, eva, com, npool_tem):
         network.init_sample(NAS_CONFIG['pattern'], block_num)
 
     # Step 2: Search best structure
-    print(_SYS_CONFIG_ING)
+    print(SYS_CONFIG_ING)
     scores, net_pool = _init_ops(net_pool)
     round = 0
     while (len(net_pool) > 1):
@@ -193,7 +193,7 @@ def Corenas(block_num, eva, com, npool_tem):
         # Step 4: Eliminate half structures and increase dataset size
         _eliminate(net_pool, scores, round)
         # _datasize_ctrl('same', epic)
-    print(_SYS_GET_WINNER)
+    print(SYS_GET_WINNER)
     # Step 5: Global optimize the best network
     best_nn, best_index = _train_winner(net_pool, round+1, eva)
 
