@@ -5,7 +5,6 @@ import os
 from multiprocessing import Queue, Pool
 # from tensorflow import set_random_seed
 
-import corenas
 from enumerater import Enumerater
 from communicator import Communicator
 from evaluator import Evaluator
@@ -101,7 +100,8 @@ class Nas():
 
         network_pool_tem = enum.enumerate()
         # print(network_pool_tem, flush=True)
-
+        
+        import corenas
         for i in range(NAS_CONFIG["block_num"]):
             print(SYS_SEARCH_BLOCK_TEM.format(i+1, NAS_CONFIG["block_num"]))
             block, best_index = corenas.Corenas(i, eva, cmnct, network_pool_tem)
@@ -128,6 +128,10 @@ class Nas():
             result_list.append(result)
 
         return result_list
+    @staticmethod
+    def teststatic():
+        n = IDLE_GPUQ.qsize()
+        return n
 
     @staticmethod
     def arrange_result(result_list, cmnct):
@@ -153,6 +157,7 @@ class Nas():
 
             _wait_for_event(cmnct.task.empty)
         pool.close()
+
         pool.join()
         return
 
@@ -169,6 +174,8 @@ class Nas():
             print(SYS_WORKER_DONE)
 
         return
+
+_filln_queue(IDLE_GPUQ, 5)
 
 if __name__ == '__main__':
     nas = Nas('ps', '127.0.0.1:5000')
