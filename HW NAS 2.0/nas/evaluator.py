@@ -1,10 +1,9 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from .base import NetworkUnit
-from .base import Dataset
-from datetime import datetime
-import math
+# from .base import NetworkUnit
+from base import Dataset
+
 import time
 import os
 import numpy as np
@@ -12,11 +11,11 @@ import tensorflow as tf
 import random
 import pickle
 
-
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-path = './data/'  # + '/../'
+# path = './data/'  # + '/../'
 # path='C:\\Users\\Jalynn\\Desktop'
-
+path = '/home/amax/Desktop/'
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # Global constants describing the CIFAR-10 data set.
 IMAGE_SIZE = 32
@@ -24,11 +23,11 @@ NUM_CLASSES = 10
 NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 50000
 NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 10000
 # Constants describing the training process.
-INITIAL_LEARNING_RATE = 0.001  # Initial learning rate.
-MOVING_AVERAGE_DECAY = 0.99
+INITIAL_LEARNING_RATE = 0.1  # Initial learning rate.
+MOVING_AVERAGE_DECAY = 0.98
 REGULARAZTION_RATE = 0.0001
 batch_size = 250
-epoch = 5
+epoch = 500
 weight_decay = 0.0003
 momentum_rate = 0.9
 log_save_path = './logs'
@@ -314,7 +313,7 @@ class Evaluator:
         #     # tf.add_to_collection('losses', regularizer(weights))
         return last_layer
 
-    def evaluate(self, graph_part, cell_list, pre_block, is_bestNN=False,update_pre_weight=False):
+    def evaluate(self, graph_part, cell_list, pre_block=[], is_bestNN=False, update_pre_weight=False):
         '''Method for evaluate the given network.
         Args:
             graph_part: The topology structure of the network given by adjacency table
@@ -328,8 +327,8 @@ class Evaluator:
 
         self.blocks = len(pre_block)
         # define placeholder x, y_ , keep_prob, learning_rate
-        learning_rate = tf.placeholder(tf.float32)
         train_flag = tf.placeholder(tf.bool)
+        global_step = tf.Variable(0, trainable=False)
 
         with tf.Session() as sess:
             if update_pre_weight:
@@ -367,9 +366,12 @@ class Evaluator:
             # train_step: training operation
             cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y))
             l2 = tf.add_n([tf.nn.l2_loss(var) for var in tf.trainable_variables()])
+
+            learning_rate = tf.train.exponential_decay(INITIAL_LEARNING_RATE, global_step, 1000, MOVING_AVERAGE_DECAY,
+                                                       staircase=True)
             train_step = tf.train.MomentumOptimizer(learning_rate, momentum_rate, use_nesterov=True,
                                                     name='opt' + str(self.blocks)). \
-                minimize(cross_entropy + l2 * weight_decay)
+                minimize(cross_entropy + l2 * weight_decay, global_step=global_step)
 
             correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
@@ -381,7 +383,6 @@ class Evaluator:
             summary_writer = tf.summary.FileWriter(log_save_path, sess.graph)
 
             for ep in range(1, epoch + 1):
-                lr = learning_rate_schedule(ep)
                 pre_index = 0
                 train_acc = 0.0
                 train_loss = 0.0
@@ -395,9 +396,8 @@ class Evaluator:
 
                     batch_x = data_augmentation(batch_x)
 
-                    _, batch_loss = sess.run([train_step, cross_entropy],
-                                             feed_dict={x: batch_x, y_: batch_y,
-                                                        learning_rate: lr, train_flag: True})
+                    _, batch_loss,lr = sess.run([train_step, cross_entropy,learning_rate],
+                                             feed_dict={x: batch_x, y_: batch_y, train_flag: True})
                     batch_acc = accuracy.eval(feed_dict={x: batch_x, y_: batch_y, train_flag: True})
 
                     train_loss += batch_loss
@@ -433,6 +433,7 @@ class Evaluator:
                         summary_writer.add_summary(train_summary, ep)
                         summary_writer.add_summary(test_summary, ep)
                         summary_writer.flush()
+                        print(lr)
 
                         print("iteration: %d/%d, cost_time: %ds, train_loss: %.4f, "
                               "train_acc: %.4f, test_loss: %.4f, test_acc: %.4f"
@@ -452,10 +453,10 @@ class Evaluator:
 
     def add_data(self, add_num=0):
 
-        if self.train_num + add_num > 50000 or add_num<0:
+        if self.train_num + add_num > 50000 or add_num < 0:
             add_num = 50000 - self.train_num
             self.train_num = 50000
-            print('Warning! Add number has been changed to ',add_num,', all data is loaded.')
+            print('Warning! Add number has been changed to ', add_num, ', all data is loaded.')
         else:
             self.train_num += add_num
         # print('************A NEW ROUND************')
@@ -485,27 +486,36 @@ class Evaluator:
 
 if __name__ == '__main__':
     eval = Evaluator()
-    eval.add_data(5000)
-    lenet = NetworkUnit()
-    lenet.graph_part = [[1], [2], [3], []]
-    cell_list = [('conv', 64, 5, 'relu'), ('pooling', 'max', 3), ('conv', 64, 5, 'relu'), ('pooling', 'max', 3)]
-    lenet.cell_list = [cell_list]
-    e=eval.evaluate(lenet.graph_part,lenet.cell_list[-1],lenet.pre_block)#,is_bestNN=True)
-    print(e)
-    # cellist=[('conv', 128, 1, 'relu'), ('conv', 32, 1, 'relu'), ('conv', 256, 1, 'relu'), ('pooling', 'max', 2), ('pooling', 'global', 3), ('conv', 32, 1, 'relu')]
-    # cellist=[('pooling', 'global', 2), ('pooling', 'max', 3), ('conv', 21, 32, 'leakyrelu'), ('conv', 16, 32, 'leakyrelu'), ('pooling', 'max', 3), ('conv', 16, 32, 'leakyrelu')]
-
-    vgg = NetworkUnit()
-    vgg.graph_part = [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17],
-                      []]
-    cell_list = [('conv', 64, 3, 'relu'), ('conv', 64, 3, 'relu'), ('pooling', 'max', 2), ('conv', 128, 3, 'relu'),
-                 ('conv', 128, 3, 'relu'), ('pooling', 'max', 2), ('conv', 256, 3, 'relu'),
-                 ('conv', 256, 3, 'relu'), ('conv', 256, 3, 'relu'), ('pooling', 'max', 2),
-                 ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
-                 ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
-                 ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
-    vgg.cell_list = [cell_list]
-    vgg.pre_block.append([lenet.graph_part, lenet.cell_list[-1]])
-    e = eval.evaluate(vgg.graph_part,vgg.cell_list[-1],vgg.pre_block)#, update_pre_weight=True)
+    eval.add_data(50000)
+    # lenet = NetworkUnit()
+    # lenet.graph_part = [[1], [2], [3], []]
+    # cell_list = [('conv', 64, 5, 'relu'), ('pooling', 'max', 3), ('conv', 64, 5, 'relu'), ('pooling', 'max', 3)]
+    # lenet.cell_list = [cell_list]
+    # e=eval.evaluate(lenet.graph_part,lenet.cell_list[-1],lenet.pre_block)#,is_bestNN=True)
+    # print(e)
+    # # cellist=[('conv', 128, 1, 'relu'), ('conv', 32, 1, 'relu'), ('conv', 256, 1, 'relu'), ('pooling', 'max', 2), ('pooling', 'global', 3), ('conv', 32, 1, 'relu')]
+    # # cellist=[('pooling', 'global', 2), ('pooling', 'max', 3), ('conv', 21, 32, 'leakyrelu'), ('conv', 16, 32, 'leakyrelu'), ('pooling', 'max', 3), ('conv', 16, 32, 'leakyrelu')]
+    #
+    # vgg = NetworkUnit()
+    # vgg.graph_part = [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17],
+    #                   []]
+    # cell_list = [('conv', 64, 3, 'relu'), ('conv', 64, 3, 'relu'), ('pooling', 'max', 2), ('conv', 128, 3, 'relu'),
+    #              ('conv', 128, 3, 'relu'), ('pooling', 'max', 2), ('conv', 256, 3, 'relu'),
+    #              ('conv', 256, 3, 'relu'), ('conv', 256, 3, 'relu'), ('pooling', 'max', 2),
+    #              ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
+    #              ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
+    #              ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
+    # vgg.cell_list = [cell_list]
+    # vgg.pre_block.append([lenet.graph_part, lenet.cell_list[-1]])
+    # e = eval.evaluate(vgg.graph_part,vgg.cell_list[-1],vgg.pre_block)#, update_pre_weight=True)
     # e=eval.train(network.graph_part,cellist)
+    cell_list = [('conv', 48, 3, 'relu'), ('conv', 128, 5, 'relu'), ('pooling', 'avg', 3), ('conv', 512, 5, 'relu'),
+                 ('pooling', 'avg', 7), ('conv', 192, 5, 'relu'), ('pooling', 'avg', 7), ('pooling', 'avg', 8),
+                 ('pooling', 'max', 6),
+                 ('pooling', 'max', 8), ('conv', 48, 3, 'leakyrelu'), ('pooling', 'avg', 6), ('pooling', 'max', 8),
+                 ('pooling', 'avg', 3), ('pooling', 'avg', 8), ]
+    graph = [[1, 5, 7, 9, 12, 14], [2, 5, 10, 12, 14], [3, 4, 5, 6, 7, 8, 9, 11], [4, 6, 7, 12, 13], [5, 10, 12, 13],
+    [6, 7, 8, 9, 10, 11, 12, 13], [7, 10, 11, 12, 14], [8, 9, 13, 14], [9, 11, 13, 14], [10, 11, 12, 13, 14],
+             [11, 14], [12, 13, 14], [13], [14], []]
+    e = eval.evaluate(graph, cell_list)
     print(e)
