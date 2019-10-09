@@ -81,8 +81,8 @@ def _module_init():
 
 def _filln_queue(q, n):
     for i in range(n):
-        q.append(i)
-        # q.put(i)
+        # q.append(i)
+        q.put(i)
 
 def _wait_for_event(event_func):
     # TODO replaced by multiprocessing.Event
