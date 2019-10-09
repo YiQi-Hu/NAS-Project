@@ -108,11 +108,12 @@ def _do_task(pool, cmnct, eva):
         except:
             IDLE_GPUQ.put(gpu)
             break
-        result = pool.apply_async(
-            _gpu_eva,
-            args=(task_params, eva, gpu),
-            # Without error callback, it might be deadlock
-            callback=_eva_callback)
+        # result = pool.apply_async(
+        #     _gpu_eva,
+        #     args=(task_params, eva, gpu),
+        #     # Without error callback, it might be deadlock
+        #     callback=_eva_callback)
+        result = _gpu_eva(task_params, eva, gpu)
         result_list.append(result)
 
     return result_list
