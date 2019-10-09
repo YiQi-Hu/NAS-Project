@@ -38,7 +38,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 # Global variables
 NAS_CONFIG = json.load(open(NAS_CONFIG_PATH, encoding='utf-8'))
-IDLE_GPUQ = Queue()
+IDLE_GPUQ = []
 
 def _gpu_eva(params):
     graph, cell, nn_pb, _, p_, ft_sign, pl_, eva, ngpu = params
@@ -58,7 +58,7 @@ def _gpu_eva(params):
             except:
                 print(SYS_EVAFAIL)
                 f.write(LOG_EVAFAIL)
-        IDLE_GPUQ.put(ngpu)
+        IDLE_GPUQ.append(ngpu)
 
     end_time = time.time()
     start_time = time.time()
@@ -118,11 +118,11 @@ class Nas():
     def do_task(pool, cmnct):
         result_list = []
         while not cmnct.task.empty():
-            gpu = IDLE_GPUQ.get()
+            gpu = IDLE_GPUQ.pop()
             try:
                 task_params = cmnct.task.get(timeout=1)
             except:
-                IDLE_GPUQ.put(gpu)
+                IDLE_GPUQ.append(gpu)
                 break
             result = pool.apply_async(_gpu_eva, args=task_params)
             result_list.append(result)
@@ -130,7 +130,7 @@ class Nas():
         return result_list
     @staticmethod
     def teststatic():
-        n = IDLE_GPUQ.qsize()
+        n = len(IDLE_GPUQ)
         return n
 
     @staticmethod
@@ -174,9 +174,3 @@ class Nas():
             print(SYS_WORKER_DONE)
 
         return
-
-_filln_queue(IDLE_GPUQ, 5)
-
-if __name__ == '__main__':
-    nas = Nas('ps', '127.0.0.1:5000')
-    nas.run()
