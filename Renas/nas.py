@@ -42,6 +42,8 @@ NAS_CONFIG = json.load(open(NAS_CONFIG_PATH, encoding='utf-8'))
 # TODO Fatal: Corenas can not get items in IDLE_GPUQ (Queue)
 IDLE_GPUQ = Queue()
 
+ERR_SIG = 0
+
 def _gpu_eva(params, ngpu):
     graph, cell, nn_pb, _, p_, ft_sign, pl_, eva = params
     # params = (graph, cell, nn_preblock, round, pos,
@@ -100,7 +102,11 @@ def _do_task(pool, cmnct):
         except:
             IDLE_GPUQ.put(gpu)
             break
-        result = pool.apply_async(_gpu_eva, args=(task_params, gpu))
+        result = pool.apply_async(
+            _gpu_eva, 
+            args=(task_params, gpu),
+            error_callback=lambda e: ERR_SIG = 1
+        )
         result_list.append(result)
 
     return result_list
