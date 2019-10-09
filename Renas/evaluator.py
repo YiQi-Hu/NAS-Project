@@ -340,8 +340,6 @@ class Evaluator:
         Returns:
             Accuracy
         '''
-        tf.reset_default_graph()
-
         self.blocks = len(pre_block)
         # define placeholder x, y_ , keep_prob, learning_rate
         learning_rate = tf.placeholder(tf.float32)
