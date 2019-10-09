@@ -2,6 +2,7 @@ __pycache__
 */cifar-10-batches-py
 cifar-10-batches-py/
 .vscode/
+memory/
 
 .idea/
 
