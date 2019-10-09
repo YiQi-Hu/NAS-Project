@@ -105,6 +105,7 @@ def _do_task(pool, cmnct):
         while not result.ready():
             print("not ready ...")
             time.sleep(3)
+        print("result is ready!")
 
     return result_list
 
