@@ -38,8 +38,10 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 # Global variables
 NAS_CONFIG = json.load(open(NAS_CONFIG_PATH, encoding='utf-8'))
-# IDLE_GPUQ = [i for i in range(NAS_CONFIG['num_gpu'])]
-IDLE_GPUQ = Queue()
+
+# TODO Fatal: Corenas can not get items in IDLE_GPUQ (Queue)
+IDLE_GPUQ = [i for i in range(NAS_CONFIG['num_gpu'])]
+# IDLE_GPUQ = Queue()
 
 def _gpu_eva(params):
     graph, cell, nn_pb, _, p_, ft_sign, pl_, eva, ngpu = params
@@ -59,8 +61,8 @@ def _gpu_eva(params):
             except:
                 print(SYS_EVAFAIL)
                 f.write(LOG_EVAFAIL)
-        # IDLE_GPUQ.append(ngpu)
-        IDLE_GPUQ.put(ngpu)
+        IDLE_GPUQ.append(ngpu)
+        # IDLE_GPUQ.put(ngpu)
 
     end_time = time.time()
     start_time = time.time()
@@ -79,8 +81,8 @@ def _module_init():
 
 def _filln_queue(q, n):
     for i in range(n):
-        # q.append(i)
-        q.put(i)
+        q.append(i)
+        # q.put(i)
 
 def _wait_for_event(event_func):
     # TODO replaced by multiprocessing.Event
@@ -92,20 +94,24 @@ def _wait_for_event(event_func):
 def _do_task(pool, cmnct):
     result_list = []
     while not cmnct.task.empty():
-        # gpu = IDLE_GPUQ.pop()
-        gpu = IDLE_GPUQ.get()
+        gpu = IDLE_GPUQ.pop()
+        # gpu = IDLE_GPUQ.get()
         try:
             task_params = cmnct.task.get(timeout=1)
         except:
-            # IDLE_GPUQ.append(gpu)
-            IDLE_GPUQ.put(gpu)
+            IDLE_GPUQ.append(gpu)
+            # IDLE_GPUQ.put(gpu)
             break
         result = pool.apply_async(_gpu_eva, args=task_params)
         result_list.append(result)
+        
         while not result.ready():
             print("not ready ...")
             time.sleep(3)
         print("result is ready!")
+        # TODO Fatal: only 1 gpu work!
+        if len(IDLE_GPUQ) <= 0:
+            result.wait()
 
     return result_list
 
