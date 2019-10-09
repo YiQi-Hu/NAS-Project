@@ -160,7 +160,10 @@ def _train_winner(net_pool, round, eva):
     return best_nn, best_index
 
 # TODO understand this code
+import time
 def _init_ops(net_pool):
+    func_start = time.time()
+    pred_cost = 0
     # copied from initialize_ops_subprocess(self, NETWORK_POOL):
     for nn in net_pool:  # initialize the full network by adding the skipping and ops to graph_part
         nn.table = nn.opt.sample()
@@ -169,7 +172,10 @@ def _init_ops(net_pool):
         blocks = []
         for block in nn.pre_block:  # get the graph_full adjacency list in the previous blocks
             blocks.append(block[0])  # only get the graph_full in the pre_bock
+        pred_start = time.time()
         pred_ops = Predictor().predictor(blocks, graph)
+        pred_cost += time.time() - pred_start
+
         table = nn.spl.init_p(pred_ops)  # spl refer to the pred_ops
         nn.spl.renewp(table)
         cell, graph = nn.spl.sample()  # sample again after renew the table
@@ -178,6 +184,11 @@ def _init_ops(net_pool):
 
     scores = zeros(len(net_pool))
     scores = scores.tolist()
+
+    func_end = time.time()
+    func_cost = func_end - func_start
+    print("func: %d, pred: %d" % func_cost, pred_cost)
+
     return scores, net_pool
 
 def Corenas(block_num, eva, com, npool_tem):

@@ -71,7 +71,7 @@ def _gpu_eva(params, eva, ngpu):
         IDLE_GPUQ.put(ngpu)
 
     end_time = time.time()
-    start_time = time.time()
+    # start_time = time.time()
     time_cost = end_time - start_time
     return score, time_cost, p_
 
