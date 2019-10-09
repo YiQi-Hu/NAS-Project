@@ -38,7 +38,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 # Global variables
 NAS_CONFIG = json.load(open(NAS_CONFIG_PATH, encoding='utf-8'))
-IDLE_GPUQ = []
+IDLE_GPUQ = [i for i in range(NAS_CONFIG['num_gpu'])]
 
 def _gpu_eva(params):
     graph, cell, nn_pb, _, p_, ft_sign, pl_, eva, ngpu = params
@@ -75,9 +75,9 @@ def _module_init():
 
     return enu, eva
 
-def _filln_queue(q, n):
-    for i in range(n):
-        q.put(i)
+# def _filln_queue(q, n):
+#     for i in range(n):
+#         q.append(i)
 
 def _wait_for_event(event_func):
     # TODO replaced by multiprocessing.Event
@@ -95,12 +95,12 @@ class Nas():
         return
 
     def __ps_run(self, enum, eva, cmnct):
-        _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
+        # _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
         print(SYS_ENUM_ING)
 
         network_pool_tem = enum.enumerate()
         # print(network_pool_tem, flush=True)
-        
+
         import corenas
         for i in range(NAS_CONFIG["block_num"]):
             print(SYS_SEARCH_BLOCK_TEM.format(i+1, NAS_CONFIG["block_num"]))
@@ -143,7 +143,7 @@ class Nas():
 
     # TODO ps -> worker
     def _worker_run(eva, cmnct):
-        _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
+        # _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
         pool = Pool(processes=NAS_CONFIG["num_gpu"])
         while cmnct.end_flag.empty():
             _wait_for_event(cmnct.data_sync.empty)
@@ -174,7 +174,7 @@ class Nas():
             print(SYS_WORKER_DONE)
 
         return
-        
+
 if __name__ == '__main__':
     nas = Nas('ps', '127.0.0.1:5000')
     nas.run()
