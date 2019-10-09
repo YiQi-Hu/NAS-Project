@@ -102,6 +102,9 @@ def _do_task(pool, cmnct):
             break
         result = pool.apply_async(_gpu_eva, args=task_params)
         result_list.append(result)
+        while not result.ready():
+            print("not ready ...")
+            time.sleep(3)
 
     return result_list
 
