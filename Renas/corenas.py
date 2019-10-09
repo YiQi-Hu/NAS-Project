@@ -5,7 +5,10 @@ from numpy import zeros
 
 from nas import NAS_CONFIG, IDLE_GPUQ
 from nas import Nas
-from nas import _wait_for_event, _do_task, _arrange_result
+from nas import _wait_for_event
+from nas import _do_task
+from nas import _arrange_result
+from nas import _filln_queue
 from info_str import (
     NETWORK_INFO_PATH,
     WINNER_LOG_PATH,
