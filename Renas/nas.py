@@ -57,7 +57,7 @@ def _gpu_eva(params, eva, ngpu):
     start_time = time.time()
 
     os.environ['CUDA_VISIBLE_DEVICES'] = str(ngpu)
-    with open(EVALOG_PATH_TEM.format(ngpu)) as f:
+    with open(EVALOG_PATH_TEM.format(ngpu), 'w') as f:
         f.write(LOG_EVAINFO_TEM.format(
             len(nn_pb)+1, r_, p_, pl_
         ))
