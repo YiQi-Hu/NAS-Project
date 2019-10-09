@@ -120,7 +120,7 @@ def _game(eva, net_pool, scores, com, round):
     pool = Pool(processes=NAS_CONFIG["num_gpu"])
     _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
     # Do the tasks
-    result_list = _do_task(pool, com)
+    result_list = _do_task(pool, com, eva)
     _arrange_result(result_list, com)
     # TODO replaced by multiprocessing.Event
     _wait_for_event(lambda: com.result.qsize() != pool_len)
