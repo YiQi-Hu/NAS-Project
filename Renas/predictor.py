@@ -12,10 +12,11 @@ from nas import CUR_VER_DIR
 
 MAX_NETWORK_LENGTH = 71
 
-cwd = os.getcwd()
-model_json_path = os.path.join(cwd, CUR_VER_DIR, 'predict_op', 'model.json')
-model_weights_path = os.path.join(cwd, CUR_VER_DIR, 'predict_op', 'model.json.h5')
+# cwd = os.getcwd()
+model_json_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json')
+model_weights_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json.h5')
 
+print(model_json_path)
 
 class Feature:
     def __init__(self, graph):
