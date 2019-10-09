@@ -40,7 +40,6 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 NAS_CONFIG = json.load(open(NAS_CONFIG_PATH, encoding='utf-8'))
 
 # TODO Fatal: Corenas can not get items in IDLE_GPUQ (Queue)
-# IDLE_GPUQ = [i for i in range(NAS_CONFIG['num_gpu'])]
 IDLE_GPUQ = Queue()
 
 def _gpu_eva(params, ngpu):
@@ -61,7 +60,6 @@ def _gpu_eva(params, ngpu):
             except:
                 print(SYS_EVAFAIL)
                 f.write(LOG_EVAFAIL)
-        # IDLE_GPUQ.append(ngpu)
         IDLE_GPUQ.put(ngpu)
 
     end_time = time.time()
@@ -81,7 +79,6 @@ def _module_init():
 
 def _filln_queue(q, n):
     for i in range(n):
-        # q.append(i)
         q.put(i)
 
 def _wait_for_event(event_func):
@@ -93,25 +90,18 @@ def _wait_for_event(event_func):
 
 def _do_task(pool, cmnct):
     result_list = []
+    cnt = 0
     while not cmnct.task.empty():
-        # gpu = IDLE_GPUQ.pop()
+        print("Task %d ..." % cnt)
+        cnt += 1
         gpu = IDLE_GPUQ.get()
         try:
             task_params = cmnct.task.get(timeout=1)
         except:
-            # IDLE_GPUQ.append(gpu)
             IDLE_GPUQ.put(gpu)
             break
         result = pool.apply_async(_gpu_eva, args=(task_params, gpu))
         result_list.append(result)
-
-        while not result.ready():
-            print("not ready ...")
-            time.sleep(3)
-        print("result is ready!")
-        # TODO Fatal: only 1 gpu work!
-        if len(IDLE_GPUQ) <= 0:
-            result.wait()
 
     return result_list
 
