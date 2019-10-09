@@ -46,10 +46,12 @@ ERR_SIG = 0
 
 def _eva_callback(e):
     ERR_SIG = 1
+    print(e)
+    raise e
     return
 
-def _gpu_eva(params, ngpu):
-    graph, cell, nn_pb, _, p_, ft_sign, pl_, eva = params
+def _gpu_eva(params, eva, ngpu):
+    graph, cell, nn_pb, p_, r_, ft_sign, pl_ = params
     # params = (graph, cell, nn_preblock, round, pos,
     # finetune_signal, pool_len, eva)
     start_time = time.time()
@@ -57,7 +59,7 @@ def _gpu_eva(params, ngpu):
     os.environ['CUDA_VISIBLE_DEVICES'] = str(ngpu)
     with open(EVALOG_PATH_TEM.format(ngpu)) as f:
         f.write(LOG_EVAINFO_TEM.format(
-            len(nn_pb)+1, round, p_, pl_
+            len(nn_pb)+1, r_, p_, pl_
         ))
         while True:
             try:
@@ -94,7 +96,7 @@ def _wait_for_event(event_func):
         time.sleep(20)
     return
 
-def _do_task(pool, cmnct):
+def _do_task(pool, cmnct, eva):
     result_list = []
     cnt = 0
     while not cmnct.task.empty():
@@ -108,7 +110,7 @@ def _do_task(pool, cmnct):
             break
         result = pool.apply_async(
             _gpu_eva,
-            args=(task_params, gpu),
+            args=(task_params, eva, gpu),
             # Without error callback, it might be deadlock
             callback=_eva_callback)
         result_list.append(result)
@@ -157,7 +159,7 @@ class Nas():
             data_count_ps = cmnct.data_sync.get(timeout=1)
             eva.add_data(1600*(data_count_ps-cmnct.data_count+1))
 
-            result_list = _do_task(pool, cmnct)
+            result_list = _do_task(pool, cmnct, eva)
             _arrange_result(result_list, cmnct)
 
             _wait_for_event(cmnct.task.empty)
