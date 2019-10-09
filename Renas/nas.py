@@ -86,6 +86,28 @@ def _wait_for_event(event_func):
         time.sleep(20)
     return
 
+def _do_task(pool, cmnct):
+    result_list = []
+    while not cmnct.task.empty():
+        gpu = IDLE_GPUQ.pop()
+        try:
+            task_params = cmnct.task.get(timeout=1)
+        except:
+            IDLE_GPUQ.append(gpu)
+            break
+        result = pool.apply_async(_gpu_eva, args=task_params)
+        result_list.append(result)
+
+    return result_list
+    
+def _arrange_result(result_list, cmnct):
+    for r_ in result_list:
+        score, time_cost, network_index = r_.get()
+        print(SYS_EVA_RESULT_TEM.format(network_index, score, time_cost))
+        cmnct.result.put([score, network_index, time_cost])
+    return
+
+
 class Nas():
     def __init__(self, job_name, ps_host=''):
         self.__is_ps = (job_name == 'ps')
@@ -94,7 +116,7 @@ class Nas():
         # set_random_seed(NAS_CONFIG["randseed"])
         return
 
-    def __ps_run(self, enum, eva, cmnct):
+    def _ps_run(self, enum, eva, cmnct):
         # _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
         print(SYS_ENUM_ING)
 
@@ -114,33 +136,6 @@ class Nas():
 
         return block.pre_block
 
-    @staticmethod
-    def do_task(pool, cmnct):
-        result_list = []
-        while not cmnct.task.empty():
-            gpu = IDLE_GPUQ.pop()
-            try:
-                task_params = cmnct.task.get(timeout=1)
-            except:
-                IDLE_GPUQ.append(gpu)
-                break
-            result = pool.apply_async(_gpu_eva, args=task_params)
-            result_list.append(result)
-
-        return result_list
-    @staticmethod
-    def teststatic():
-        n = len(IDLE_GPUQ)
-        return n
-
-    @staticmethod
-    def arrange_result(result_list, cmnct):
-        for r_ in result_list:
-            score, time_cost, network_index = r_.get()
-            print(SYS_EVA_RESULT_TEM.format(network_index, score, time_cost))
-            cmnct.result.put([score, network_index, time_cost])
-        return
-
     # TODO ps -> worker
     def _worker_run(eva, cmnct):
         # _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
@@ -152,8 +147,8 @@ class Nas():
             data_count_ps = cmnct.data_sync.get(timeout=1)
             eva.add_data(1600*(data_count_ps-cmnct.data_count+1))
 
-            result_list = do_task(pool, cmnct)
-            arrange_result(result_list, cmnct)
+            result_list = _do_task(pool, cmnct)
+            _arrange_result(result_list, cmnct)
 
             _wait_for_event(cmnct.task.empty)
         pool.close()
@@ -167,7 +162,7 @@ class Nas():
         enum, eva = _module_init()
         if self.__is_ps:
             print(SYS_I_AM_PS)
-            return self.__ps_run(enum, eva, cmnct)
+            return self._ps_run(enum, eva, cmnct)
         else:
             print(SYS_I_AM_WORKER)
             self._worker_run(eva, cmnct)

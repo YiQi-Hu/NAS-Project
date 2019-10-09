@@ -5,7 +5,7 @@ from numpy import zeros
 
 from nas import NAS_CONFIG, IDLE_GPUQ
 from nas import Nas
-from nas import _wait_for_event
+from nas import _wait_for_event, _do_task, _arrange_result
 from info_str import (
     NETWORK_INFO_PATH,
     WINNER_LOG_PATH,
@@ -114,8 +114,8 @@ def _game(eva, net_pool, scores, com, round):
     _game_assign_task(net_pool, scores, com, round, pool_len, eva)
     # TODO ps -> worker DONE
     pool = Pool(processes=NAS_CONFIG["num_gpu"])
-    result_list = Nas.do_task(pool, com)
-    Nas.arrange_result(result_list, com)
+    result_list = _do_task(pool, com)
+    _arrange_result(result_list, com)
     # TODO replaced by multiprocessing.Event
     _wait_for_event(lambda: com.result.qsize() != pool_len)
     # fill the score list
