@@ -114,6 +114,7 @@ def _game(eva, net_pool, scores, com, round):
     _game_assign_task(net_pool, scores, com, round, pool_len, eva)
     # TODO ps -> worker DONE
     pool = Pool(processes=NAS_CONFIG["num_gpu"])
+    print(Nas.teststatic())
     result_list = Nas.do_task(pool, com)
     Nas.arrange_result(result_list, com)
     # TODO replaced by multiprocessing.Event

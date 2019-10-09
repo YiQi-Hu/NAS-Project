@@ -16,8 +16,6 @@ MAX_NETWORK_LENGTH = 71
 model_json_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json')
 model_weights_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json.h5')
 
-print(model_json_path)
-
 class Feature:
     def __init__(self, graph):
         self.graph = graph
