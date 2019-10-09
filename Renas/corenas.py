@@ -187,7 +187,7 @@ def _init_ops(net_pool):
 
     func_end = time.time()
     func_cost = func_end - func_start
-    print("func: %d, pred: %d" % func_cost, pred_cost)
+    print("func: %d, pred: %d" % (func_cost, pred_cost))
 
     return scores, net_pool
 
