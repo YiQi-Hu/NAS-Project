@@ -44,7 +44,7 @@ IDLE_GPUQ = Queue()
 
 ERR_SIG = 0
 
-def _eva_errcall(e):
+def _eva_callback(e):
     ERR_SIG = 1
     return
 
@@ -110,7 +110,7 @@ def _do_task(pool, cmnct):
             _gpu_eva,
             args=(task_params, gpu),
             # Without error callback, it might be deadlock
-            error_callback=_eva_errcall)
+            callback=_eva_callback)
         result_list.append(result)
 
     return result_list
