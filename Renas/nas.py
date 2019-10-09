@@ -44,6 +44,10 @@ IDLE_GPUQ = Queue()
 
 ERR_SIG = 0
 
+def _eva_errcall(e):
+    ERR_SIG = 1
+    return
+
 def _gpu_eva(params, ngpu):
     graph, cell, nn_pb, _, p_, ft_sign, pl_, eva = params
     # params = (graph, cell, nn_preblock, round, pos,
@@ -103,10 +107,10 @@ def _do_task(pool, cmnct):
             IDLE_GPUQ.put(gpu)
             break
         result = pool.apply_async(
-            _gpu_eva, 
+            _gpu_eva,
             args=(task_params, gpu),
-            error_callback=lambda e: ERR_SIG = 1
-        )
+            # Without error callback, it might be deadlock
+            error_callback=_eva_errcall)
         result_list.append(result)
 
     return result_list
