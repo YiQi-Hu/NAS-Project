@@ -43,13 +43,13 @@ NAS_CONFIG = json.load(open(NAS_CONFIG_PATH, encoding='utf-8'))
 # IDLE_GPUQ = [i for i in range(NAS_CONFIG['num_gpu'])]
 IDLE_GPUQ = Queue()
 
-def _gpu_eva(params):
-    graph, cell, nn_pb, _, p_, ft_sign, pl_, eva, ngpu = params
+def _gpu_eva(params, ngpu):
+    graph, cell, nn_pb, _, p_, ft_sign, pl_, eva = params
     # params = (graph, cell, nn_preblock, round, pos,
-    # finetune_signal, pool_len, eva, ngpu)
+    # finetune_signal, pool_len, eva)
     start_time = time.time()
 
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(params.ngpu)
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(ngpu)
     with open(EVALOG_PATH_TEM.format(ngpu)) as f:
         f.write(LOG_EVAINFO_TEM.format(
             len(nn_pb)+1, round, p_, pl_
@@ -102,9 +102,9 @@ def _do_task(pool, cmnct):
             # IDLE_GPUQ.append(gpu)
             IDLE_GPUQ.put(gpu)
             break
-        result = pool.apply_async(_gpu_eva, args=task_params)
+        result = pool.apply_async(_gpu_eva, args=(task_params, gpu))
         result_list.append(result)
-        
+
         while not result.ready():
             print("not ready ...")
             time.sleep(3)
@@ -148,6 +148,7 @@ class Nas():
         return block.pre_block
 
     def _worker_run(eva, cmnct):
+        _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
         pool = Pool(processes=NAS_CONFIG["num_gpu"])
         while cmnct.end_flag.empty():
             _wait_for_event(cmnct.data_sync.empty)
@@ -160,7 +161,7 @@ class Nas():
             _arrange_result(result_list, cmnct)
 
             _wait_for_event(cmnct.task.empty)
-        
+
         pool.close()
         pool.join()
         return
@@ -169,7 +170,6 @@ class Nas():
         print(SYS_INIT_ING)
         cmnct = Communicator(self.__is_ps, self.__ps_host)
         enum, eva = _module_init()
-        _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
 
         if self.__is_ps:
             print(SYS_I_AM_PS)

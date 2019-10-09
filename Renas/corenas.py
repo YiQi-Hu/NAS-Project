@@ -112,8 +112,11 @@ def _game(eva, net_pool, scores, com, round):
     print(SYS_START_GAME_TEM.format(pool_len))
     # put all the network in this round into the task queue
     _game_assign_task(net_pool, scores, com, round, pool_len, eva)
-    # TODO ps -> worker DONE
+    # For corenas can not get IDLE_GPUQ from nas, so
+    # we fill it here.
     pool = Pool(processes=NAS_CONFIG["num_gpu"])
+    _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
+    # Do the tasks
     result_list = _do_task(pool, com)
     _arrange_result(result_list, com)
     # TODO replaced by multiprocessing.Event
