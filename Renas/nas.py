@@ -174,3 +174,7 @@ class Nas():
             print(SYS_WORKER_DONE)
 
         return
+        
+if __name__ == '__main__':
+    nas = Nas('ps', '127.0.0.1:5000')
+    nas.run()
