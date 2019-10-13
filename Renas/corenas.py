@@ -25,13 +25,8 @@ from predictor import Predictor
 
 # TODO delete or move to nas.py
 def _wirte_list(f, graph):
-    f.write('[')
-    for node in graph:
-        f.write('[')
-        for ajaceny in node:
-            f.write(str(ajaceny) + ',')
-        f.write('],')
-    f.write(']' + '\n')
+    f.write(str(graph))
+    return
 
 # TODO move to nas.py
 def _save_info(path, network, round, original_index, network_num):
