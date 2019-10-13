@@ -24,7 +24,7 @@ from info_str import (
 from predictor import Predictor
 
 # TODO delete or move to nas.py
-def _wirte_list(f, graph):
+def _write_list(f, graph):
     f.write(str(graph))
     return
 
@@ -35,12 +35,12 @@ def _save_info(path, network, round, original_index, network_num):
         f.write(LOG_EVAINFO_TEM.format(len(network.pre_block)+1, round, original_index, network_num))
         f.write('number of scheme: {}\n'.format(len(network.score_list)))
         f.write('graph_part:')
-        _wirte_list(f, network.graph_part)
+        _write_list(f, network.graph_part)
         for item in zip(network.graph_full_list, network.cell_list, network.score_list):
             f.write('    graph_full:')
-            _wirte_list(f, item[0])
+            _write_list(f, item[0])
             f.write('    cell_list:')
-            _wirte_list(f, item[1])
+            _write_list(f, item[1])
             f.write('    score:')
             f.write(str(item[2]) + '\n')
     return
