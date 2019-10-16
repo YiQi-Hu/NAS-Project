@@ -23,10 +23,32 @@ from info_str import (
 )
 from predictor import Predictor
 
-# TODO delete or move to nas.py
-def _write_list(f, graph):
-    f.write(str(graph))
+# wait to be _save_info
+def _save_info(path, network, round, original_index, network_num):
+    tmpa = 'number of scheme: {}\n'
+    tmpb = 'graph_part: {}\n'
+    tmpc = '    graph_full: {}\n    cell_list: {}\n    score: {}\n'
+    s = LOG_EVAINFO_TEM.format(len(network.pre_block)+1, round, original_index, network_num)
+    s = s + tmpa.format(len(network.score_list))
+    s = s + tmpb.format(str(network.graph_part))
+
+    for item in zip(network.graph_full_list, network.cell_list, network.score_list):
+        s = s + tmpc.format(str(item[0]), str(item[1]), str(item[2]))
+
+    with open(path, 'a') as f:
+        f.write(s)
+
     return
+'''
+# TODO delete or move to nas.py
+def _wirte_list(f, graph):
+    f.write('[')
+    for node in graph:
+        f.write('[')
+        for ajaceny in node:
+            f.write(str(ajaceny) + ',')
+        f.write('],')
+    f.write(']' + '\n')
 
 # TODO move to nas.py
 def _save_info(path, network, round, original_index, network_num):
@@ -35,15 +57,16 @@ def _save_info(path, network, round, original_index, network_num):
         f.write(LOG_EVAINFO_TEM.format(len(network.pre_block)+1, round, original_index, network_num))
         f.write('number of scheme: {}\n'.format(len(network.score_list)))
         f.write('graph_part:')
-        _write_list(f, network.graph_part)
+        _wirte_list(f, network.graph_part)
         for item in zip(network.graph_full_list, network.cell_list, network.score_list):
             f.write('    graph_full:')
-            _write_list(f, item[0])
+            _wirte_list(f, item[0])
             f.write('    cell_list:')
-            _write_list(f, item[1])
+            _wirte_list(f, item[1])
             f.write('    score:')
             f.write(str(item[2]) + '\n')
     return
+'''
 
 def _list_swap(ls, i, j):
     cpy = ls[i]
@@ -67,7 +90,7 @@ def _eliminate(net_pool=None, scores=[], round=0):
             _list_swap(net_pool, i, len(net_pool) - 1)
             _list_swap(scores, i, len(scores) - 1)
             _list_swap(original_index, i, len(original_index) - 1)
-            _save_info(_NETWORK_INFO_PATH, net_pool.pop(), round, original_index.pop(), original_num)
+            _save_info(NETWORK_INFO_PATH, net_pool.pop(), round, original_index.pop(), original_num)
             scores.pop()
         else:
             i += 1
@@ -102,7 +125,7 @@ def _game_assign_task(net_pool, scores, com, round, pool_len, eva):
         com.task.put(task_param)
     # TODO data size control
     com.data_sync.put(com.data_count)  # for multi host
-    eva.add_data(1600)
+    eva.add_data(10)
     return
 
 def _game(eva, net_pool, scores, com, round):
@@ -135,14 +158,14 @@ def _train_winner(net_pool, round, eva):
     best_cell_i = 0
     eva.add_data(-1)  # -1 represent that we add all data for training
     print(SYS_CONFIG_OPS_ING)
-    for i in range(NAS_CONFIG.opt_best_k):
+    for i in range(NAS_CONFIG['opt_best_k']):
         best_nn.table = best_nn.opt.sample()
         best_nn.spl.renewp(best_nn.table)
         cell, graph = best_nn.spl.sample()
         best_nn.graph_full_list.append(graph)
         best_nn.cell_list.append(cell)
         with open(WINNER_LOG_PATH, 'a') as f:
-            f.write(_LOG_WINNER_TEM.format(len(best_nn.pre_block) + 1, i, NAS_CONFIG.__opt_best_k))
+            f.write(LOG_WINNER_TEM.format(len(best_nn.pre_block) + 1, i, NAS_CONFIG['opt_best_k']))
             opt_score = eva.evaluate(graph, cell, best_nn.pre_block, True, True, f)
         best_nn.score_list.append(opt_score)
         if opt_score > best_opt_score:

@@ -44,11 +44,13 @@ IDLE_GPUQ = Queue()
 
 ERR_SIG = 0
 
+
 def _eva_callback(e):
     ERR_SIG = 1
     print(e)
     raise e
     return
+
 
 def _gpu_eva(params, eva, ngpu):
     graph, cell, nn_pb, p_, r_, ft_sign, pl_ = params
@@ -63,7 +65,8 @@ def _gpu_eva(params, eva, ngpu):
         ))
         while True:
             try:
-                score = eva.evaluate(graph, cell, nn_pb, False, ft_sign, f)
+                # score = eva.evaluate(graph, cell, nn_pb, False, ft_sign, f)
+                score = random.random()
                 break
             except:
                 print(SYS_EVAFAIL)
@@ -85,9 +88,11 @@ def _module_init():
 
     return enu, eva
 
+
 def _filln_queue(q, n):
     for i in range(n):
         q.put(i)
+
 
 def _wait_for_event(event_func):
     # TODO replaced by multiprocessing.Event
@@ -95,6 +100,7 @@ def _wait_for_event(event_func):
         print(SYS_WAIT_FOR_TASK)
         time.sleep(20)
     return
+
 
 def _do_task(pool, cmnct, eva):
     result_list = []
@@ -118,9 +124,11 @@ def _do_task(pool, cmnct, eva):
 
     return result_list
 
+
 def _arrange_result(result_list, cmnct):
     for r_ in result_list:
-        score, time_cost, network_index = r_.get()
+        # score, time_cost, network_index = r_.get()
+        score, time_cost, network_index = r_
         print(SYS_EVA_RESULT_TEM.format(network_index, score, time_cost))
         cmnct.result.put([score, network_index, time_cost])
     return
@@ -150,7 +158,7 @@ class Nas():
 
         return block.pre_block
 
-    def _worker_run(eva, cmnct):
+    def _worker_run(self, eva, cmnct):
         _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
         pool = Pool(processes=NAS_CONFIG["num_gpu"])
         while cmnct.end_flag.empty():
@@ -183,6 +191,7 @@ class Nas():
             print(SYS_WORKER_DONE)
 
         return
+
 
 if __name__ == '__main__':
     nas = Nas('ps', '127.0.0.1:5000')

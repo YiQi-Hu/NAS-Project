@@ -1,9 +1,14 @@
-__pycache__/
+__pycache__
+*/cifar-10-batches-py
 cifar-10-batches-py/
 .vscode/
+memory/
 
 .idea/
 
 *.bin
 *.txt
 *.pdf
+
+Renas/auto.sh
+
