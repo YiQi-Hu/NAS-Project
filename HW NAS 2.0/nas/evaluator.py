@@ -139,8 +139,10 @@ def learning_rate_schedule(epoch_num):
         return 0.1
     elif epoch_num < 121:
         return 0.01
-    else:
+    elif epoch_num<151:
         return 0.001
+    else:
+        return  0.001*pow(0.98,int((epoch_num-151)/5))
 
 
 class Evaluator:
