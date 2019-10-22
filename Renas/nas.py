@@ -77,8 +77,8 @@ def _gpu_eva(params, eva, ngpu):
             try:
                 score = eva.evaluate(graph, cell, nn_pb, False, ft_sign, f)
                 break
-            except:
-                print(SYS_EVAFAIL)
+            except Exception as e:
+                print(SYS_EVAFAIL, e)
                 f.write(LOG_EVAFAIL)
 
     return score, p_

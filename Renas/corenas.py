@@ -153,12 +153,12 @@ def _train_winner(net_pool, round, eva):
 import pickle
 _OPS_PNAME = 'last_ops.pickle'
 def _get_ops_copy():
-    with open(_OPS_PNAME) as f:
+    with open(_OPS_PNAME, 'rb') as f:
         pool = pickle.load(f)
     return pool
 
 def _save_ops_copy(pool):
-    with open(_OPS_PNAME) as f:
+    with open(_OPS_PNAME, 'wb') as f:
         pickle.dump(pool, f)
     return
 
@@ -171,13 +171,13 @@ def _init_ops(net_pool):
     try:
         return scores, _get_ops_copy()
     except:
-        print('_get_ops_copy failed')
+        print('Nas: _get_ops_copy failed')
 
     # copied from initialize_ops_subprocess(self, NETWORK_POOL):
     _cnt = 0
     for nn in net_pool:  # initialize the full network by adding the skipping and ops to graph_part
         _cnt += 1
-        print("\r_init_ops Completed: %d %" % (_cnt / len(net_pool)),end='')  # for debug
+        print("\r_init_ops Completed: %f %%" % (_cnt / len(net_pool) * 100), end='')  # for debug
         nn.table = nn.opt.sample()
         nn.spl.renewp(nn.table)
         cell, graph = nn.spl.sample()
@@ -194,6 +194,7 @@ def _init_ops(net_pool):
 
     # for debug
     _save_ops_copy(net_pool)
+    print()
 
     return scores, net_pool
 
