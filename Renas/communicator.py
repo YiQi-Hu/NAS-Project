@@ -1,11 +1,6 @@
 import socket
 
 from multiprocessing.managers import SyncManager
-# from multiprocessing import Queue, Value
-from multiprocessing.managers import BaseManager
-
-# class QueueManager(BaseManager):
-#     pass
 
 class Communicator:
     def __init__(self, is_ps, ps_host):
@@ -14,11 +9,7 @@ class Communicator:
         server_port = int(ps_host.split(":")[1])
 
         self.__is_ps = is_ps
-        self.manager = SyncManager(
-            address=(server_addr, server_port),
-            authkey=b'abc'
-        )
-        # self.manager = BaseManager(address=(), authkey=b'abc')
+        self.manager = SyncManager(address=(), authkey=b'abc')
         self.__start()
 
         self.task = self.manager.Queue()

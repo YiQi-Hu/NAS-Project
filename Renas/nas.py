@@ -42,15 +42,6 @@ NAS_CONFIG = json.load(open(NAS_CONFIG_PATH, encoding='utf-8'))
 # TODO Fatal: Corenas can not get items in IDLE_GPUQ (Queue)
 IDLE_GPUQ = Queue()
 
-ERR_SIG = 0
-
-def _eva_callback(e):
-    ERR_SIG = 1
-    print(e)
-    raise e
-    return
-
-
 def _subproc_eva(params, eva):
     ngpu = IDLE_GPUQ.get()
     start_time = time.time()
@@ -145,8 +136,8 @@ class Nas():
     def _ps_run(self, enum, eva, cmnct):
         print(SYS_ENUM_ING)
 
-        network_pool_tem = enum.enumerate()
         import corenas
+        network_pool_tem = enum.enumerate()
         for i in range(NAS_CONFIG["block_num"]):
             print(SYS_SEARCH_BLOCK_TEM.format(i+1, NAS_CONFIG["block_num"]))
             block, best_index = corenas.Corenas(i, eva, cmnct, network_pool_tem)

@@ -39,34 +39,6 @@ def _save_info(path, network, round, original_index, network_num):
         f.write(s)
 
     return
-'''
-# TODO delete or move to nas.py
-def _wirte_list(f, graph):
-    f.write('[')
-    for node in graph:
-        f.write('[')
-        for ajaceny in node:
-            f.write(str(ajaceny) + ',')
-        f.write('],')
-    f.write(']' + '\n')
-
-# TODO move to nas.py
-def _save_info(path, network, round, original_index, network_num):
-    # TODO too ugly...
-    with open(path, 'a') as f:
-        f.write(LOG_EVAINFO_TEM.format(len(network.pre_block)+1, round, original_index, network_num))
-        f.write('number of scheme: {}\n'.format(len(network.score_list)))
-        f.write('graph_part:')
-        _wirte_list(f, network.graph_part)
-        for item in zip(network.graph_full_list, network.cell_list, network.score_list):
-            f.write('    graph_full:')
-            _wirte_list(f, item[0])
-            f.write('    cell_list:')
-            _wirte_list(f, item[1])
-            f.write('    score:')
-            f.write(str(item[2]) + '\n')
-    return
-'''
 
 def _list_swap(ls, i, j):
     cpy = ls[i]
@@ -177,15 +149,35 @@ def _train_winner(net_pool, round, eva):
     _save_info(NETWORK_INFO_PATH, best_nn, round, 0, 1)
     return best_nn, best_index
 
+# Debug function
+import pickle
+_OPS_PNAME = 'last_ops.pickle'
+def _get_ops_copy():
+    with open(_OPS_PNAME) as f:
+        pool = pickle.load(f)
+    return pool
+
+def _save_ops_copy(pool):
+    with open(_OPS_PNAME) as f:
+        pickle.dump(pool, f)
+    return
+
 # TODO understand this code
-import time
 def _init_ops(net_pool):
-    pred_cost = 0
+    scores = zeros(len(net_pool))
+    scores = scores.tolist()
+
+    # for debug
+    try:
+        return scores, _get_ops_copy()
+    except:
+        print('_get_ops_copy failed')
+
     # copied from initialize_ops_subprocess(self, NETWORK_POOL):
-    cnt = 0
+    _cnt = 0
     for nn in net_pool:  # initialize the full network by adding the skipping and ops to graph_part
-        cnt += 1
-        print("\rCompleted: {} %".format(cnt / len(net_pool)), end='')
+        _cnt += 1
+        print("\r_init_ops Completed: %d %" % (_cnt / len(net_pool)),end='')  # for debug
         nn.table = nn.opt.sample()
         nn.spl.renewp(nn.table)
         cell, graph = nn.spl.sample()
@@ -200,8 +192,8 @@ def _init_ops(net_pool):
         nn.graph_full_list.append(graph)  # graph from first sample and second sample are the same, so that we don't have to assign network.graph_full at first time
         nn.cell_list.append(cell)
 
-    scores = zeros(len(net_pool))
-    scores = scores.tolist()
+    # for debug
+    _save_ops_copy(net_pool)
 
     return scores, net_pool
 
