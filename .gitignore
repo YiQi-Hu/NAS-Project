@@ -12,3 +12,5 @@ memory/
 
 Renas/auto.sh
 
+*.pickle
+logs/

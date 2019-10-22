@@ -3,7 +3,7 @@ import random
 import os
 
 def load_conf():
-    f = open(os.getcwd() + "/sampling/configuration")
+    f = open(os.getcwd() + "\\Renas\\sampling\\configuration")
     start_index = 0
     const = []
     setting = json.load(f)

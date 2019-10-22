@@ -2,7 +2,6 @@ import copy
 from queue import Queue
 import time
 import networkx as nx
-import matplotlib.pyplot as plt
 import pickle
 from base import NetworkUnit
 
