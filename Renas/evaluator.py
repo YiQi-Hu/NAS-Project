@@ -269,16 +269,8 @@ class Evaluator:
         inputs[0] = images
         getinput = [False for i in range(nodelen)]  # bool list for whether this cell has already got input or not
         getinput[0] = True
-        # bool list for whether this cell has already been in the queue or not
-        inqueue = [False for i in range(nodelen)]
-        inqueue[0] = True
-        q = []
-        q.append(0)
 
-        # starting to build network through width-first searching
-        while len(q) > 0:
-            # making layers according to information provided by cellist
-            node = q.pop(0)
+        for node in range(nodelen):
             # print('Evaluater:right now we are processing node %d'%node,', ',cellist[node])
             if cellist[node][0] == 'conv':
                 layer = self._makeconv(inputs[node], cellist[node], node)
@@ -308,13 +300,9 @@ class Evaluator:
                 else:
                     inputs[j] = layer
                     getinput[j] = True
-                if not inqueue[j]:
-                    q.append(j)
-                    inqueue[j] = True
 
         # softmax
         last_layer = tf.identity(layer, name="last_layer" + str(self.blocks))
-
         # inputdim = layer.shape[3]
         # kernel = tf.get_variable('weights', shape=[1, 1, inputdim, NUM_CLASSES],
         #                          initializer=tf.truncated_normal_initializer(stddev=0.1))
@@ -342,35 +330,39 @@ class Evaluator:
         '''
         tf.reset_default_graph()
 
-        self.blocks = len(pre_block)
+        if self.train_num < batch_size:
+            print(
+                "Wrong! The data added in train dataset is smaller than batch size, batch size is %d, but data in train dataset is only %d",
+                batch_size, self.train_num)
+            self.add_data(batch_size - self.train_num)
+            print("Default add batch size picture to the train dataset.")
+        self.block_num = len(pre_block)
         # define placeholder x, y_ , keep_prob, learning_rate
         learning_rate = tf.placeholder(tf.float32)
         train_flag = tf.placeholder(tf.bool)
 
         with tf.Session() as sess:
-            if update_pre_weight:  # finetune???
-                x = tf.placeholder(tf.float32, [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3], name='input')
-                y_ = tf.placeholder(tf.int64, [batch_size, NUM_CLASSES], name="label")
-                input = x
-                for i in range(self.blocks):
-                    self.blocks = i
-                    # pre_block[i][1] represent graph_full and pre_block[i][2] represent cell_list
-                    input = self._inference(input, pre_block[i][1], pre_block[i][2])
-                self.blocks = len(pre_block)
-            elif self.blocks > 0:
+            # if it got previous blocks
+            if self.block_num > 0:
                 new_saver = tf.train.import_meta_graph(model_save_path + 'my_model.meta')
                 new_saver.restore(sess, tf.train.latest_checkpoint(model_save_path))
                 graph = tf.get_default_graph()
                 x = graph.get_tensor_by_name("input:0")
                 y_ = graph.get_tensor_by_name("label:0")
-                input = graph.get_tensor_by_name("last_layer" + str(self.blocks - 1) + ":0")
+                input = graph.get_tensor_by_name("last_layer" + str(self.block_num - 1) + ":0")
+                # only when there's not so many network in the pool will we update the previous blocks' weight
+                if not update_pre_weight:
+                    input = tf.stop_gradient(input, name="stop_gradient")
+            # if it's the first block
             else:
                 x = tf.placeholder(tf.float32, [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3], name='input')
                 y_ = tf.placeholder(tf.int64, [batch_size, NUM_CLASSES], name="label")
                 input = x
 
+            # build current block
             output = self._inference(input, graph_full, cell_list)
 
+            # FC layer
             output = tf.reshape(output, [batch_size, -1])
             with tf.variable_scope('lastdense' + str(self.blocks)) as scope:
                 weights = tf.get_variable('weights' + str(self.blocks), shape=[output.shape[-1], NUM_CLASSES],
@@ -380,7 +372,7 @@ class Evaluator:
 
             y = tf.add(tf.matmul(output, weights), biases, name="result" + str(self.blocks))
 
-            # loss function: cross_entropy
+            # loss function: cross_entropy+l2
             # train_step: training operation
             cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y))
             l2 = tf.add_n([tf.nn.l2_loss(var) for var in tf.trainable_variables()])

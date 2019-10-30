@@ -140,8 +140,10 @@ def learning_rate_schedule(epoch_num):
         return 0.1
     elif epoch_num < 121:
         return 0.01
-    else:
+    elif epoch_num<151:
         return 0.001
+    else:
+        return  0.001*pow(0.98,int((epoch_num-151)/5))
 
 
 class Evaluator:
@@ -256,16 +258,8 @@ class Evaluator:
         inputs[0] = images
         getinput = [False for i in range(nodelen)]  # bool list for whether this cell has already got input or not
         getinput[0] = True
-        # bool list for whether this cell has already been in the queue or not
-        inqueue = [False for i in range(nodelen)]
-        inqueue[0] = True
-        q = []
-        q.append(0)
 
-        # starting to build network through width-first searching
-        while len(q) > 0:
-            # making layers according to information provided by cellist
-            node = q.pop(0)
+        for node in range(nodelen):
             # print('Evaluater:right now we are processing node %d'%node,', ',cellist[node])
             if cellist[node][0] == 'conv':
                 layer = self._makeconv(inputs[node], cellist[node], node)
@@ -293,9 +287,6 @@ class Evaluator:
                 else:
                     inputs[j] = layer
                     getinput[j] = True
-                if not inqueue[j]:
-                    q.append(j)
-                    inqueue[j] = True
 
         # softmax
         # layer = tf.reshape(layer, [batch_size, -1])

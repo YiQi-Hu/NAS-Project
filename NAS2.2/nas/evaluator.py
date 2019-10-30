@@ -53,7 +53,7 @@ class Evaluator:
         self.train_num = 0
         self.network_num = 0
         self.max_steps = 0
-        self.blocks = 0
+        self.block_num = 0
 
     def unpickle(self, file):
         with open(file, 'rb') as fo:
@@ -173,7 +173,7 @@ class Evaluator:
         tensor.
         """
         # print('Evaluater:right now we are making conv layer, its node is %d, and the inputs is'%node,inputs,'and the node before it is ',cellist[node-1])
-        with tf.variable_scope('conv' + str(node) + 'block' + str(self.blocks)) as scope:
+        with tf.variable_scope('conv' + str(node) + 'block' + str(self.block_num)) as scope:
             inputdim = inputs.shape[3]
             kernel = tf.get_variable('weights', shape=[hplist[2], hplist[2], inputdim, hplist[1]],
                                      initializer=tf.truncated_normal_initializer(stddev=0.1))
@@ -257,16 +257,8 @@ class Evaluator:
         inputs[0] = images
         getinput = [False for i in range(nodelen)]  # bool list for whether this cell has already got input or not
         getinput[0] = True
-        # bool list for whether this cell has already been in the queue or not
-        inqueue = [False for i in range(nodelen)]
-        inqueue[0] = True
-        q = []
-        q.append(0)
 
-        # starting to build network through width-first searching
-        while len(q) > 0:
-            # making layers according to information provided by cellist
-            node = q.pop(0)
+        for node in range(nodelen):
             # print('Evaluater:right now we are processing node %d'%node,', ',cellist[node])
             if cellist[node][0] == 'conv':
                 layer = self._makeconv(inputs[node], cellist[node], node)
@@ -276,8 +268,6 @@ class Evaluator:
             elif cellist[node][0] == 'dense':
                 layer = self._makedense(inputs[node], cellist[node])
             else:
-                print("node:", node)
-                print("cell_list_structure:", cellist)
                 print('WRONG!!!!! Notice that you got a layer type we cant process!', cellist[node][0])
                 layer = []
 
@@ -296,12 +286,9 @@ class Evaluator:
                 else:
                     inputs[j] = layer
                     getinput[j] = True
-                if not inqueue[j]:
-                    q.append(j)
-                    inqueue[j] = True
 
         # softmax
-        last_layer = tf.identity(layer, name="last_layer" + str(self.blocks))
+        last_layer = tf.identity(layer, name="last_layer" + str(self.block_num))
 
         # inputdim = layer.shape[3]
         # kernel = tf.get_variable('weights', shape=[1, 1, inputdim, NUM_CLASSES],
@@ -330,33 +317,36 @@ class Evaluator:
         '''
         tf.reset_default_graph()
 
-        self.blocks = len(pre_block)
+        if self.train_num < self.batch_size:
+            print(
+                "Wrong! The data added in train dataset is smaller than batch size, batch size is %d, but data in train dataset is only %d",
+                self.batch_size, self.train_num)
+            self.add_data(self.batch_size - self.train_num)
+            print("Default add batch size picture to the train dataset.")
+        self.block_num = len(pre_block)
         # define placeholder x, y_ , keep_prob, learning_rate
         learning_rate = tf.placeholder(tf.float32)
         train_flag = tf.placeholder(tf.bool)
 
         with tf.Session() as sess:
-            if update_pre_weight:  # finetune???
-                x = tf.placeholder(tf.float32, [self.batch_size, self.IMAGE_SIZE, self.IMAGE_SIZE, 3], name='input')
-                y_ = tf.placeholder(tf.int64, [self.batch_size, self.NUM_CLASSES], name="label")
-                input = x
-                for i in range(self.blocks):
-                    self.blocks = i
-                    # pre_block[i][1] represent graph_full and pre_block[i][2] represent cell_list
-                    input = self._inference(input, pre_block[i][1], pre_block[i][2])
-                self.blocks = len(pre_block)
-            elif self.blocks > 0:
+            # if it got previous blocks
+            if self.block_num > 0:
                 new_saver = tf.train.import_meta_graph(self.model_save_path + 'my_model.meta')
                 new_saver.restore(sess, tf.train.latest_checkpoint(self.model_save_path))
                 graph = tf.get_default_graph()
                 x = graph.get_tensor_by_name("input:0")
                 y_ = graph.get_tensor_by_name("label:0")
-                input = graph.get_tensor_by_name("last_layer" + str(self.blocks - 1) + ":0")
+                input = graph.get_tensor_by_name("last_layer" + str(self.block_num - 1) + ":0")
+                # only when there's not so many network in the pool will we update the previous blocks' weight
+                if not update_pre_weight:
+                    input = tf.stop_gradient(input, name="stop_gradient")
+            # if it's the first block
             else:
                 x = tf.placeholder(tf.float32, [self.batch_size, self.IMAGE_SIZE, self.IMAGE_SIZE, 3], name='input')
                 y_ = tf.placeholder(tf.int64, [self.batch_size, self.NUM_CLASSES], name="label")
                 input = x
 
+            # build current block
             output = self._inference(input, graph_full, cell_list)
 
             # with tf.variable_scope('lastconv' + str(self.blocks)) as scope:
@@ -370,20 +360,20 @@ class Evaluator:
             #     output = tf.nn.relu(output, name=scope.name)
 
             output = tf.reshape(output, [self.batch_size, -1])
-            with tf.variable_scope('lastdense' + str(self.blocks)) as scope:
-                weights = tf.get_variable('weights' + str(self.blocks), shape=[output.shape[-1], self.NUM_CLASSES],
+            with tf.variable_scope('lastdense' + str(self.block_num)) as scope:
+                weights = tf.get_variable('weights' + str(self.block_num), shape=[output.shape[-1], self.NUM_CLASSES],
                                           initializer=tf.truncated_normal_initializer(stddev=0.04))  # 1 / float(dim)))
-                biases = tf.get_variable('biases' + str(self.blocks), shape=[self.NUM_CLASSES],
+                biases = tf.get_variable('biases' + str(self.block_num), shape=[self.NUM_CLASSES],
                                          initializer=tf.constant_initializer(0.0))
 
-            y = tf.add(tf.matmul(output, weights), biases, name="result" + str(self.blocks))
+            y = tf.add(tf.matmul(output, weights), biases, name="result" + str(self.block_num))
 
             # loss function: cross_entropy
             # train_step: training operation
             cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y))
             l2 = tf.add_n([tf.nn.l2_loss(var) for var in tf.trainable_variables()])
             train_step = tf.train.MomentumOptimizer(learning_rate, self.momentum_rate, use_nesterov=True,
-                                                    name='opt' + str(self.blocks)). \
+                                                    name='opt' + str(self.block_num)). \
                 minimize(cross_entropy + l2 * self.weight_decay)
 
             correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
