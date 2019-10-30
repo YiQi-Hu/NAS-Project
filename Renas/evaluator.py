@@ -330,7 +330,6 @@ class Evaluator:
         '''
         tf.reset_default_graph()
 
-        self.blocks = len(pre_block)
         if self.train_num < batch_size:
             print(
                 "Wrong! The data added in train dataset is smaller than batch size, batch size is %d, but data in train dataset is only %d",

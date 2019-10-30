@@ -318,34 +318,39 @@ class Evaluator:
         tf.reset_default_graph()
 
         self.blocks = len(pre_block)
+        if self.train_num < batch_size:
+            print(
+                "Wrong! The data added in train dataset is smaller than batch size, batch size is %d, but data in train dataset is only %d",
+                batch_size, self.train_num)
+            self.add_data(batch_size - self.train_num)
+            print("Default add batch size picture to the train dataset.")
+        self.block_num = len(pre_block)
         # define placeholder x, y_ , keep_prob, learning_rate
+        learning_rate = tf.placeholder(tf.float32)
         train_flag = tf.placeholder(tf.bool)
-        global_step = tf.Variable(0, trainable=False)
-        learning_rate=tf.placeholder(tf.float32)
 
         with tf.Session() as sess:
-            if update_pre_weight:
-                x = tf.placeholder(tf.float32, [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3], name='input')
-                y_ = tf.placeholder(tf.float32, [batch_size, NUM_CLASSES], name="label")
-                input = x
-                for i in range(self.blocks):
-                    self.blocks = i
-                    input = self._inference(input, pre_block[i][0], pre_block[i][1])
-                self.blocks = len(pre_block)
-            elif self.blocks > 0:
+            # if it got previous blocks
+            if self.block_num > 0:
                 new_saver = tf.train.import_meta_graph(model_save_path + 'my_model.meta')
                 new_saver.restore(sess, tf.train.latest_checkpoint(model_save_path))
                 graph = tf.get_default_graph()
                 x = graph.get_tensor_by_name("input:0")
                 y_ = graph.get_tensor_by_name("label:0")
-                input = graph.get_tensor_by_name("last_layer" + str(self.blocks - 1) + ":0")
+                input = graph.get_tensor_by_name("last_layer" + str(self.block_num - 1) + ":0")
+                # only when there's not so many network in the pool will we update the previous blocks' weight
+                if not update_pre_weight:
+                    input = tf.stop_gradient(input, name="stop_gradient")
+            # if it's the first block
             else:
                 x = tf.placeholder(tf.float32, [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3], name='input')
-                y_ = tf.placeholder(tf.float32, [batch_size, NUM_CLASSES], name="label")
+                y_ = tf.placeholder(tf.int64, [batch_size, NUM_CLASSES], name="label")
                 input = x
 
-            output = self._inference(input, graph_part, cell_list)
+            # build current block
+            output = self._inference(input, graph_full, cell_list)
 
+            # FC layer
             output = tf.reshape(output, [batch_size, -1])
             with tf.variable_scope('lastdense' + str(self.blocks)) as scope:
                 weights = tf.get_variable('weights' + str(self.blocks), shape=[output.shape[-1], NUM_CLASSES],
