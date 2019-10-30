@@ -42,38 +42,46 @@ NAS_CONFIG = json.load(open(NAS_CONFIG_PATH, encoding='utf-8'))
 # TODO Fatal: Corenas can not get items in IDLE_GPUQ (Queue)
 IDLE_GPUQ = Queue()
 
-ERR_SIG = 0
+def _subproc_eva(params, eva):
+    ngpu = IDLE_GPUQ.get()
+    start_time = time.time()
 
-def _eva_callback(e):
-    ERR_SIG = 1
-    print(e)
-    raise e
-    return
+    try:
+        # return score and pos
+        score, pos = _gpu_eva(params, eva, ngpu)
+    except:
+        score = random.random()
+        # params = (graph, cell, nn_preblock, pos, ...)
+        pos = params[3]
+    finally:
+        IDLE_GPUQ.put(ngpu)
+
+    end_time = time.time()
+    time_cost = end_time - start_time
+
+    return score, time_cost, pos
+
 
 def _gpu_eva(params, eva, ngpu):
     graph, cell, nn_pb, p_, r_, ft_sign, pl_ = params
-    # params = (graph, cell, nn_preblock, round, pos,
-    # finetune_signal, pool_len, eva)
-    start_time = time.time()
+    # params = (graph, cell, nn_preblock, pos,
+    # round, finetune_signal, pool_len)
 
     os.environ['CUDA_VISIBLE_DEVICES'] = str(ngpu)
     with open(EVALOG_PATH_TEM.format(ngpu), 'w') as f:
         f.write(LOG_EVAINFO_TEM.format(
             len(nn_pb)+1, r_, p_, pl_
         ))
+        # try infinitely ?
         while True:
             try:
                 score = eva.evaluate(graph, cell, nn_pb, False, ft_sign, f)
                 break
-            except:
-                print(SYS_EVAFAIL)
+            except Exception as e:
+                print(SYS_EVAFAIL, e)
                 f.write(LOG_EVAFAIL)
-        IDLE_GPUQ.put(ngpu)
 
-    end_time = time.time()
-    # start_time = time.time()
-    time_cost = end_time - start_time
-    return score, time_cost, p_
+    return score, p_
 
 
 def _module_init():
@@ -98,22 +106,14 @@ def _wait_for_event(event_func):
 
 def _do_task(pool, cmnct, eva):
     result_list = []
-    cnt = 0
+
     while not cmnct.task.empty():
-        print("Task %d ..." % cnt)
-        cnt += 1
-        gpu = IDLE_GPUQ.get()
         try:
             task_params = cmnct.task.get(timeout=1)
         except:
-            IDLE_GPUQ.put(gpu)
             break
-        # result = pool.apply_async(
-        #     _gpu_eva,
-        #     args=(task_params, eva, gpu),
-        #     # Without error callback, it might be deadlock
-        #     callback=_eva_callback)
-        result = _gpu_eva(task_params, eva, gpu)
+        # result = pool.apply_async(_subproc_eva, args=(task_params, eva))
+        result = _subproc_eva(task_params, eva)
         result_list.append(result)
 
     return result_list
@@ -136,8 +136,8 @@ class Nas():
     def _ps_run(self, enum, eva, cmnct):
         print(SYS_ENUM_ING)
 
-        network_pool_tem = enum.enumerate()
         import corenas
+        network_pool_tem = enum.enumerate()
         for i in range(NAS_CONFIG["block_num"]):
             print(SYS_SEARCH_BLOCK_TEM.format(i+1, NAS_CONFIG["block_num"]))
             block, best_index = corenas.Corenas(i, eva, cmnct, network_pool_tem)

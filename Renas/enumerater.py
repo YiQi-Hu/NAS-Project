@@ -2,7 +2,6 @@ import copy
 from queue import Queue
 import time
 import networkx as nx
-import matplotlib.pyplot as plt
 import pickle
 from base import NetworkUnit
 
@@ -18,8 +17,7 @@ class Enumerater:
         self.info_dict = {}
         self.info_group = []
         self.log = ""
-        self.pickle_name = 'depth=' + str(depth) + '_' + 'width=' + str(width) + '_' + "max_branch_depth=" + str(
-            max_branch_depth) + '.pickle'
+        self.pickle_name = '%d-%d-%d.pickle' % (depth, width, max_branch_depth)
 
     # 生成Adjacney 填充全局变量NETWORK_POOL
     def enumerate(self):

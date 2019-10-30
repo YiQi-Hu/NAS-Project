@@ -1,6 +1,8 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+from .base import NetworkUnit
+from .base import Dataset
 from datetime import datetime
 import math
 import time
@@ -9,170 +11,156 @@ import numpy as np
 import tensorflow as tf
 import random
 import pickle
-
-from base import NetworkUnit
-from info_str import CUR_VER_DIR
+import warnings
 
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-path = os.path.join(os.getcwd(), CUR_VER_DIR)  # + '/../'
-# path='C:\\Users\\Jalynn\\Desktop'
+warnings.filterwarnings('ignore')
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
-
-# Global constants describing the CIFAR-10 data set.
-IMAGE_SIZE = 32
-NUM_CLASSES = 10
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 50000
-NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 10000
-# Constants describing the training process.
-INITIAL_LEARNING_RATE = 0.001  # Initial learning rate.
-MOVING_AVERAGE_DECAY = 0.99
-REGULARAZTION_RATE = 0.0001
-batch_size = 50
-epoch = 10
-weight_decay = 0.0003
-momentum_rate = 0.9
-log_save_path = './logs'
-model_save_path = './model/'
-
-
-def unpickle(file):
-    with open(file, 'rb') as fo:
-        dict = pickle.load(fo, encoding='bytes')
-    return dict
-
-
-def load_data_one(file):
-    batch = unpickle(file)
-    data = batch[b'data']
-    labels = batch[b'labels']
-    print("Loading %s : %d." % (file, len(data)))
-    return data, labels
-
-
-def load_data(files, data_dir, label_count):
-    data, labels = load_data_one(os.path.join(data_dir, files[0]))
-    for f in files[1:]:
-        data_n, labels_n = load_data_one(os.path.join(data_dir, f))
-        data = np.append(data, data_n, axis=0)
-        labels = np.append(labels, labels_n, axis=0)
-    labels = np.array([[float(i == label) for i in range(label_count)] for label in labels])
-    data = data.reshape([-1, 3, IMAGE_SIZE, IMAGE_SIZE])
-    data = data.transpose([0, 2, 3, 1])
-    return data, labels
-
-
-def prepare_data():
-    print("======Loading data======")
-    # download_data()
-    data_dir = os.path.join(path, 'cifar-10-batches-py')
-    # image_dim = IMAGE_SIZE * image_size * img_channels
-    meta = unpickle(os.path.join(data_dir, 'batches.meta'))
-
-    print(meta)
-    label_names = meta[b'label_names']
-    label_count = 10
-    train_files = ['data_batch_%d' % d for d in range(1, 6)]
-    train_data, train_labels = load_data(train_files, data_dir, label_count)
-    test_data, test_labels = load_data(['test_batch'], data_dir, label_count)
-
-    print("Train data:", np.shape(train_data), np.shape(train_labels))
-    print("Test data :", np.shape(test_data), np.shape(test_labels))
-    print("======Load finished======")
-
-    return train_data, train_labels, test_data, test_labels
-
-
-def batch_norm(input):
-    # return input
-    return tf.contrib.layers.batch_norm(input, decay=0.9, center=True, scale=True, epsilon=1e-3,
-                                        updates_collections=None)
-
-
-def _random_crop(batch, crop_shape, padding=None):
-    oshape = np.shape(batch[0])
-
-    if padding:
-        oshape = (oshape[0] + 2 * padding, oshape[1] + 2 * padding)
-    new_batch = []
-    npad = ((padding, padding), (padding, padding), (0, 0))
-    for i in range(len(batch)):
-        new_batch.append(batch[i])
-        if padding:
-            new_batch[i] = np.lib.pad(batch[i], pad_width=npad,
-                                      mode='constant', constant_values=0)
-        nh = random.randint(0, oshape[0] - crop_shape[0])
-        nw = random.randint(0, oshape[1] - crop_shape[1])
-        new_batch[i] = new_batch[i][nh:nh + crop_shape[0],
-                       nw:nw + crop_shape[1]]
-    return new_batch
-
-
-def _random_flip_leftright(batch):
-    for i in range(len(batch)):
-        if bool(random.getrandbits(1)):
-            batch[i] = np.fliplr(batch[i])
-    return batch
-
-
-def data_preprocessing(x_train, x_test):
-    x_train = x_train.astype('float32')
-    x_test = x_test.astype('float32')
-
-    x_train[:, :, :, 0] = (x_train[:, :, :, 0] - np.mean(x_train[:, :, :, 0])) / np.std(x_train[:, :, :, 0])
-    x_train[:, :, :, 1] = (x_train[:, :, :, 1] - np.mean(x_train[:, :, :, 1])) / np.std(x_train[:, :, :, 1])
-    x_train[:, :, :, 2] = (x_train[:, :, :, 2] - np.mean(x_train[:, :, :, 2])) / np.std(x_train[:, :, :, 2])
-
-    x_test[:, :, :, 0] = (x_test[:, :, :, 0] - np.mean(x_test[:, :, :, 0])) / np.std(x_test[:, :, :, 0])
-    x_test[:, :, :, 1] = (x_test[:, :, :, 1] - np.mean(x_test[:, :, :, 1])) / np.std(x_test[:, :, :, 1])
-    x_test[:, :, :, 2] = (x_test[:, :, :, 2] - np.mean(x_test[:, :, :, 2])) / np.std(x_test[:, :, :, 2])
-
-    return x_train, x_test
-
-
-def data_augmentation(batch):
-    batch = _random_flip_leftright(batch)
-    batch = _random_crop(batch, [32, 32], 4)
-    return batch
-
-
-def learning_rate_schedule(epoch_num):
-    if epoch_num < 81:
-        return 0.1
-    elif epoch_num < 121:
-        return 0.01
-    else:
-        return 0.001
-
-class Dataset():
-    def __init__(self):
-        self.feature = None
-        self.label = None
-        self.shape = None
-        return
-
-    def load_from(self, path=""):
-        # TODO
-        return
 
 class Evaluator:
 
-    def __init__(self):
+    def __init__(self, eva_para):
+        self.path = eva_para["path"]
 
-        self.dtrain = Dataset()
+        # Global constants describing the CIFAR-10 data set.
+        self.IMAGE_SIZE = eva_para["image_size"]
+        self.NUM_CLASSES = eva_para["num_classes"]
+        self.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = eva_para["num_examples_per_epoch_for_train"]
+        self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = eva_para["num_examples_per_epoch_for_eval"]
+        # Constants describing the training process.
+        self.INITIAL_LEARNING_RATE = eva_para["initial_learning_rate"]  # Initial learning rate.
+        self.MOVING_AVERAGE_DECAY = eva_para["moving_average_decay"]
+        self.REGULARAZTION_RATE = eva_para["regularization_rate"]
+        self.batch_size = eva_para["batch_size"]
+        self.epoch_for_gamer = eva_para["epoch_for_gamer"]
+        self.epoch_for_winner = eva_para["epoch_for_winner"]
+        self.weight_decay = eva_para["weight_decay"]
+        self.momentum_rate = eva_para["momentum_rate"]
+        self.log_save_path = eva_para["train_log_save_path"]
+        self.model_save_path = eva_para["model_save_path"]
+
+        self.dtrain = Dataset()  # be added into
         self.dvalid = Dataset()
-        self.dataset = Dataset()
+        self.dtest = Dataset()
+        self.dataset = Dataset()  # be added from
         self.dtrain.feature = []
         self.dtrain.label = []
         self.trainindex = []
-        self.dataset.feature, self.dataset.label, self.dvalid.feature, self.dvalid.label = prepare_data()
-        self.dataset.feature, self.dvalid.feature = data_preprocessing(self.dataset.feature, self.dvalid.feature)
+        self.dataset.feature, self.dataset.label, self.dvalid.feature, self.dvalid.label, self.dtest.feature, self.dtest.label = self.prepare_data()
+        self.dataset.feature, self.dvalid.feature, self.dtest.feature = self.data_preprocessing(self.dataset.feature, self.dvalid.feature, self.dtest.feature)
         self.leftindex = range(self.dataset.label.shape[0])
         self.train_num = 0
         self.network_num = 0
         self.max_steps = 0
         self.blocks = 0
-        self.best_score = 0  # using for training the bestNN
+
+    def unpickle(self, file):
+        with open(file, 'rb') as fo:
+            dict = pickle.load(fo, encoding='bytes')
+        return dict
+
+    def load_data_one(self, file):
+        batch = self.unpickle(file)
+        data = batch[b'data']
+        labels = batch[b'labels']
+        print("Loading %s : %d." % (file, len(data)))
+        return data, labels
+
+    def load_data(self, files, data_dir, label_count):
+        data, labels = self.load_data_one(os.path.join(data_dir, files[0]))
+        for f in files[1:]:
+            data_n, labels_n = self.load_data_one(os.path.join(data_dir, f))
+            data = np.append(data, data_n, axis=0)
+            labels = np.append(labels, labels_n, axis=0)
+        labels = np.array([[float(i == label) for i in range(label_count)] for label in labels])
+        data = data.reshape([-1, 3, self.IMAGE_SIZE, self.IMAGE_SIZE])
+        data = data.transpose([0, 2, 3, 1])
+        return data, labels
+
+    def prepare_data(self, ):
+        print("======Loading data======")
+        # download_data()
+        data_dir = os.path.join(self.path, 'cifar-10-batches-py')
+        # image_dim = IMAGE_SIZE * image_size * img_channels
+        meta = self.unpickle(os.path.join(data_dir, 'batches.meta'))
+
+        print(meta)
+        label_names = meta[b'label_names']
+        label_count = 10
+        train_files = ['data_batch_%d' % d for d in range(1, 6)]
+        train_data, train_labels = self.load_data(train_files, data_dir, label_count)
+        valid_data, valid_labels = train_data[-self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL:], train_labels[-self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL:]
+        train_data, train_labels = train_data[:-self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL], train_labels[:-self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL]
+        test_data, test_labels = self.load_data(['test_batch'], data_dir, label_count)
+
+        print("Train data:", np.shape(train_data), np.shape(train_labels))
+        print("Valid data:", np.shape(valid_data), np.shape(valid_labels))
+        print("Test data :", np.shape(test_data), np.shape(test_labels))
+        print("======Load finished======")
+
+        return train_data, train_labels, valid_data, valid_labels, test_data, test_labels
+
+    def batch_norm(self, input):
+        # return input
+        return tf.contrib.layers.batch_norm(input, decay=0.9, center=True, scale=True, epsilon=1e-3,
+                                            updates_collections=None)
+
+    def _random_crop(self, batch, crop_shape, padding=None):
+        oshape = np.shape(batch[0])
+
+        if padding:
+            oshape = (oshape[0] + 2 * padding, oshape[1] + 2 * padding)
+        new_batch = []
+        npad = ((padding, padding), (padding, padding), (0, 0))
+        for i in range(len(batch)):
+            new_batch.append(batch[i])
+            if padding:
+                new_batch[i] = np.lib.pad(batch[i], pad_width=npad,
+                                          mode='constant', constant_values=0)
+            nh = random.randint(0, oshape[0] - crop_shape[0])
+            nw = random.randint(0, oshape[1] - crop_shape[1])
+            new_batch[i] = new_batch[i][nh:nh + crop_shape[0],
+                           nw:nw + crop_shape[1]]
+        return new_batch
+
+    def _random_flip_leftright(self, batch):
+        for i in range(len(batch)):
+            if bool(random.getrandbits(1)):
+                batch[i] = np.fliplr(batch[i])
+        return batch
+
+    def data_preprocessing(self, x_train, x_valid, x_test):
+        x_train = x_train.astype('float32')
+        x_valid = x_valid.astype('float32')
+        x_test = x_test.astype('float32')
+
+        x_train[:, :, :, 0] = (x_train[:, :, :, 0] - np.mean(x_train[:, :, :, 0])) / np.std(x_train[:, :, :, 0])
+        x_train[:, :, :, 1] = (x_train[:, :, :, 1] - np.mean(x_train[:, :, :, 1])) / np.std(x_train[:, :, :, 1])
+        x_train[:, :, :, 2] = (x_train[:, :, :, 2] - np.mean(x_train[:, :, :, 2])) / np.std(x_train[:, :, :, 2])
+
+        x_valid[:, :, :, 0] = (x_valid[:, :, :, 0] - np.mean(x_valid[:, :, :, 0])) / np.std(x_valid[:, :, :, 0])
+        x_valid[:, :, :, 1] = (x_valid[:, :, :, 1] - np.mean(x_valid[:, :, :, 1])) / np.std(x_valid[:, :, :, 1])
+        x_valid[:, :, :, 2] = (x_valid[:, :, :, 2] - np.mean(x_valid[:, :, :, 2])) / np.std(x_valid[:, :, :, 2])
+
+        x_test[:, :, :, 0] = (x_test[:, :, :, 0] - np.mean(x_test[:, :, :, 0])) / np.std(x_test[:, :, :, 0])
+        x_test[:, :, :, 1] = (x_test[:, :, :, 1] - np.mean(x_test[:, :, :, 1])) / np.std(x_test[:, :, :, 1])
+        x_test[:, :, :, 2] = (x_test[:, :, :, 2] - np.mean(x_test[:, :, :, 2])) / np.std(x_test[:, :, :, 2])
+
+        return x_train, x_valid, x_test
+
+    def data_augmentation(self, batch):
+        batch = self._random_flip_leftright(batch)
+        batch = self._random_crop(batch, [32, 32], 4)
+        return batch
+
+    def learning_rate_schedule(self, epoch_num):
+        if epoch_num < 81:
+            return 0.1
+        elif epoch_num < 121:
+            return 0.01
+        else:
+            return 0.001
 
     def _makeconv(self, inputs, hplist, node):
         """Generates a convolutional layer according to information in hplist
@@ -191,7 +179,7 @@ class Evaluator:
                                      initializer=tf.truncated_normal_initializer(stddev=0.1))
             conv = tf.nn.conv2d(inputs, kernel, [1, 1, 1, 1], padding='SAME')
             biases = tf.get_variable('biases', hplist[1], initializer=tf.constant_initializer(0.0))
-            bias = batch_norm(tf.nn.bias_add(conv, biases))
+            bias = self.batch_norm(tf.nn.bias_add(conv, biases))
             if hplist[3] == 'relu':
                 conv1 = tf.nn.relu(bias, name=scope.name)
             elif hplist[3] == 'tenh' or hplist[3] == 'tanh':
@@ -233,7 +221,7 @@ class Evaluator:
                    tensor.
         """
         i = 0
-        inputs = tf.reshape(inputs, [batch_size, -1])
+        inputs = tf.reshape(inputs, [self.batch_size, -1])
 
         for neural_num in hplist[1]:
             with tf.variable_scope('dense' + str(i)) as scope:
@@ -243,7 +231,7 @@ class Evaluator:
                 # tf.add_to_collection('losses', weight)
                 biases = tf.get_variable('biases', [neural_num], initializer=tf.constant_initializer(0.0))
                 if hplist[2] == 'relu':
-                    local3 = tf.nn.relu(batch_norm(tf.matmul(inputs, weights) + biases), name=scope.name)
+                    local3 = tf.nn.relu(self.batch_norm(tf.matmul(inputs, weights) + biases), name=scope.name)
                 elif hplist[2] == 'tanh':
                     local3 = tf.tanh(tf.matmul(inputs, weights) + biases, name=scope.name)
                 elif hplist[2] == 'sigmoid':
@@ -329,7 +317,7 @@ class Evaluator:
         #     # tf.add_to_collection('losses', regularizer(weights))
         return last_layer
 
-    def evaluate(self, graph_full, cell_list, pre_block, is_bestNN=False,update_pre_weight=False, log_file=None):
+    def evaluate(self, graph_full, cell_list, pre_block, cur_best_score, is_bestNN=False, update_pre_weight=False, log_file=None):
         '''Method for evaluate the given network.
         Args:
             graph_full: The topology structure of the network given by adjacency table
@@ -340,6 +328,8 @@ class Evaluator:
         Returns:
             Accuracy
         '''
+        tf.reset_default_graph()
+
         self.blocks = len(pre_block)
         # define placeholder x, y_ , keep_prob, learning_rate
         learning_rate = tf.placeholder(tf.float32)
@@ -347,8 +337,8 @@ class Evaluator:
 
         with tf.Session() as sess:
             if update_pre_weight:  # finetune???
-                x = tf.placeholder(tf.float32, [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3], name='input')
-                y_ = tf.placeholder(tf.int64, [batch_size, NUM_CLASSES], name="label")
+                x = tf.placeholder(tf.float32, [self.batch_size, self.IMAGE_SIZE, self.IMAGE_SIZE, 3], name='input')
+                y_ = tf.placeholder(tf.int64, [self.batch_size, self.NUM_CLASSES], name="label")
                 input = x
                 for i in range(self.blocks):
                     self.blocks = i
@@ -356,24 +346,34 @@ class Evaluator:
                     input = self._inference(input, pre_block[i][1], pre_block[i][2])
                 self.blocks = len(pre_block)
             elif self.blocks > 0:
-                new_saver = tf.train.import_meta_graph(model_save_path + 'my_model.meta')
-                new_saver.restore(sess, tf.train.latest_checkpoint(model_save_path))
+                new_saver = tf.train.import_meta_graph(self.model_save_path + 'my_model.meta')
+                new_saver.restore(sess, tf.train.latest_checkpoint(self.model_save_path))
                 graph = tf.get_default_graph()
                 x = graph.get_tensor_by_name("input:0")
                 y_ = graph.get_tensor_by_name("label:0")
                 input = graph.get_tensor_by_name("last_layer" + str(self.blocks - 1) + ":0")
             else:
-                x = tf.placeholder(tf.float32, [batch_size, IMAGE_SIZE, IMAGE_SIZE, 3], name='input')
-                y_ = tf.placeholder(tf.int64, [batch_size, NUM_CLASSES], name="label")
+                x = tf.placeholder(tf.float32, [self.batch_size, self.IMAGE_SIZE, self.IMAGE_SIZE, 3], name='input')
+                y_ = tf.placeholder(tf.int64, [self.batch_size, self.NUM_CLASSES], name="label")
                 input = x
 
             output = self._inference(input, graph_full, cell_list)
 
-            output = tf.reshape(output, [batch_size, -1])
+            # with tf.variable_scope('lastconv' + str(self.blocks)) as scope:
+            #     print(output.shape)
+            #     inputdim = output.shape[3]
+            #     kernel = tf.get_variable('weights', shape=[7, 7, inputdim, 256],
+            #                              initializer=tf.truncated_normal_initializer(stddev=0.1))
+            #     conv = tf.nn.conv2d(output, kernel, [1, 7, 7, 1], padding='VALID')
+            #     biases = tf.get_variable('biases', 256, initializer=tf.constant_initializer(0.0))
+            #     output = self.batch_norm(tf.nn.bias_add(conv, biases))
+            #     output = tf.nn.relu(output, name=scope.name)
+
+            output = tf.reshape(output, [self.batch_size, -1])
             with tf.variable_scope('lastdense' + str(self.blocks)) as scope:
-                weights = tf.get_variable('weights' + str(self.blocks), shape=[output.shape[-1], NUM_CLASSES],
+                weights = tf.get_variable('weights' + str(self.blocks), shape=[output.shape[-1], self.NUM_CLASSES],
                                           initializer=tf.truncated_normal_initializer(stddev=0.04))  # 1 / float(dim)))
-                biases = tf.get_variable('biases' + str(self.blocks), shape=[NUM_CLASSES],
+                biases = tf.get_variable('biases' + str(self.blocks), shape=[self.NUM_CLASSES],
                                          initializer=tf.constant_initializer(0.0))
 
             y = tf.add(tf.matmul(output, weights), biases, name="result" + str(self.blocks))
@@ -382,9 +382,9 @@ class Evaluator:
             # train_step: training operation
             cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y))
             l2 = tf.add_n([tf.nn.l2_loss(var) for var in tf.trainable_variables()])
-            train_step = tf.train.MomentumOptimizer(learning_rate, momentum_rate, use_nesterov=True,
+            train_step = tf.train.MomentumOptimizer(learning_rate, self.momentum_rate, use_nesterov=True,
                                                     name='opt' + str(self.blocks)). \
-                minimize(cross_entropy + l2 * weight_decay)
+                minimize(cross_entropy + l2 * self.weight_decay)
 
             correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
@@ -392,27 +392,28 @@ class Evaluator:
             # initial an saver to save model
             saver = tf.train.Saver()
 
-            summary_writer = tf.summary.FileWriter(log_save_path, sess.graph)
+            summary_writer = tf.summary.FileWriter(self.log_save_path, sess.graph)
 
             if is_bestNN:
-                epoch = 64
+                epoch = self.epoch_for_winner
             else:
-                epoch = 16
+                epoch = self.epoch_for_gamer
             for ep in range(1, epoch + 1):
-                lr = learning_rate_schedule(ep)
+                lr = self.learning_rate_schedule(ep)
                 pre_index = 0
                 train_acc = 0.0
                 train_loss = 0.0
                 start_time = time.time()
 
                 print("\n epoch %d/%d:" % (ep, epoch))
-                log_file.write("\n epoch %d/%d:\n" % (ep, epoch))
+                if log_file:
+                    log_file.write("\n epoch %d/%d:\n" % (ep, epoch))
 
                 for it in range(1, self.max_steps + 1):
-                    batch_x = self.dtrain.feature[pre_index:pre_index + batch_size]
-                    batch_y = self.dtrain.label[pre_index:pre_index + batch_size]
+                    batch_x = self.dtrain.feature[pre_index:pre_index + self.batch_size]
+                    batch_y = self.dtrain.label[pre_index:pre_index + self.batch_size]
 
-                    batch_x = data_augmentation(batch_x)
+                    batch_x = self.data_augmentation(batch_x)
 
                     _, batch_loss = sess.run([train_step, cross_entropy],
                                              feed_dict={x: batch_x, y_: batch_y,
@@ -421,7 +422,7 @@ class Evaluator:
 
                     train_loss += batch_loss
                     train_acc += batch_acc
-                    pre_index += batch_size
+                    pre_index += self.batch_size
 
                     if it == self.max_steps:
                         train_loss /= self.max_steps
@@ -432,12 +433,12 @@ class Evaluator:
                         train_summary = tf.Summary(value=[tf.Summary.Value(tag="train_loss", simple_value=train_loss),
                                                           tf.Summary.Value(tag="train_accuracy",
                                                                            simple_value=train_acc)])
-
+                        # validation
                         val_acc = 0.0
                         val_loss = 0.0
                         pre_index = 0
-                        add = batch_size
-                        val_iter = NUM_EXAMPLES_PER_EPOCH_FOR_EVAL / add
+                        add = self.batch_size
+                        val_iter = self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL / add
                         for i in range(int(val_iter)):
                             batch_x = self.dvalid.feature[pre_index:pre_index + add]
                             batch_y = self.dvalid.label[pre_index:pre_index + add]
@@ -446,47 +447,67 @@ class Evaluator:
                                                    feed_dict={x: batch_x, y_: batch_y, train_flag: False})
                             val_loss += loss_ / val_iter
                             val_acc += acc_ / val_iter
-                        test_summary = tf.Summary(value=[tf.Summary.Value(tag="test_loss", simple_value=val_loss),
-                                                         tf.Summary.Value(tag="test_accuracy", simple_value=val_acc)])
+                        valid_summary = tf.Summary(value=[tf.Summary.Value(tag="valid_loss", simple_value=val_loss),
+                                                          tf.Summary.Value(tag="valid_accuracy", simple_value=val_acc)])
+
+                        # for test
+                        test_acc = 0.0
+                        test_loss = 0.0
+                        pre_index = 0
+                        add = self.batch_size
+                        val_iter = self.dtest.feature.shape[0] / add
+                        for i in range(int(val_iter)):
+                            batch_x = self.dtest.feature[pre_index:pre_index + add]
+                            batch_y = self.dtest.label[pre_index:pre_index + add]
+                            pre_index = pre_index + add
+                            loss_, acc_ = sess.run([cross_entropy, accuracy],
+                                                   feed_dict={x: batch_x, y_: batch_y, train_flag: False})
+                            test_loss += loss_ / val_iter
+                            test_acc += acc_ / val_iter
+                        test_summary = tf.Summary(value=[tf.Summary.Value(tag="test_loss", simple_value=test_loss),
+                                                         tf.Summary.Value(tag="test_accuracy", simple_value=test_acc)])
 
                         summary_writer.add_summary(train_summary, ep)
+                        summary_writer.add_summary(valid_summary, ep)
                         summary_writer.add_summary(test_summary, ep)
                         summary_writer.flush()
 
                         print("iteration: %d/%d, cost_time: %ds, train_loss: %.4f, "
-                              "train_acc: %.4f, test_loss: %.4f, test_acc: %.4f"
+                              "train_acc: %.4f, valid_loss: %.4f, valid_acc: %.4f, "
+                              "test_loss: %.4f, test_acc: %.4f"
                               % (
                                   it, self.max_steps, int(time.time() - start_time), train_loss, train_acc, val_loss,
-                                  val_acc))
-                        log_file.write("iteration: %d/%d, cost_time: %ds, train_loss: %.4f, "
-                                       "train_acc: %.4f, test_loss: %.4f, test_acc: %.4f" % (
-                                        it, self.max_steps, int(time.time() - start_time), train_loss,
-                                        train_acc, val_loss, val_acc))
+                                  val_acc, test_loss, test_acc), flush=True)
+                        if log_file:
+                            log_file.write("iteration: %d/%d, cost_time: %ds, train_loss: %.4f, "
+                                           "train_acc: %.4f, valid_loss: %.4f, valid_acc: %.4f, "
+                                           "test_loss: %.4f, test_acc: %.4f"
+                                           % (
+                                                it, self.max_steps, int(time.time() - start_time), train_loss,
+                                                train_acc, val_loss, val_acc, test_loss, test_acc))
                     # else:
                     #     print("iteration: %d/%d, train_loss: %.4f, train_acc: %.4f"
                     #           % (it, self.max_steps, train_loss / it, train_acc / it))
-
+                    if ep >5 and val_acc<0.13:
+                        return val_acc
             if is_bestNN:
-                if val_acc > self.best_score:
-                    self.best_score = val_acc
-                    save_path = saver.save(sess, model_save_path + 'my_model')
+                if val_acc > cur_best_score:
+                    save_path = saver.save(sess, self.model_save_path + 'my_model')
                     print("Model saved in file: %s" % save_path)
-                    log_file.write("\nModel saved in file: %s\n" % save_path)
+                    if log_file:
+                        log_file.write("\nModel saved in file: %s\n" % save_path)
             sess.close()
 
         return val_acc
 
     def add_data(self, add_num=0):
 
-        if self.train_num + add_num > 50000 or add_num<0:
-            add_num = 50000 - self.train_num
-            self.train_num = 50000
+        if self.train_num + add_num > self.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN or add_num<0:
+            add_num = self.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN - self.train_num
             print('Warning! Add number has been changed to ',add_num,', all data is loaded.')
-        else:
-            self.train_num += add_num
+
         # print('************A NEW ROUND************')
         self.network_num = 0
-        self.max_steps = int(self.train_num / batch_size)
 
         # print('Evaluater: Adding data')
         if add_num:
@@ -503,6 +524,8 @@ class Evaluator:
                 random.shuffle(self.trainindex)
                 self.dtrain.feature = self.dataset.feature[self.trainindex]
                 self.dtrain.label = self.dataset.label[self.trainindex]
+            self.train_num = len(self.trainindex)
+            self.max_steps = int(self.train_num / self.batch_size)
         return 0
 
     def get_train_size(self):

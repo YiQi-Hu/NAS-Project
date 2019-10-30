@@ -1,20 +1,12 @@
-import os
-
 import numpy as np
-
-from enumerater import Enumerater
-from predict_op.label_encoding import decoder
+from .enumerater import Enumerater
+from .predict_op.label_encoding import decoder
 from keras.models import model_from_json
 
-from nas import CUR_VER_DIR
-
-# CUR_VER_DIR = 'Renas'
-
 MAX_NETWORK_LENGTH = 71
+model_json_path = './nas/predict_op/model.json'
+model_weights_path = './nas/predict_op/model.json.h5'
 
-# cwd = os.getcwd()
-model_json_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json')
-model_weights_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json.h5')
 
 class Feature:
     def __init__(self, graph):
@@ -305,31 +297,16 @@ def padding(node_feature, length):
 def load_model(model_json, weights):
     with open(model_json, 'r') as file:
         model_json1 = file.read()
-        new_model = model_from_json(model_json1)
+    new_model = model_from_json(model_json1)
     new_model.load_weights(weights)
     return new_model
-
-
-Model = load_model(model_json_path,model_weights_path)
-
-
-# 根据输入特征预测操作
-def predict(inputs):
-    inputs = np.array(inputs)
-    inputs = np.reshape(inputs,(1, inputs.shape[0], inputs.shape[1]))
-    # Model = load_model(model_json_path, model_weights_path)
-    predict_y = Model.predict(inputs)
-    predict_y = np.reshape(predict_y, (predict_y.shape[1], predict_y.shape[2]))
-    output = []
-    for i in range(len(inputs[0])):
-        output.append(np.argmax(predict_y[i]))
-    return output
 
 
 class Predictor:
     def __init__(self):
         self.graph = []
         self.cell_list = []
+        self.Model = load_model(model_json_path, model_weights_path)
 
     # 对输入的邻接表重新编码并转换成矩阵的形式提取特征
     def _trans(self, graphs):
@@ -352,6 +329,18 @@ class Predictor:
             parameters[order[i]] = parameters_cp[i]
         return parameters[:len(order)]
 
+    # 根据输入特征预测操作
+    def predict(self, inputs):
+        inputs = np.array(inputs)
+        inputs = np.reshape(inputs, (1, inputs.shape[0], inputs.shape[1]))
+        # Model = load_model(model_json_path, model_weights_path)
+        predict_y = self.Model.predict(inputs)
+        predict_y = np.reshape(predict_y, (predict_y.shape[1], predict_y.shape[2]))
+        output = []
+        for i in range(len(inputs[0])):
+            output.append(np.argmax(predict_y[i]))
+        return output
+
     # 模块接口
     def predictor(self, blocks, graph_part):
         graph_list = []
@@ -363,7 +352,7 @@ class Predictor:
         new_graph = graph_concat(graphs_mat)
         inputs = Feature(new_graph).feature_nodes()
         inputs = padding(inputs,MAX_NETWORK_LENGTH)
-        class_list = predict(inputs)
+        class_list = self.predict(inputs)
         self.cell_list = self.class_id_2_parameter(graphs_orders[-1], class_list[len(new_graph)-len(graph_part):len(new_graph)])
         return self.cell_list
 

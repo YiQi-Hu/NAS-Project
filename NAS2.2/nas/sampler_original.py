@@ -1,11 +1,10 @@
 import random
-from sampling.load_configuration import load_conf
-from optimizer import Dimension
+from .optimizer import Dimension
 import pickle
-from optimizer import Optimizer
-# from .optimizer import RacosOptimization
+from .optimizer import Optimizer
+from .optimizer import RacosOptimization
 import numpy as np
-from evaluator import Evaluator
+from .evaluator import Evaluator
 from multiprocessing import Process,Pool
 import multiprocessing
 # from .base import NetworkUnit
@@ -35,7 +34,7 @@ def bfs(start_node, graph, max_dist):
     q.put(start_node)
     connection = []
     while(not q.empty()):
-        v = q.get()#返回并删除队列头部元素
+        v = q.get()  # 返回并删除队列头部元素
         for node in v.linked:
             if(graph[node].dist == 99):
                 graph[node].dist = v.dist + 1
@@ -43,7 +42,7 @@ def bfs(start_node, graph, max_dist):
                     return connection
                 if graph[node].dist > 1:
                     connection.append(graph[node].id)
-                if graph[node].unknow: #一个点的邻点只能被加入队列一次
+                if graph[node].unknow:  # 一个点的邻点只能被加入队列一次
                     q.put(graph[node])
                     graph[node].unknow = 0
     return connection
@@ -51,7 +50,7 @@ def bfs(start_node, graph, max_dist):
 
 def connect(graph_part, max_dist):
     connection = []
-    for node in range(0,len(graph_part)):
+    for node in range(0, len(graph_part)):
         graph = create_class(graph_part)
         connection.append(bfs(graph[node], graph, max_dist))
     return connection
@@ -60,28 +59,27 @@ def connect(graph_part, max_dist):
 
 class Sampler:
 
-    def __init__(self, graph_part, crosslayer_dis):
+    def __init__(self, graph_part, crosslayer_dis, block_id, pattern, spl_setting, ops_space):
 
         '''
         :param nn: NetworkUnit
         '''
-
+        self.pattern = pattern
         self.graph_part = graph_part
         self.crosslayer_dis = crosslayer_dis
         # 设置结构大小
         self.node_number = len(self.graph_part)
 
-
         # 基于节点设置其可能的跨层连接
-        self.crosslayer = connect(self.graph_part, self.crosslayer_dis)
+        self.crosslayer = connect(self.graph_part, self.crosslayer_dis)  # check
         # self.crosslayer = self.get_crosslayer()
 
         # 读取配置表得到操作的对应映射
-        self.setting, self.pros, self.parameters_subscript_node, = load_conf()
-        #
-        del self.setting['dense']
+        self.setting = copy.deepcopy(ops_space)
+        if self.pattern == "Block":
+            self.setting['conv']['filter_size'] = ops_space['conv']['filter_size'][block_id]
 
-        self.dic_index = self._init_dict()
+        self.dic_index = self._init_dict()  # check
 
         self.p = []
 
@@ -89,9 +87,30 @@ class Sampler:
         # 设置优化的参数
         self.__region, self.__type = self.opt_parameters()
         self.dim = Dimension()
-        self.dim.set_dimension_size(len(self.__region))
+        self.dim.set_dimension_size(len(self.__region))    # 10%
         self.dim.set_regions(self.__region, self.__type)
         self.parameters_subscript = []  #
+
+        self.opt = Optimizer(self.get_dim(), self.get_parametets_subscript())
+        opt_para = spl_setting["opt_para"]
+        sample_size = opt_para["sample_size"]  # the instance number of sampling in an iteration
+        budget = opt_para["budget"]  # budget in online style
+        positive_num = opt_para["positive_num"]  # the set size of PosPop
+        rand_probability = opt_para["rand_probability"]  # the probability of sample in model
+        uncertain_bit = opt_para["uncertain_bit"]  # the dimension size that is sampled randomly
+        # set hyper-parameter for optimization, budget is useless for single step optimization
+        self.opt.set_parameters(ss=sample_size, bud=budget, pn=positive_num, rp=rand_probability, ub=uncertain_bit)
+        # clear optimization model
+        self.opt.clear()
+
+    def sample(self):
+        table = self.opt.sample()
+        self.renewp(table)
+        cell, graph = self.convert()
+        return cell, graph
+
+    def update_opt_model(self, table, score):
+        self.opt.update_model(table, -score)  # here "-" represent that we minimize the loss
 
     # 更新p
     def renewp(self, newp):
@@ -155,7 +174,7 @@ class Sampler:
             __type.extend(__type_cross)
         return __region, __type
 
-    def sample(self):
+    def convert(self):
         res = []
         # 基于节点的搜索结构参数
         l = 0
@@ -180,20 +199,23 @@ class Sampler:
             # first = p_node[0]
             tmp = ()
             # 首位置确定 conv 还是 pooling
+            # 基于block 都是conv起作用
+            if self.pattern == "Block":
+                first = 0
             if first == 0:
                 # 搜索conv下的操作
                 # 基于操作的对应映射取配置所在的地址，进行取值
                 tmp = tmp + ('conv',)
                 struct_conv = ['conv filter_size', 'conv kernel_size', 'conv activation']
                 for key in struct_conv:
-                    tmp = tmp + (self.setting['conv'][key.split(' ')[-1]]['val'][p_node[self.dic_index[key][-1]]],)
+                    tmp = tmp + (self.setting['conv'][key.split(' ')[-1]][p_node[self.dic_index[key][-1]]],)
             else:
                 # 搜索pooling下的操作
                 # 基于操作的对应映射取配置所在的地址，进行取值
                 tmp = tmp + ('pooling',)
                 struct_pooling = ['pooling pooling_type', 'pooling kernel_size']
                 for key in struct_pooling:
-                    tmp = tmp + (self.setting['pooling'][key.split(' ')[-1]]['val'][p_node[self.dic_index[key][-1]]],)
+                    tmp = tmp + (self.setting['pooling'][key.split(' ')[-1]][p_node[self.dic_index[key][-1]]],)
             res.append(tmp)
 
         return res, graph_part_sample
@@ -206,7 +228,7 @@ class Sampler:
         num = 1
         for key in self.setting:
             for k in self.setting[key]:
-                tmp = len(self.setting[key][k]['val']) - 1
+                tmp = len(self.setting[key][k]) - 1
                 dic[key + ' ' + k] = (cnt, cnt + tmp, num)
                 num += 1
                 cnt += tmp
@@ -253,23 +275,24 @@ class Sampler:
                 a = -1
                 b = -1
                 c = -1
-                for j, i in enumerate(self.setting['conv']['filter_size']['val']):
+                for j, i in enumerate(self.setting['conv']['filter_size']):
                     if str(i) == op[num][0]:
                         a = j
                         # p_node[self.dic_index['conv filter_size'][-1]] = j
                         # print(j, '##', self.dic_index['conv filter_size'][-1])
 
-                for j, i in enumerate(self.setting['conv']['kernel_size']['val']):
+                for j, i in enumerate(self.setting['conv']['kernel_size']):
                     if str(i) == op[num][1]:
                         b = j
                         # p_node[self.dic_index['conv kernel_size'][-1]] = j
                         # print(j, '##', self.dic_index['conv kernel_size'][-1])
 
-                for j, i in enumerate(self.setting['conv']['activation']['val']):
+                for j, i in enumerate(self.setting['conv']['activation']):
                     if i == 'relu':
                         c = j
                         # p_node[self.dic_index['conv activation'][-1]] = j
                         # print(j, '##', self.dic_index['conv activation'][-1])
+
                 # print(a,b,c)
                 p_node[self.dic_index['conv'][-1]] = 0
                 if a != -1:
@@ -282,9 +305,10 @@ class Sampler:
                 table = table + p_node
                 # print(p_node)
 
-                    # tmp = tmp + (self.setting['conv'][key.split(' ')[-1]]['val'][p_node[self.dic_index[key][-1]]],)
+                # tmp = tmp + (self.setting['conv'][key.split(' ')[-1]][p_node[self.dic_index[key][-1]]],)
             else:
-                p_node[self.dic_index['conv'][-1]] = 1
+                if self.pattern == "Global":
+                    p_node[self.dic_index['conv'][-1]] = 1
                 table = table + p_node
 
         return table
@@ -306,11 +330,13 @@ if __name__ == '__main__':
 
     for graph_part in NU:
         print('##'*40)
-        spl = Sampler(graph_part, 50)
+        # 加入参数 卷积中的 filter_size的大小
+        spl = Sampler(graph_part, 50, [32,48,64,128])
 
         dic_index = spl.dic_index
         cl = spl.crosslayer
 
+        print(len(dic_index))
         print(dic_index)
         #
         opt = Optimizer(spl.get_dim(), spl.get_parametets_subscript())
@@ -325,7 +351,7 @@ if __name__ == '__main__':
         table = opt.sample()
         spl.renewp(table)
 
-        __cell, graph_part_sample = spl.sample()
+        __cell, graph_part_sample = spl.convert()
 
         print(__cell)
         # graph_part加入跨层连接的结构
@@ -335,7 +361,7 @@ if __name__ == '__main__':
         table = spl.init_p(init)
         spl.renewp(table)
 
-        __cell, graph_part_sample = spl.sample()
+        __cell, graph_part_sample = spl.convert()
 
         print(__cell)
         print(graph_part_sample)

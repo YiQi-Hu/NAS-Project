@@ -772,6 +772,14 @@ class Optimizer:
     def get_optimal(self):
         return self.__optimal
 
+    # get positive sample set
+    def get_pos_set(self):
+        return self.__pos_pop
+
+    # get neg set
+    def get_neg_set(self):
+        return self.__pop
+
     # generate an instance randomly
     def random_instance(self, dim, region, label):
         ins = Instance(dim)
@@ -1141,8 +1149,15 @@ class Optimizer:
                 self.__pos_pop.append(self.__pop[0])
                 del self.__pop[0]
             self.__optimal = self.__pos_pop[0].copy_instance()
+            pos_set = []
+            neg_set = []
+            for ins in self.get_pos_set():
+                pos_set.append(ins.get_features())
+            for ins in self.get_neg_set():
+                neg_set.append(ins.get_features())
+            return pos_set, neg_set
 
-        return
+        return None
 
 
 

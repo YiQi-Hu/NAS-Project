@@ -23,26 +23,21 @@ from info_str import (
 )
 from predictor import Predictor
 
-# TODO delete or move to nas.py
-def _write_list(f, graph):
-    f.write(str(graph))
-    return
-
-# TODO move to nas.py
+# wait to be _save_info
 def _save_info(path, network, round, original_index, network_num):
-    # TODO too ugly...
+    tmpa = 'number of scheme: {}\n'
+    tmpb = 'graph_part: {}\n'
+    tmpc = '    graph_full: {}\n    cell_list: {}\n    score: {}\n'
+    s = LOG_EVAINFO_TEM.format(len(network.pre_block)+1, round, original_index, network_num)
+    s = s + tmpa.format(len(network.score_list))
+    s = s + tmpb.format(str(network.graph_part))
+
+    for item in zip(network.graph_full_list, network.cell_list, network.score_list):
+        s = s + tmpc.format(str(item[0]), str(item[1]), str(item[2]))
+
     with open(path, 'a') as f:
-        f.write(LOG_EVAINFO_TEM.format(len(network.pre_block)+1, round, original_index, network_num))
-        f.write('number of scheme: {}\n'.format(len(network.score_list)))
-        f.write('graph_part:')
-        _write_list(f, network.graph_part)
-        for item in zip(network.graph_full_list, network.cell_list, network.score_list):
-            f.write('    graph_full:')
-            _write_list(f, item[0])
-            f.write('    cell_list:')
-            _write_list(f, item[1])
-            f.write('    score:')
-            f.write(str(item[2]) + '\n')
+        f.write(s)
+
     return
 
 def _list_swap(ls, i, j):
@@ -67,7 +62,7 @@ def _eliminate(net_pool=None, scores=[], round=0):
             _list_swap(net_pool, i, len(net_pool) - 1)
             _list_swap(scores, i, len(scores) - 1)
             _list_swap(original_index, i, len(original_index) - 1)
-            _save_info(_NETWORK_INFO_PATH, net_pool.pop(), round, original_index.pop(), original_num)
+            _save_info(NETWORK_INFO_PATH, net_pool.pop(), round, original_index.pop(), original_num)
             scores.pop()
         else:
             i += 1
@@ -102,7 +97,7 @@ def _game_assign_task(net_pool, scores, com, round, pool_len, eva):
         com.task.put(task_param)
     # TODO data size control
     com.data_sync.put(com.data_count)  # for multi host
-    eva.add_data(1600)
+    eva.add_data(10)
     return
 
 def _game(eva, net_pool, scores, com, round):
@@ -135,14 +130,14 @@ def _train_winner(net_pool, round, eva):
     best_cell_i = 0
     eva.add_data(-1)  # -1 represent that we add all data for training
     print(SYS_CONFIG_OPS_ING)
-    for i in range(NAS_CONFIG.opt_best_k):
+    for i in range(NAS_CONFIG['opt_best_k']):
         best_nn.table = best_nn.opt.sample()
         best_nn.spl.renewp(best_nn.table)
         cell, graph = best_nn.spl.sample()
         best_nn.graph_full_list.append(graph)
         best_nn.cell_list.append(cell)
         with open(WINNER_LOG_PATH, 'a') as f:
-            f.write(_LOG_WINNER_TEM.format(len(best_nn.pre_block) + 1, i, NAS_CONFIG.__opt_best_k))
+            f.write(LOG_WINNER_TEM.format(len(best_nn.pre_block) + 1, i, NAS_CONFIG['opt_best_k']))
             opt_score = eva.evaluate(graph, cell, best_nn.pre_block, True, True, f)
         best_nn.score_list.append(opt_score)
         if opt_score > best_opt_score:
@@ -154,22 +149,42 @@ def _train_winner(net_pool, round, eva):
     _save_info(NETWORK_INFO_PATH, best_nn, round, 0, 1)
     return best_nn, best_index
 
+# Debug function
+import pickle
+_OPS_PNAME = 'last_ops.pickle'
+def _get_ops_copy():
+    with open(_OPS_PNAME, 'rb') as f:
+        pool = pickle.load(f)
+    return pool
+
+def _save_ops_copy(pool):
+    with open(_OPS_PNAME, 'wb') as f:
+        pickle.dump(pool, f)
+    return
+
 # TODO understand this code
-import time
 def _init_ops(net_pool):
-    func_start = time.time()
-    pred_cost = 0
+    scores = zeros(len(net_pool))
+    scores = scores.tolist()
+
+    # for debug
+    try:
+        return scores, _get_ops_copy()
+    except:
+        print('Nas: _get_ops_copy failed')
+
     # copied from initialize_ops_subprocess(self, NETWORK_POOL):
+    _cnt = 0
     for nn in net_pool:  # initialize the full network by adding the skipping and ops to graph_part
+        _cnt += 1
+        print("\r_init_ops Completed: %f %%" % (_cnt / len(net_pool) * 100), end='')  # for debug
         nn.table = nn.opt.sample()
         nn.spl.renewp(nn.table)
         cell, graph = nn.spl.sample()
         blocks = []
         for block in nn.pre_block:  # get the graph_full adjacency list in the previous blocks
             blocks.append(block[0])  # only get the graph_full in the pre_bock
-        pred_start = time.time()
         pred_ops = Predictor().predictor(blocks, graph)
-        pred_cost += time.time() - pred_start
 
         table = nn.spl.init_p(pred_ops)  # spl refer to the pred_ops
         nn.spl.renewp(table)
@@ -177,12 +192,9 @@ def _init_ops(net_pool):
         nn.graph_full_list.append(graph)  # graph from first sample and second sample are the same, so that we don't have to assign network.graph_full at first time
         nn.cell_list.append(cell)
 
-    scores = zeros(len(net_pool))
-    scores = scores.tolist()
-
-    func_end = time.time()
-    func_cost = func_end - func_start
-    print("func: %d, pred: %d" % (func_cost, pred_cost))
+    # for debug
+    _save_ops_copy(net_pool)
+    print()
 
     return scores, net_pool
 
