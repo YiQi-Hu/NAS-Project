@@ -123,7 +123,6 @@ def _do_task(pool, cmnct, eva):
 
 # TODO too slow
 def _arrange_result(result_list, cmnct):
-    my_results = []
     _cnt = 0
     for r_ in result_list:
         _cnt += 1
@@ -131,8 +130,7 @@ def _arrange_result(result_list, cmnct):
         print("\r_arrange_result Completed: %f %% " % cplt_r, end='')
         score, time_cost, network_index = r_.get()
         # print(SYS_EVA_RESULT_TEM.format(network_index, score, time_cost))
-        my_results.append((score, network_index, time_cost))
-    cmnct.result.put(my_results)
+        cmnct.result.put((score, network_index, time_cost))
     print('done!')
     return
 

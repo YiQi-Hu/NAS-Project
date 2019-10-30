@@ -107,12 +107,9 @@ def _game_assign_task(net_pool, scores, com, round, pool_len, eva):
 
 
 def _arrange_score(net_pool, scores, com):
-    all_result = []
     while not com.result.empty():
-        r_ = com.result.get()
-        all_result.extend(r_)
-    # score, index, time_cost
-    for s_, i_, tc_ in all_result:
+        # score, index, time_cost
+        s_, i_, tc_ = com.result.get()
         scores[i_] = s_
 
     for nn, score in zip(net_pool, scores):
