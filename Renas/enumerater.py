@@ -5,8 +5,27 @@ import networkx as nx
 import pickle
 from base import NetworkUnit
 
+from info_str import NAS_CONFIG
+
 # from .base import NetworkUnit, NETWORK_POOL
 
+
+def read_pool(path):
+    pool = None
+    try:
+        f = open(path, 'rb')
+    except IOError as e:
+        print('Starting enumeration...')
+    else:
+        print('Loading successfully!')
+        pool = pickle.load(f)
+        f.close()
+    return pool
+
+def save_pool(path, pool):
+    with open(path, 'wb') as f:
+        pickle.dump(pool, f)
+    print('Saved in %s' % path)
 
 class Enumerater:
 
@@ -17,19 +36,15 @@ class Enumerater:
         self.info_dict = {}
         self.info_group = []
         self.log = ""
-        self.pickle_name = '%d-%d-%d.pickle' % (depth, width, max_branch_depth)
+        self.pickle_name = 'pcache\\enum_%d-%d-%d.pickle' % (depth, width, max_branch_depth)
 
     # 生成Adjacney 填充全局变量NETWORK_POOL
+
     def enumerate(self):
-        try:
-            op = open(self.pickle_name, 'rb')
-        except IOError:
-            print('Starting enumeration...')
-        else:
-            print('Loading successfully!')
-            pool = pickle.load(op)
-            op.close()
-            return pool
+        pool = read_pool(self.pickle_name)
+
+        if pool and NAS_CONFIG['enum_debug']:
+            return pool  # for debug
 
         # 生成链字典
         self.filldict()
@@ -42,10 +57,8 @@ class Enumerater:
         # 还原拓扑结构
         pool = self.encode2adjaceny()
 
-        op = open(self.pickle_name, 'wb')
-        pickle.dump(pool, op)
-        op.close()
-        print('Saved ' + self.pickle_name)
+        save_pool(self.pickle_name, pool)
+
         return pool
         # 填满全局变量；NetworkUnit类的序列[Net,Net,Net,...]
 

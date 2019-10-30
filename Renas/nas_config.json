@@ -1,4 +1,8 @@
 {
+    "subp_debug": 0,
+    "eva_debug": 1, 
+    "enum_debug": 1,
+    "ops_debug": 1,
     "ps_host":"", 
     "worker_host":"", 
     "job_name":"ps", 

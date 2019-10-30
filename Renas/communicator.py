@@ -1,5 +1,6 @@
 import socket
 
+from multiprocessing import Manager
 from multiprocessing.managers import SyncManager
 
 class Communicator:
@@ -16,6 +17,7 @@ class Communicator:
         self.result = self.manager.Queue()
         self.end_flag = self.manager.Queue()
         self.data_sync = self.manager.Queue()
+        self.idle_gpuq = Manager().Queue()
         self.data_count = 0
 
         return

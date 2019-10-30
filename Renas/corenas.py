@@ -1,15 +1,16 @@
 import copy
 from multiprocessing import Pool
 
+from numba import jit
 from numpy import zeros
 
-from nas import NAS_CONFIG, IDLE_GPUQ
 from nas import Nas
 from nas import _wait_for_event
 from nas import _do_task
 from nas import _arrange_result
 from nas import _filln_queue
 from info_str import (
+    NAS_CONFIG,
     NETWORK_INFO_PATH,
     WINNER_LOG_PATH,
     LOG_EVAINFO_TEM,
@@ -40,11 +41,15 @@ def _save_info(path, network, round, original_index, network_num):
 
     return
 
+
+@jit(nopython=True)
 def _list_swap(ls, i, j):
     cpy = ls[i]
     ls[i] = ls[j]
     ls[j] = cpy
 
+
+@jit(nopython=True)
 def _eliminate(net_pool=None, scores=[], round=0):
     '''
     Eliminates the worst 50% networks in net_pool depending on scores.
@@ -97,8 +102,23 @@ def _game_assign_task(net_pool, scores, com, round, pool_len, eva):
         com.task.put(task_param)
     # TODO data size control
     com.data_sync.put(com.data_count)  # for multi host
-    eva.add_data(10)
+    eva.add_data(1600)
     return
+
+
+def _arrange_score(net_pool, scores, com):
+    all_result = []
+    while not com.result.empty():
+        r_ = com.result.get()
+        all_result.extend(r_)
+    # score, index, time_cost
+    for s_, i_, tc_ in all_result:
+        scores[i_] = s_
+
+    for nn, score in zip(net_pool, scores):
+        nn.score_list.append(score)
+    return scores
+
 
 def _game(eva, net_pool, scores, com, round):
     pool_len = len(net_pool)
@@ -108,19 +128,14 @@ def _game(eva, net_pool, scores, com, round):
     # For corenas can not get IDLE_GPUQ from nas, so
     # we fill it here.
     pool = Pool(processes=NAS_CONFIG["num_gpu"])
-    _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
+    _filln_queue(com.idle_gpuq, NAS_CONFIG["num_gpu"])
     # Do the tasks
     result_list = _do_task(pool, com, eva)
     _arrange_result(result_list, com)
     # TODO replaced by multiprocessing.Event
     _wait_for_event(lambda: com.result.qsize() != pool_len)
     # fill the score list
-    while not com.result.empty():
-        r_ = com.result.get()
-        scores[r_[1]] = r_[0]
-
-    for nn, score in zip(net_pool, scores):
-        nn.score_list.append(score)
+    _arrange_score(net_pool, scores, com)
     return scores
 
 # TODO understand this code
@@ -151,7 +166,8 @@ def _train_winner(net_pool, round, eva):
 
 # Debug function
 import pickle
-_OPS_PNAME = 'last_ops.pickle'
+_OPS_PNAME = 'pcache\\ops_%d-%d-%d.pickle' % (
+    NAS_CONFIG["depth"], NAS_CONFIG["width"], NAS_CONFIG["max_depth"])
 def _get_ops_copy():
     with open(_OPS_PNAME, 'rb') as f:
         pool = pickle.load(f)
@@ -168,10 +184,11 @@ def _init_ops(net_pool):
     scores = scores.tolist()
 
     # for debug
-    try:
-        return scores, _get_ops_copy()
-    except:
-        print('Nas: _get_ops_copy failed')
+    if NAS_CONFIG['ops_debug']:
+        try:
+            return scores, _get_ops_copy()
+        except:
+            print('Nas: _get_ops_copy failed')
 
     # copied from initialize_ops_subprocess(self, NETWORK_POOL):
     _cnt = 0
@@ -193,7 +210,8 @@ def _init_ops(net_pool):
         nn.cell_list.append(cell)
 
     # for debug
-    _save_ops_copy(net_pool)
+    if NAS_CONFIG['ops_debug']:
+        _save_ops_copy(net_pool)
     print()
 
     return scores, net_pool

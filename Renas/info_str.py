@@ -1,10 +1,14 @@
 import os
+import json
 
 # Current file name
 CUR_VER_DIR = os.getcwd()
 
+# NAS configuration dic object
+_NAS_CONFIG_PATH = os.path.join(CUR_VER_DIR, 'nas_config.json')
+NAS_CONFIG = json.load(open(_NAS_CONFIG_PATH, encoding='utf-8'))
+
 # File path
-NAS_CONFIG_PATH = os.path.join(CUR_VER_DIR, 'nas_config.json')
 EVALOG_PATH_TEM = os.path.join(CUR_VER_DIR, 'memory',
                                 'evaluating_log_with_gpu{}.txt')
 NETWORK_INFO_PATH = os.path.join(CUR_VER_DIR, 'memory', 'network_info.txt')
