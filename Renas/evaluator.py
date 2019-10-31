@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+
 from datetime import datetime
 import math
 import time
@@ -172,7 +173,6 @@ class Evaluator:
         self.network_num = 0
         self.max_steps = 0
         self.blocks = 0
-        self.best_score = 0  # using for training the bestNN
 
     def _makeconv(self, inputs, hplist, node):
         """Generates a convolutional layer according to information in hplist
@@ -317,7 +317,7 @@ class Evaluator:
         #     # tf.add_to_collection('losses', regularizer(weights))
         return last_layer
 
-    def evaluate(self, graph_full, cell_list, pre_block, is_bestNN=False,update_pre_weight=False, log_file=None):
+    def evaluate(self, graph_full, cell_list, pre_block, cur_best_score=0, is_bestNN=False, update_pre_weight=False, log_file=None):
         '''Method for evaluate the given network.
         Args:
             graph_full: The topology structure of the network given by adjacency table
@@ -329,7 +329,7 @@ class Evaluator:
             Accuracy
         '''
         tf.reset_default_graph()
-
+        self.blocks = len(pre_block)
         if self.train_num < batch_size:
             print(
                 "Wrong! The data added in train dataset is smaller than batch size, batch size is %d, but data in train dataset is only %d",
@@ -389,9 +389,9 @@ class Evaluator:
             summary_writer = tf.summary.FileWriter(log_save_path, sess.graph)
 
             if is_bestNN:
-                epoch = 64
+                epoch = 1 #64
             else:
-                epoch = 16
+                epoch = 1 #16
             for ep in range(1, epoch + 1):
                 lr = learning_rate_schedule(ep)
                 pre_index = 0
@@ -461,8 +461,7 @@ class Evaluator:
                     #           % (it, self.max_steps, train_loss / it, train_acc / it))
 
             if is_bestNN:
-                if val_acc > self.best_score:
-                    self.best_score = val_acc
+                if val_acc > cur_best_score:
                     save_path = saver.save(sess, model_save_path + 'my_model')
                     print("Model saved in file: %s" % save_path)
                     log_file.write("\nModel saved in file: %s\n" % save_path)

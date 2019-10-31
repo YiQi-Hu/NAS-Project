@@ -1,9 +1,8 @@
 import copy
 from multiprocessing import Pool
 
-from numba import jit
 from numpy import zeros
-
+from nas import _gpu_eva
 from nas import Nas
 from nas import _wait_for_event
 from nas import _do_task
@@ -22,7 +21,7 @@ from info_str import (
     SYS_START_GAME_TEM,
     SYS_CONFIG_OPS_ING
 )
-from predictor import Predictor
+# from predictor import Predictor
 
 # wait to be _save_info
 def _save_info(path, network, round, original_index, network_num):
@@ -42,14 +41,12 @@ def _save_info(path, network, round, original_index, network_num):
     return
 
 
-@jit(nopython=True)
 def _list_swap(ls, i, j):
     cpy = ls[i]
     ls[i] = ls[j]
     ls[j] = cpy
 
 
-@jit(nopython=True)
 def _eliminate(net_pool=None, scores=[], round=0):
     '''
     Eliminates the worst 50% networks in net_pool depending on scores.
@@ -128,6 +125,8 @@ def _game(eva, net_pool, scores, com, round):
     _filln_queue(com.idle_gpuq, NAS_CONFIG["num_gpu"])
     # Do the tasks
     result_list = _do_task(pool, com, eva)
+    pool.close()
+    pool.join()
     _arrange_result(result_list, com)
     # TODO replaced by multiprocessing.Event
     _wait_for_event(lambda: com.result.qsize() != pool_len)
@@ -140,7 +139,7 @@ def _train_winner(net_pool, round, eva):
     best_nn = net_pool[0]
     best_opt_score = 0
     best_cell_i = 0
-    eva.add_data(-1)  # -1 represent that we add all data for training
+    eva.add_data(100)  # -1 represent that we add all data for training
     print(SYS_CONFIG_OPS_ING)
     for i in range(NAS_CONFIG['opt_best_k']):
         best_nn.table = best_nn.opt.sample()
@@ -150,13 +149,17 @@ def _train_winner(net_pool, round, eva):
         best_nn.cell_list.append(cell)
         with open(WINNER_LOG_PATH, 'a') as f:
             f.write(LOG_WINNER_TEM.format(len(best_nn.pre_block) + 1, i, NAS_CONFIG['opt_best_k']))
-            opt_score = eva.evaluate(graph, cell, best_nn.pre_block, True, True, f)
+            with Pool(1) as p:
+                params = (graph, cell, best_nn.pre_block, 0, 0, True, 1)
+                # params = (graph, cell, nn_preblock, pos,
+                # round, finetune_signal, pool_len)
+                opt_score, _ = p.apply(_gpu_eva, args=(params, eva, 0, best_cell_i))
         best_nn.score_list.append(opt_score)
         if opt_score > best_opt_score:
             best_opt_score = opt_score
             best_cell_i = i
     print(SYS_BEST_AND_SCORE_TEM.format(best_opt_score))
-    best_index = best_cell_i - NAS_CONFIG.opt_best_k
+    best_index = best_cell_i - NAS_CONFIG["opt_best_k"]
 
     _save_info(NETWORK_INFO_PATH, best_nn, round, 0, 1)
     return best_nn, best_index
@@ -195,14 +198,14 @@ def _init_ops(net_pool):
         nn.table = nn.opt.sample()
         nn.spl.renewp(nn.table)
         cell, graph = nn.spl.sample()
-        blocks = []
-        for block in nn.pre_block:  # get the graph_full adjacency list in the previous blocks
-            blocks.append(block[0])  # only get the graph_full in the pre_bock
-        pred_ops = Predictor().predictor(blocks, graph)
-
-        table = nn.spl.init_p(pred_ops)  # spl refer to the pred_ops
-        nn.spl.renewp(table)
-        cell, graph = nn.spl.sample()  # sample again after renew the table
+        # blocks = []
+        # for block in nn.pre_block:  # get the graph_full adjacency list in the previous blocks
+        #     blocks.append(block[0])  # only get the graph_full in the pre_bock
+        # pred_ops = Predictor().predictor(blocks, graph)
+        #
+        # table = nn.spl.init_p(pred_ops)  # spl refer to the pred_ops
+        # nn.spl.renewp(table)
+        # cell, graph = nn.spl.sample()  # sample again after renew the table
         nn.graph_full_list.append(graph)  # graph from first sample and second sample are the same, so that we don't have to assign network.graph_full at first time
         nn.cell_list.append(cell)
 

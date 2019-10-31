@@ -40,7 +40,9 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 # IDLE_GPUQ = Queue()
 
 def _subproc_eva(params, eva, gpuq):
+    print("before i get!!!")
     ngpu = gpuq.get()
+    print("i get!!!")
     start_time = time.time()
 
     try:
@@ -61,7 +63,7 @@ def _subproc_eva(params, eva, gpuq):
     return score, time_cost, pos
 
 
-def _gpu_eva(params, eva, ngpu):
+def _gpu_eva(params, eva, ngpu, cur_bt_score=0):
     graph, cell, nn_pb, p_, r_, ft_sign, pl_ = params
     # params = (graph, cell, nn_preblock, pos,
     # round, finetune_signal, pool_len)
@@ -72,14 +74,17 @@ def _gpu_eva(params, eva, ngpu):
             len(nn_pb)+1, r_, p_, pl_
         ))
         # try infinitely ?
-        while True:
-            try:
-                score = eva.evaluate(graph, cell, nn_pb, False, ft_sign, f)
-                break
-            except Exception as e:
-                print(SYS_EVAFAIL, e)
-                f.write(LOG_EVAFAIL)
-
+        # while True:
+        print("%d training..." % ngpu)
+        score = eva.evaluate(graph, cell, nn_pb, cur_best_score=cur_bt_score, is_bestNN=False,
+                             update_pre_weight=ft_sign, log_file=f)
+            # try:
+            #     score = eva.evaluate(graph, cell, nn_pb, cur_best_score=cur_bt_score, is_bestNN=False, update_pre_weight=ft_sign, log_file=f)
+            #     break
+            # except Exception as e:
+            #     print(SYS_EVAFAIL, e)
+            #     f.write(LOG_EVAFAIL)
+    print("eva completed")
     return score, p_
 
 
@@ -127,7 +132,7 @@ def _arrange_result(result_list, cmnct):
     for r_ in result_list:
         _cnt += 1
         cplt_r = _cnt / len(result_list) * 100
-        print("\r_arrange_result Completed: %f %% " % cplt_r, end='')
+        print("\r_arrange_result Completed: {} %".format(cplt_r), end='')
         score, time_cost, network_index = r_.get()
         # print(SYS_EVA_RESULT_TEM.format(network_index, score, time_cost))
         cmnct.result.put((score, network_index, time_cost))
