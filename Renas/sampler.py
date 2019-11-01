@@ -1,8 +1,8 @@
 import random
-from .optimizer import Dimension
+from optimizer import Dimension
 import pickle
-from .optimizer import Optimizer
-from .optimizer import RacosOptimization
+from optimizer import Optimizer
+from optimizer import RacosOptimization
 import numpy as np
 from multiprocessing import Process,Pool
 import multiprocessing
@@ -104,7 +104,7 @@ class Sampler:
         # self.crosslayer = self.get_crosslayer()
 
         # 读取配置表得到操作的对应映射
-        self.setting = copy.deepcopy(SPACE_CONFIG)
+        self.setting = copy.deepcopy(SPACE_CONFIG['ops'])
         if self.pattern == "Block":
             self.setting['conv']['filter_size'] = ops_space['conv']['filter_size'][block_id]
 
@@ -368,10 +368,9 @@ if __name__ == '__main__':
     os.chdir("../")
     PATTERN = "Global"
     setting = load_config(PATTERN)
-    search_space = load_search_space(PATTERN)
     spl_setting = setting["spl_para"]
-    skipping_max_dist = search_space["skipping_max_dist"]
-    ops_space = search_space["ops"]
+    skipping_max_dist = SPACE_CONFIG["skipping_max_dist"]
+    ops_space = SPACE_CONFIG["ops"]
     graph_part = [[1], [2], [3], [4], [5], [6], [7], [8], [9], []]
 
     # network.init_sample(self.__pattern, block_num, self.spl_setting, self.skipping_max_dist, self.ops_space)

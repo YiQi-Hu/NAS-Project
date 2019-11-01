@@ -125,8 +125,8 @@ def _game(eva, net_pool, scores, com, round):
     # For corenas can not get IDLE_GPUQ from nas, so
     # we fill it here.
     _filln_queue(com.idle_gpuq, NAS_CONFIG["num_gpu"])
+    # Do the tasks
     with Pool(processes=NAS_CONFIG['num_gpu']) as pool:
-        # Do the tasks
         result_list = _do_task(pool, com, eva)
     _arrange_result(result_list, com)
     # TODO replaced by multiprocessing.Event
@@ -200,7 +200,7 @@ def _init_ops(net_pool):
     for nn in net_pool:  # initialize the full network by adding the skipping and ops to graph_part
         _cnt += 1
         print("\r_init_ops Completed: %f %%" % (_cnt / len(net_pool) * 100), end='')  # for debug
-        nn.table = nn.opt.sample()
+        nn.table = nn.spl.opt.sample()
         nn.spl.renewp(nn.table)
         cell, graph = nn.spl.sample()
         # blocks = []

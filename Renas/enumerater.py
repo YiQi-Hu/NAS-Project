@@ -34,13 +34,13 @@ class Enumerater:
         self._setting = NAS_CONFIG['enum']
         self.depth = self._setting['depth']
         self.width = self._setting['width']
-        self.max_branch_depth = self._setting['max_branch_depth']
+        self.max_branch_depth = self._setting['max_depth']
         self.info_dict = {}
         self.info_group = []
         self.log = ""
-        self.pickle_name = os.join(
-            'pcache',
-            'enum_%d-%d-%d.pickle' % (depth, width, max_branch_depth))
+        self.pickle_name = os.path.join(
+            'pcache', 'enum_%d-%d-%d.pickle' %
+            (self.depth, self.width, self.max_branch_depth))
 
     # 生成Adjacney 填充全局变量NETWORK_POOL
 

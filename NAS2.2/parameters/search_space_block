@@ -23,6 +23,19 @@
                     "relu",
                     "leakyrelu"
                 ]
+        },
+        "pooling":{
+            "pooling_type":[
+                    "avg",
+                    "max"
+                ],
+            "kernel_size":[
+                    2,
+                    3,
+                    6,
+                    7,
+                    8
+                ]
         }
     }
 }

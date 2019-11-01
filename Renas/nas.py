@@ -50,10 +50,10 @@ def _subproc_eva(params, eva, gpuq):
         if MAIN_CONFIG['eva_debug']:
             raise Exception() # return random result
         score, pos = _gpu_eva(params, eva, ngpu)
-    except:
-        score = random.random()
-        # params = (graph, cell, nn_preblock, pos, ...)
-        pos = params[3]
+    # except Exception as e:
+    #     score = random.random()
+    #     # params = (graph, cell, nn_preblock, pos, ...)
+    #     pos = params[3]
     finally:
         gpuq.put(ngpu)
 
@@ -168,7 +168,7 @@ class Nas():
         print(SYS_INIT_ING)
         enum, eva, cmnct = _module_init()
 
-        if self.__is_ps:
+        if NAS_CONFIG['cmnct']['is_ps']:
             print(SYS_I_AM_PS)
             return self._ps_run(enum, eva, cmnct)
         else:

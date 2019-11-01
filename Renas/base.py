@@ -2,7 +2,6 @@
 All basic data structure in this file.
 PLEASE DO NOT USE 'from .base import *' !!!
 """
-from sampler import Sampler
 
 class NetworkUnit:
     pre_block = []
@@ -17,5 +16,6 @@ class NetworkUnit:
         self.table = []
 
     def init_sample(self, block_num=0):
+        from sampler import Sampler
         self.spl = Sampler(self.graph_part, block_num)
         return
