@@ -39,15 +39,15 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 # # TODO Fatal: Corenas can not get items in IDLE_GPUQ (Queue)
 # IDLE_GPUQ = Queue()
 
+MAIN_CONFIG = NAS_CONFIG['nas_main']
+
 def _subproc_eva(params, eva, gpuq):
-    print("before i get!!!")
     ngpu = gpuq.get()
-    print("i get!!!")
     start_time = time.time()
 
     try:
         # return score and pos
-        if NAS_CONFIG['eva_debug']:
+        if MAIN_CONFIG['eva_debug']:
             raise Exception() # return random result
         score, pos = _gpu_eva(params, eva, ngpu)
     except:
@@ -73,29 +73,16 @@ def _gpu_eva(params, eva, ngpu, cur_bt_score=0):
         f.write(LOG_EVAINFO_TEM.format(
             len(nn_pb)+1, r_, p_, pl_
         ))
-        # try infinitely ?
-        # while True:
-        print("%d training..." % ngpu)
-        score = eva.evaluate(graph, cell, nn_pb, cur_best_score=cur_bt_score, is_bestNN=False,
-                             update_pre_weight=ft_sign, log_file=f)
-            # try:
-            #     score = eva.evaluate(graph, cell, nn_pb, cur_best_score=cur_bt_score, is_bestNN=False, update_pre_weight=ft_sign, log_file=f)
-            #     break
-            # except Exception as e:
-            #     print(SYS_EVAFAIL, e)
-            #     f.write(LOG_EVAFAIL)
-    print("eva completed")
+        print("Eva: gpu %d training..." % ngpu)
+        score = eva.evaluate(
+            graph, cell, nn_pb, cur_best_score=cur_bt_score, is_bestNN=False,update_pre_weight=ft_sign, log_file=f)
+    print("Eva completed")
     return score, p_
 
 
 def _module_init():
-    enu = Enumerater(
-        depth=NAS_CONFIG["depth"],
-        width=NAS_CONFIG["width"],
-        max_branch_depth=NAS_CONFIG["max_depth"])
-    eva = Evaluator()
+    return Enumerater(), Evaluator(), Communicator()
 
-    return enu, eva
 
 def _filln_queue(q, n):
     for i in range(n):
@@ -116,7 +103,7 @@ def _do_task(pool, cmnct, eva):
             task_params = cmnct.task.get(timeout=1)
         except:
             break
-        if NAS_CONFIG['subp_debug']:
+        if MAIN_CONFIG['subp_debug']:
             result = _subproc_eva(task_params, eva, cmnct.idle_gpuq)
         else:
             result = pool.apply_async(
@@ -141,10 +128,7 @@ def _arrange_result(result_list, cmnct):
 
 
 class Nas():
-    def __init__(self, job_name, ps_host=''):
-        self.__is_ps = (job_name == 'ps')
-        self.__ps_host = ps_host
-
+    def __init__(self):
         return
 
     def _ps_run(self, enum, eva, cmnct):
@@ -152,8 +136,8 @@ class Nas():
 
         import corenas
         network_pool_tem = enum.enumerate()
-        for i in range(NAS_CONFIG["block_num"]):
-            print(SYS_SEARCH_BLOCK_TEM.format(i+1, NAS_CONFIG["block_num"]))
+        for i in range(MAIN_CONFIG["block_num"]):
+            print(SYS_SEARCH_BLOCK_TEM.format(i+1, MAIN_CONFIG["block_num"]))
             block, best_index = corenas.Corenas(i, eva, cmnct, network_pool_tem)
             block.pre_block.append([
                 block.graph_part,
@@ -166,27 +150,23 @@ class Nas():
 
     def _worker_run(eva, cmnct):
         _filln_queue(cmnct.idle_gpuq, NAS_CONFIG["num_gpu"])
-        pool = Pool(processes=NAS_CONFIG["num_gpu"])
-        while cmnct.end_flag.empty():
-            _wait_for_event(cmnct.data_sync.empty)
+        with Pool(processess=NAS_CONFIG["num_gpu"]) as pool:
+            while cmnct.end_flag.empty():
+                _wait_for_event(cmnct.data_sync.empty)
 
-            cmnct.data_count += 1
-            data_count_ps = cmnct.data_sync.get(timeout=1)
-            eva.add_data(1600*(data_count_ps-cmnct.data_count+1))
+                cmnct.data_count += 1
+                data_count_ps = cmnct.data_sync.get(timeout=1)
+                eva.add_data(1600*(data_count_ps-cmnct.data_count+1))
 
-            result_list = _do_task(pool, cmnct, eva)
-            _arrange_result(result_list, cmnct)
+                result_list = _do_task(pool, cmnct, eva)
+                _arrange_result(result_list, cmnct)
 
-            _wait_for_event(cmnct.task.empty)
-
-        pool.close()
-        pool.join()
+                _wait_for_event(cmnct.task.empty)
         return
 
     def run(self):
         print(SYS_INIT_ING)
-        cmnct = Communicator(self.__is_ps, self.__ps_host)
-        enum, eva = _module_init()
+        enum, eva, cmnct = _module_init()
 
         if self.__is_ps:
             print(SYS_I_AM_PS)
@@ -199,5 +179,5 @@ class Nas():
         return
 
 if __name__ == '__main__':
-    nas = Nas('ps', '127.0.0.1:5000')
+    nas = Nas()
     nas.run()

@@ -3,8 +3,13 @@ import socket
 from multiprocessing import Manager
 from multiprocessing.managers import SyncManager
 
+from info_str import NAS_CONFIG
+
 class Communicator:
-    def __init__(self, is_ps, ps_host):
+    def __init__(self):
+        self._setting = NAS_CONFIG['cmnct']
+        is_ps = self._setting['is_ps']
+        ps_host = self._setting['ps_host']
         # There might be other ways to get the IP address
         server_addr = socket.gethostbyname(ps_host.split(":")[0])
         server_port = int(ps_host.split(":")[1])

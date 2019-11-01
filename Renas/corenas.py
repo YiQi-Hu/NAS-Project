@@ -2,14 +2,16 @@ import copy
 from multiprocessing import Pool
 
 from numpy import zeros
-from nas import _gpu_eva
+
 from nas import Nas
+from nas import _gpu_eva
 from nas import _wait_for_event
 from nas import _do_task
 from nas import _arrange_result
 from nas import _filln_queue
+
+from info_str import NAS_CONFIG
 from info_str import (
-    NAS_CONFIG,
     NETWORK_INFO_PATH,
     WINNER_LOG_PATH,
     LOG_EVAINFO_TEM,
@@ -21,7 +23,8 @@ from info_str import (
     SYS_START_GAME_TEM,
     SYS_CONFIG_OPS_ING
 )
-# from predictor import Predictor
+
+CORE_CONFIG = NAS_CONFIG['core']
 
 # wait to be _save_info
 def _save_info(path, network, round, original_index, network_num):
@@ -81,7 +84,7 @@ def _datasize_ctrl(eva=None):
     return
 
 def _game_assign_task(net_pool, scores, com, round, pool_len, eva):
-    finetune_sign = (pool_len < NAS_CONFIG['finetune_threshold'])
+    finetune_sign = (pool_len < CORE_CONFIG['finetune_threshold'])
     for nn, score, i in zip(net_pool, scores, range(pool_len)):
         if round == 1:
             cell, graph = nn.cell_list[-1], nn.graph_full_list[-1]
@@ -121,12 +124,10 @@ def _game(eva, net_pool, scores, com, round):
     _game_assign_task(net_pool, scores, com, round, pool_len, eva)
     # For corenas can not get IDLE_GPUQ from nas, so
     # we fill it here.
-    pool = Pool(processes=NAS_CONFIG["num_gpu"])
     _filln_queue(com.idle_gpuq, NAS_CONFIG["num_gpu"])
-    # Do the tasks
-    result_list = _do_task(pool, com, eva)
-    pool.close()
-    pool.join()
+    with Pool(processes=NAS_CONFIG['num_gpu']) as pool:
+        # Do the tasks
+        result_list = _do_task(pool, com, eva)
     _arrange_result(result_list, com)
     # TODO replaced by multiprocessing.Event
     _wait_for_event(lambda: com.result.qsize() != pool_len)
@@ -141,14 +142,14 @@ def _train_winner(net_pool, round, eva):
     best_cell_i = 0
     eva.add_data(100)  # -1 represent that we add all data for training
     print(SYS_CONFIG_OPS_ING)
-    for i in range(NAS_CONFIG['opt_best_k']):
+    for i in range(CORE_CONFIG['opt_best_k']):
         best_nn.table = best_nn.opt.sample()
         best_nn.spl.renewp(best_nn.table)
         cell, graph = best_nn.spl.sample()
         best_nn.graph_full_list.append(graph)
         best_nn.cell_list.append(cell)
         with open(WINNER_LOG_PATH, 'a') as f:
-            f.write(LOG_WINNER_TEM.format(len(best_nn.pre_block) + 1, i, NAS_CONFIG['opt_best_k']))
+            f.write(LOG_WINNER_TEM.format(len(best_nn.pre_block) + 1, i, CORE_CONFIG['opt_best_k']))
             with Pool(1) as p:
                 params = (graph, cell, best_nn.pre_block, 0, 0, True, 1)
                 # params = (graph, cell, nn_preblock, pos,
@@ -159,7 +160,7 @@ def _train_winner(net_pool, round, eva):
             best_opt_score = opt_score
             best_cell_i = i
     print(SYS_BEST_AND_SCORE_TEM.format(best_opt_score))
-    best_index = best_cell_i - NAS_CONFIG["opt_best_k"]
+    best_index = best_cell_i - CORE_CONFIG["opt_best_k"]
 
     _save_info(NETWORK_INFO_PATH, best_nn, round, 0, 1)
     return best_nn, best_index
@@ -167,7 +168,11 @@ def _train_winner(net_pool, round, eva):
 # Debug function
 import pickle
 _OPS_PNAME = 'pcache\\ops_%d-%d-%d.pickle' % (
-    NAS_CONFIG["depth"], NAS_CONFIG["width"], NAS_CONFIG["max_depth"])
+    NAS_CONFIG['enum']["depth"],
+    NAS_CONFIG['enum']["width"],
+    NAS_CONFIG['enum']["max_depth"]
+)
+
 def _get_ops_copy():
     with open(_OPS_PNAME, 'rb') as f:
         pool = pickle.load(f)
@@ -184,7 +189,7 @@ def _init_ops(net_pool):
     scores = scores.tolist()
 
     # for debug
-    if NAS_CONFIG['ops_debug']:
+    if CORE_CONFIG['ops_debug']:
         try:
             return scores, _get_ops_copy()
         except:
@@ -210,7 +215,7 @@ def _init_ops(net_pool):
         nn.cell_list.append(cell)
 
     # for debug
-    if NAS_CONFIG['ops_debug']:
+    if CORE_CONFIG['ops_debug']:
         _save_ops_copy(net_pool)
     print()
 
@@ -225,7 +230,7 @@ def Corenas(block_num, eva, com, npool_tem):
     # implement the copy when searching for every block
     net_pool = copy.deepcopy(npool_tem)
     for network in net_pool:  # initialize the sample module
-        network.init_sample(NAS_CONFIG['pattern'], block_num)
+        network.init_sample(block_num)
 
     # Step 2: Search best structure
     print(SYS_CONFIG_ING)

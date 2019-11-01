@@ -1,17 +1,42 @@
 import random
-from .sampling.load_configuration import load_conf
 from .optimizer import Dimension
 import pickle
 from .optimizer import Optimizer
 from .optimizer import RacosOptimization
 import numpy as np
-from .evaluator import Evaluator
 from multiprocessing import Process,Pool
 import multiprocessing
+# from .base import NetworkUnit
 import time
 import pickle
 import copy
 from queue import Queue
+import json
+import os
+
+from info_str import NAS_CONFIG
+
+SPL_CONFIG = NAS_CONFIG['spl']
+SPACE_CONFIG = NAS_CONFIG['space']
+
+def load_search_space(pattern):
+    if pattern == "Block":
+        path = "./parameters/search_space_block"
+    else:
+        path = "./parameters/search_space_global"
+    with open(path, "r", encoding="utf-8") as f:
+        space = json.load(f)
+    return space
+
+
+def load_config(pattern):
+    if pattern == "Block":
+        path = "./parameters/config_block"
+    else:
+        path = "./parameters/config_global"
+    with open(path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+    return config
 
 # # # # #
 class Vertex:
@@ -34,7 +59,7 @@ def bfs(start_node, graph, max_dist):
     q.put(start_node)
     connection = []
     while(not q.empty()):
-        v = q.get()#返回并删除队列头部元素
+        v = q.get()  # 返回并删除队列头部元素
         for node in v.linked:
             if(graph[node].dist == 99):
                 graph[node].dist = v.dist + 1
@@ -42,7 +67,7 @@ def bfs(start_node, graph, max_dist):
                     return connection
                 if graph[node].dist > 1:
                     connection.append(graph[node].id)
-                if graph[node].unknow: #一个点的邻点只能被加入队列一次
+                if graph[node].unknow:  # 一个点的邻点只能被加入队列一次
                     q.put(graph[node])
                     graph[node].unknow = 0
     return connection
@@ -50,7 +75,7 @@ def bfs(start_node, graph, max_dist):
 
 def connect(graph_part, max_dist):
     connection = []
-    for node in range(0,len(graph_part)):
+    for node in range(0, len(graph_part)):
         graph = create_class(graph_part)
         connection.append(bfs(graph[node], graph, max_dist))
     return connection
@@ -59,30 +84,31 @@ def connect(graph_part, max_dist):
 
 class Sampler:
 
-    def __init__(self, graph_part, crosslayer_dis, conv_filter_size):
+    def __init__(self, graph_part, block_id):
 
         '''
         :param nn: NetworkUnit
         '''
-
+        self.pattern = SPL_CONFIG['pattern']
         self.graph_part = graph_part
-        self.crosslayer_dis = crosslayer_dis
+        self.crosslayer_dis = SPACE_CONFIG['skipping_max_dist']
+
+        self.cross_node_number = SPACE_CONFIG['skipping_max_num']
+        # self.cross_node_range = cross_node_range
+
         # 设置结构大小
         self.node_number = len(self.graph_part)
 
-
         # 基于节点设置其可能的跨层连接
-        self.crosslayer = connect(self.graph_part, self.crosslayer_dis)
+        self.crosslayer = connect(self.graph_part, self.crosslayer_dis)  # check
         # self.crosslayer = self.get_crosslayer()
 
         # 读取配置表得到操作的对应映射
-        self.setting, self.pros, self.parameters_subscript_node, = load_conf()
-        del self.setting['dense']
-        del self.setting['pooling']
+        self.setting = copy.deepcopy(SPACE_CONFIG)
+        if self.pattern == "Block":
+            self.setting['conv']['filter_size'] = ops_space['conv']['filter_size'][block_id]
 
-        self.setting['conv']['filter_size']['val'] = conv_filter_size
-
-        self.dic_index = self._init_dict()
+        self.dic_index = self._init_dict()  # check
 
         self.p = []
 
@@ -90,9 +116,41 @@ class Sampler:
         # 设置优化的参数
         self.__region, self.__type = self.opt_parameters()
         self.dim = Dimension()
-        self.dim.set_dimension_size(len(self.__region))
+        self.dim.set_dimension_size(len(self.__region))    # 10%
         self.dim.set_regions(self.__region, self.__type)
         self.parameters_subscript = []  #
+
+        self.opt = Optimizer(self.get_dim(), self.get_parametets_subscript())
+        opt_para = SPL_CONFIG["opt_para"]
+        sample_size = opt_para["sample_size"]  # the instance number of sampling in an iteration
+        budget = opt_para["budget"]  # budget in online style
+        positive_num = opt_para["positive_num"]  # the set size of PosPop
+        rand_probability = opt_para["rand_probability"]  # the probability of sample in model
+        uncertain_bit = opt_para["uncertain_bit"]  # the dimension size that is sampled randomly
+        # set hyper-parameter for optimization, budget is useless for single step optimization
+        self.opt.set_parameters(ss=sample_size, bud=budget, pn=positive_num, rp=rand_probability, ub=uncertain_bit)
+        # clear optimization model
+        self.opt.clear()
+
+    def sample(self):
+        table = self.opt.sample()
+        self.renewp(table)
+        cell, graph = self.convert()
+        return cell, graph
+
+    def update_opt_model(self, table, score):
+        result = self.opt.update_model(table, -score)  # here "-" represent that we minimize the loss
+        if result:
+            pos, neg = result
+            print("###################pos  set#######################")
+            for sam in pos:
+                self.renewp(sam)
+                print(self.convert())
+            print("###################neg  set#######################")
+            for sam in neg:
+                self.renewp(sam)
+                print(self.convert())
+
 
     # 更新p
     def renewp(self, newp):
@@ -113,7 +171,6 @@ class Sampler:
 
         while q.empty() is False:
             f = q.get()
-
             if f[1] >= 2:
                 if f[1] <= self.crosslayer_dis:
                     res_list.append(f[0])
@@ -130,8 +187,9 @@ class Sampler:
     def region_cross_type(self, __region_tmp, __type_tmp, i):
         region_tmp = copy.copy(__region_tmp)
         type_tmp = copy.copy(__type_tmp)
-        for j in self.crosslayer[i]:
-            region_tmp.append([0, 1])
+        for j in range(self.cross_node_number):
+
+            region_tmp.append([0, len(self.crosslayer[i])])
             type_tmp.append(2)
 
         return region_tmp, type_tmp
@@ -148,15 +206,15 @@ class Sampler:
         __region = []
         __type = []
         for i in range(self.node_number):
-
             #
             __region_cross, __type_cross = self.region_cross_type(__region_tmp, __type_tmp, i)
 
             __region = __region + __region_cross
             __type.extend(__type_cross)
+
         return __region, __type
 
-    def sample(self):
+    def convert(self):
         res = []
         # 基于节点的搜索结构参数
         l = 0
@@ -166,15 +224,25 @@ class Sampler:
         for num in range(self.node_number):
             # 取一个节点大小的概率
             l = r
-            r = l + len(self.dic_index) + len(self.crosslayer[num])
+            r = l + len(self.dic_index) + self.cross_node_number
             p_node = self.p[l:r]
 
             #
             # print(p_node)
             # print(p_node[len(self.dic_index):])
+            node_cross_tmp = []
             for i in range(len(p_node[len(self.dic_index):])):
-                if p_node[len(self.dic_index):][i] == 1:
+                node_cross_tmp.append(p_node[len(self.dic_index):][i])
+
+            node_cross_tmp = list(set(node_cross_tmp))
+            # print('##', self.crosslayer[num])
+            # print(node_cross_tmp)
+
+            for i in node_cross_tmp:
+                if len(self.crosslayer[num]) > i:
                     graph_part_sample[num].append(self.crosslayer[num][i])
+                # if  == 1:
+                #
             #
 
             first = p_node[self.dic_index['conv'][-1]]
@@ -182,21 +250,22 @@ class Sampler:
             tmp = ()
             # 首位置确定 conv 还是 pooling
             # 基于block 都是conv起作用
-            first = 0
+            if self.pattern == "Block":
+                first = 0
             if first == 0:
                 # 搜索conv下的操作
                 # 基于操作的对应映射取配置所在的地址，进行取值
                 tmp = tmp + ('conv',)
                 struct_conv = ['conv filter_size', 'conv kernel_size', 'conv activation']
                 for key in struct_conv:
-                    tmp = tmp + (self.setting['conv'][key.split(' ')[-1]]['val'][p_node[self.dic_index[key][-1]]],)
+                    tmp = tmp + (self.setting['conv'][key.split(' ')[-1]][p_node[self.dic_index[key][-1]]],)
             else:
                 # 搜索pooling下的操作
                 # 基于操作的对应映射取配置所在的地址，进行取值
                 tmp = tmp + ('pooling',)
                 struct_pooling = ['pooling pooling_type', 'pooling kernel_size']
                 for key in struct_pooling:
-                    tmp = tmp + (self.setting['pooling'][key.split(' ')[-1]]['val'][p_node[self.dic_index[key][-1]]],)
+                    tmp = tmp + (self.setting['pooling'][key.split(' ')[-1]][p_node[self.dic_index[key][-1]]],)
             res.append(tmp)
 
         return res, graph_part_sample
@@ -209,7 +278,7 @@ class Sampler:
         num = 1
         for key in self.setting:
             for k in self.setting[key]:
-                tmp = len(self.setting[key][k]['val']) - 1
+                tmp = len(self.setting[key][k]) - 1
                 dic[key + ' ' + k] = (cnt, cnt + tmp, num)
                 num += 1
                 cnt += tmp
@@ -246,7 +315,7 @@ class Sampler:
         for num in range(self.node_number):
             # 取一个节点大小的概率
             l = r
-            r = l + len(self.dic_index) + len(self.crosslayer[num])
+            r = l + len(self.dic_index) + self.cross_node_number
             p_node = self.p[l:r]
             # print('--'*20)
             # print(p_node)
@@ -256,19 +325,19 @@ class Sampler:
                 a = -1
                 b = -1
                 c = -1
-                for j, i in enumerate(self.setting['conv']['filter_size']['val']):
+                for j, i in enumerate(self.setting['conv']['filter_size']):
                     if str(i) == op[num][0]:
                         a = j
                         # p_node[self.dic_index['conv filter_size'][-1]] = j
                         # print(j, '##', self.dic_index['conv filter_size'][-1])
 
-                for j, i in enumerate(self.setting['conv']['kernel_size']['val']):
+                for j, i in enumerate(self.setting['conv']['kernel_size']):
                     if str(i) == op[num][1]:
                         b = j
                         # p_node[self.dic_index['conv kernel_size'][-1]] = j
                         # print(j, '##', self.dic_index['conv kernel_size'][-1])
 
-                for j, i in enumerate(self.setting['conv']['activation']['val']):
+                for j, i in enumerate(self.setting['conv']['activation']):
                     if i == 'relu':
                         c = j
                         # p_node[self.dic_index['conv activation'][-1]] = j
@@ -281,24 +350,57 @@ class Sampler:
                 if b != -1:
                     p_node[self.dic_index['conv kernel_size'][-1]] = b
                 if c != -1:
-                   p_node[self.dic_index['conv activation'][-1]] = c
+                    p_node[self.dic_index['conv activation'][-1]] = c
 
                 table = table + p_node
                 # print(p_node)
 
-                    # tmp = tmp + (self.setting['conv'][key.split(' ')[-1]]['val'][p_node[self.dic_index[key][-1]]],)
+                # tmp = tmp + (self.setting['conv'][key.split(' ')[-1]][p_node[self.dic_index[key][-1]]],)
             else:
+                if self.pattern == "Global":
+                    p_node[self.dic_index['conv'][-1]] = 1
                 table = table + p_node
 
         return table
 
 
 if __name__ == '__main__':
+    os.chdir("../")
+    PATTERN = "Global"
+    setting = load_config(PATTERN)
+    search_space = load_search_space(PATTERN)
+    spl_setting = setting["spl_para"]
+    skipping_max_dist = search_space["skipping_max_dist"]
+    ops_space = search_space["ops"]
+    graph_part = [[1], [2], [3], [4], [5], [6], [7], [8], [9], []]
+
+    # network.init_sample(self.__pattern, block_num, self.spl_setting, self.skipping_max_dist, self.ops_space)
+
+    spl = Sampler(graph_part, skipping_max_dist, 0, 'Global', spl_setting, ops_space, 4)
+
+    res, graph_part_sample = spl.sample()
+    region, type = spl.opt_parameters()
+    print(spl.dic_index)
+    print(len(region), len(type))
+    print(region, type)
+    print(len(spl.p))
+    print(spl.p)
+    print(res)
+    print(graph_part_sample)
 
     init = [['64', '7'], ['pooling'], ['64', '3'], ['256', '3'], ['1024', '1'],
             ['1024', '1'], ['1024', '3'], ['1024', '3'], ['1024', '3'], ['512', '1'],
             ['128', '5'], ['64', '3'], ['1024', '1'], ['1024', '1'], ['256', '3']
             ]
+    table = spl.init_p(init)
+    spl.renewp(table)
+    print(spl.p)
+
+    res, graph_part_sample = spl.convert()
+    print(res)
+    print(graph_part_sample)
+
+    '''
     graph_part = [[1], [2], [3], [4], []]
     NU = [[[1], [2], [3], [4], []],
           [[1], [2, 5], [3], [4], [], [4]],
@@ -330,7 +432,7 @@ if __name__ == '__main__':
         table = opt.sample()
         spl.renewp(table)
 
-        __cell, graph_part_sample = spl.sample()
+        __cell, graph_part_sample = spl.convert()
 
         print(__cell)
         # graph_part加入跨层连接的结构
@@ -340,9 +442,8 @@ if __name__ == '__main__':
         table = spl.init_p(init)
         spl.renewp(table)
 
-        __cell, graph_part_sample = spl.sample()
+        __cell, graph_part_sample = spl.convert()
 
         print(__cell)
         print(graph_part_sample)
-
-
+        '''

@@ -1,4 +1,5 @@
 import copy
+import os
 from queue import Queue
 import time
 import networkx as nx
@@ -29,21 +30,24 @@ def save_pool(path, pool):
 
 class Enumerater:
 
-    def __init__(self, depth=6, width=1, max_branch_depth=6):
-        self.depth = depth
-        self.width = width
-        self.max_branch_depth = max_branch_depth
+    def __init__(self):
+        self._setting = NAS_CONFIG['enum']
+        self.depth = self._setting['depth']
+        self.width = self._setting['width']
+        self.max_branch_depth = self._setting['max_branch_depth']
         self.info_dict = {}
         self.info_group = []
         self.log = ""
-        self.pickle_name = 'pcache\\enum_%d-%d-%d.pickle' % (depth, width, max_branch_depth)
+        self.pickle_name = os.join(
+            'pcache',
+            'enum_%d-%d-%d.pickle' % (depth, width, max_branch_depth))
 
     # 生成Adjacney 填充全局变量NETWORK_POOL
 
     def enumerate(self):
         pool = read_pool(self.pickle_name)
 
-        if pool and NAS_CONFIG['enum_debug']:
+        if pool and self._setting['debug']:
             return pool  # for debug
 
         # 生成链字典
