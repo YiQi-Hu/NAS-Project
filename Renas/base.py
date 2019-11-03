@@ -18,4 +18,5 @@ class NetworkUnit:
     def init_sample(self, block_num=0):
         from sampler import Sampler
         self.spl = Sampler(self.graph_part, block_num)
+        self.opt = self.spl.opt
         return

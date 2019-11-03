@@ -105,8 +105,9 @@ class Sampler:
 
         # 读取配置表得到操作的对应映射
         self.setting = copy.deepcopy(SPACE_CONFIG['ops'])
+
         if self.pattern == "Block":
-            self.setting['conv']['filter_size'] = ops_space['conv']['filter_size'][block_id]
+            self.setting['conv']['filter_size'] = self.setting['conv']['filter_size'][block_id]
 
         self.dic_index = self._init_dict()  # check
 

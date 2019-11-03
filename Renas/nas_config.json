@@ -1,7 +1,7 @@
 {
-    "num_gpu": 1,
+    "num_gpu": 2,
     "enum":{
-        "debug": 1,
+        "debug": 0,
         "depth": 3,
         "width": 1,
         "max_depth": 2
@@ -12,7 +12,7 @@
         "worker_host": ""
     },
     "nas_main":{
-        "subp_debug": 1,
+        "subp_debug": 0,
         "eva_debug": 0,
         "block_num": 3
     },
@@ -22,7 +22,7 @@
         "finetune_threshold": 5
     },
     "spl":{
-        "pattern": "Global",
+        "pattern": "Block",
         "opt_para": {
             "sample_size#": "the instance number of sampling in an iteration",
             "sample_size": 3,
