@@ -123,12 +123,12 @@ def _arrange_result(result_list, cmnct):
     for r_ in result_list:
         _cnt += 1
         cplt_r = _cnt / len(result_list) * 100
-        print("\r_arrange_result Completed: {} %".format(cplt_r), end='')
         if MAIN_CONFIG['subp_debug']:
             score, time_cost, network_index = r_
         else:
             score, time_cost, network_index = r_.get()
         # print(SYS_EVA_RESULT_TEM.format(network_index, score, time_cost))
+        print("_arrange_result Completed: {} %".format(cplt_r))
         cmnct.result.put((score, network_index, time_cost))
     print('done!')
     return
