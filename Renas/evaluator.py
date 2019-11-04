@@ -173,6 +173,7 @@ class Evaluator:
         self.network_num = 0
         self.max_steps = 0
         self.blocks = 0
+        self.best_score_in_winner = 0
 
     def _makeconv(self, inputs, hplist, node):
         """Generates a convolutional layer according to information in hplist
@@ -317,7 +318,7 @@ class Evaluator:
         #     # tf.add_to_collection('losses', regularizer(weights))
         return last_layer
 
-    def evaluate(self, graph_full, cell_list, pre_block, cur_best_score=0, is_bestNN=False, update_pre_weight=False, log_file=None):
+    def evaluate(self, graph_full, cell_list, pre_block, is_bestNN=False, update_pre_weight=False, log_file=None):
         '''Method for evaluate the given network.
         Args:
             graph_full: The topology structure of the network given by adjacency table
@@ -328,6 +329,7 @@ class Evaluator:
         Returns:
             Accuracy
         '''
+
         tf.reset_default_graph()
         self.blocks = len(pre_block)
         if self.train_num < batch_size:
@@ -344,8 +346,8 @@ class Evaluator:
         with tf.Session() as sess:
             # if it got previous blocks
             if self.block_num > 0:
-                new_saver = tf.train.import_meta_graph(model_save_path + 'my_model.meta')
-                new_saver.restore(sess, tf.train.latest_checkpoint(model_save_path))
+                new_saver = tf.train.import_meta_graph(model_save_path + 'my_model_block'+str(self.blocks-1)+'.meta')
+                new_saver.restore(sess, model_save_path+'my_model_block'+str(self.blocks-1))
                 graph = tf.get_default_graph()
                 x = graph.get_tensor_by_name("input:0")
                 y_ = graph.get_tensor_by_name("label:0")
@@ -461,8 +463,8 @@ class Evaluator:
                     #           % (it, self.max_steps, train_loss / it, train_acc / it))
 
             if is_bestNN:
-                if val_acc > cur_best_score:
-                    save_path = saver.save(sess, model_save_path + 'my_model')
+                if val_acc > self.best_score_in_winner:
+                    save_path = saver.save(sess, model_save_path + 'my_model_block' + str(self.blocks))
                     print("Model saved in file: %s" % save_path)
                     log_file.write("\nModel saved in file: %s\n" % save_path)
             sess.close()

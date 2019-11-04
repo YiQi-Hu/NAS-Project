@@ -63,7 +63,7 @@ def _subproc_eva(params, eva, gpuq):
     return score, time_cost, pos
 
 
-def _gpu_eva(params, eva, ngpu, cur_bt_score=0):
+def _gpu_eva(params, eva, ngpu, isbestNN=False):
     graph, cell, nn_pb, p_, r_, ft_sign, pl_ = params
     # params = (graph, cell, nn_preblock, pos,
     # round, finetune_signal, pool_len)
@@ -76,7 +76,7 @@ def _gpu_eva(params, eva, ngpu, cur_bt_score=0):
         # try infinitely ?
         # while True:
         print("%d training..." % ngpu)
-        score = eva.evaluate(graph, cell, nn_pb, cur_best_score=cur_bt_score, is_bestNN=False,
+        score = eva.evaluate(graph, cell, nn_pb, is_bestNN=isbestNN,
                              update_pre_weight=ft_sign, log_file=f)
             # try:
             #     score = eva.evaluate(graph, cell, nn_pb, cur_best_score=cur_bt_score, is_bestNN=False, update_pre_weight=ft_sign, log_file=f)

@@ -153,7 +153,7 @@ def _train_winner(net_pool, round, eva):
                 params = (graph, cell, best_nn.pre_block, 0, 0, True, 1)
                 # params = (graph, cell, nn_preblock, pos,
                 # round, finetune_signal, pool_len)
-                opt_score, _ = p.apply(_gpu_eva, args=(params, eva, 0, best_cell_i))
+                opt_score, _ = p.apply(_gpu_eva, args=(params, eva, 0, True))
         best_nn.score_list.append(opt_score)
         if opt_score > best_opt_score:
             best_opt_score = opt_score
