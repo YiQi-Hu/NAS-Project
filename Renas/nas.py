@@ -48,12 +48,13 @@ def _subproc_eva(params, eva, gpuq):
     try:
         # return score and pos
         if MAIN_CONFIG['eva_debug']:
-            raise Exception() # return random result
+            raise Exception()  # return random result
         score, pos = _gpu_eva(params, eva, ngpu)
-    # except Exception as e:
-    #     score = random.random()
-    #     # params = (graph, cell, nn_preblock, pos, ...)
-    #     pos = params[3]
+    except Exception as e:
+        print("ERROR: ", e)
+        score = random.uniform(0, 0.1)
+        # params = (graph, cell, nn_preblock, pos, ...)
+        pos = params[3]
     finally:
         gpuq.put(ngpu)
 
@@ -74,8 +75,10 @@ def _gpu_eva(params, eva, ngpu, cur_bt_score=0):
             len(nn_pb)+1, r_, p_, pl_
         ))
         print("Eva: gpu %d training..." % ngpu)
+        with open("testf.txt", "a") as ff:
+            ff.write("Eva: gpu %d training..." % ngpu)
         score = eva.evaluate(
-            graph, cell, nn_pb, cur_best_score=cur_bt_score, is_bestNN=False,update_pre_weight=ft_sign, log_file=f)
+            graph, cell, nn_pb, cur_best_score=cur_bt_score, is_bestNN=False, update_pre_weight=ft_sign, log_file=f)
     print("Eva completed")
     return score, p_
 
@@ -101,6 +104,7 @@ def _do_task(pool, cmnct, eva):
     while not cmnct.task.empty():
         try:
             task_params = cmnct.task.get(timeout=1)
+            print(task_params)
         except:
             break
         if MAIN_CONFIG['subp_debug']:
@@ -120,7 +124,10 @@ def _arrange_result(result_list, cmnct):
         _cnt += 1
         cplt_r = _cnt / len(result_list) * 100
         print("\r_arrange_result Completed: {} %".format(cplt_r), end='')
-        score, time_cost, network_index = r_.get()
+        if MAIN_CONFIG['subp_debug']:
+            score, time_cost, network_index = r_
+        else:
+            score, time_cost, network_index = r_.get()
         # print(SYS_EVA_RESULT_TEM.format(network_index, score, time_cost))
         cmnct.result.put((score, network_index, time_cost))
     print('done!')
@@ -144,7 +151,7 @@ class Nas():
                 block.graph_full_list[best_index],
                 block.cell_list[best_index]
             ])
-        cmnct.end_flag.put(1) # TODO find other way to stop workers
+        cmnct.end_flag.put(1)  # TODO find other way to stop workers
 
         return block.pre_block
 
