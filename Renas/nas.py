@@ -9,8 +9,8 @@ from enumerater import Enumerater
 from communicator import Communicator
 from evaluator import Evaluator
 from info_str import (
+    NAS_CONFIG,
     CUR_VER_DIR,
-    NAS_CONFIG_PATH,
     EVALOG_PATH_TEM,
     NETWORK_INFO_PATH,
     WINNER_LOG_PATH,
@@ -36,25 +36,26 @@ from info_str import (
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-# Global variables
-NAS_CONFIG = json.load(open(NAS_CONFIG_PATH, encoding='utf-8'))
+# # TODO Fatal: Corenas can not get items in IDLE_GPUQ (Queue)
+# IDLE_GPUQ = Queue()
 
-# TODO Fatal: Corenas can not get items in IDLE_GPUQ (Queue)
-IDLE_GPUQ = Queue()
-
-def _subproc_eva(params, eva):
-    ngpu = IDLE_GPUQ.get()
+def _subproc_eva(params, eva, gpuq):
+    print("before i get!!!")
+    ngpu = gpuq.get()
+    print("i get!!!")
     start_time = time.time()
 
     try:
         # return score and pos
+        if NAS_CONFIG['eva_debug']:
+            raise Exception() # return random result
         score, pos = _gpu_eva(params, eva, ngpu)
     except:
         score = random.random()
         # params = (graph, cell, nn_preblock, pos, ...)
         pos = params[3]
     finally:
-        IDLE_GPUQ.put(ngpu)
+        gpuq.put(ngpu)
 
     end_time = time.time()
     time_cost = end_time - start_time
@@ -62,7 +63,7 @@ def _subproc_eva(params, eva):
     return score, time_cost, pos
 
 
-def _gpu_eva(params, eva, ngpu):
+def _gpu_eva(params, eva, ngpu, isbestNN=False):
     graph, cell, nn_pb, p_, r_, ft_sign, pl_ = params
     # params = (graph, cell, nn_preblock, pos,
     # round, finetune_signal, pool_len)
@@ -73,14 +74,17 @@ def _gpu_eva(params, eva, ngpu):
             len(nn_pb)+1, r_, p_, pl_
         ))
         # try infinitely ?
-        while True:
-            try:
-                score = eva.evaluate(graph, cell, nn_pb, False, ft_sign, f)
-                break
-            except Exception as e:
-                print(SYS_EVAFAIL, e)
-                f.write(LOG_EVAFAIL)
-
+        # while True:
+        print("%d training..." % ngpu)
+        score = eva.evaluate(graph, cell, nn_pb, is_bestNN=isbestNN,
+                             update_pre_weight=ft_sign, log_file=f)
+            # try:
+            #     score = eva.evaluate(graph, cell, nn_pb, cur_best_score=cur_bt_score, is_bestNN=False, update_pre_weight=ft_sign, log_file=f)
+            #     break
+            # except Exception as e:
+            #     print(SYS_EVAFAIL, e)
+            #     f.write(LOG_EVAFAIL)
+    print("eva completed")
     return score, p_
 
 
@@ -112,17 +116,27 @@ def _do_task(pool, cmnct, eva):
             task_params = cmnct.task.get(timeout=1)
         except:
             break
-        # result = pool.apply_async(_subproc_eva, args=(task_params, eva))
-        result = _subproc_eva(task_params, eva)
+        if NAS_CONFIG['subp_debug']:
+            result = _subproc_eva(task_params, eva, cmnct.idle_gpuq)
+        else:
+            result = pool.apply_async(
+                _subproc_eva,
+                (task_params, eva, cmnct.idle_gpuq))
         result_list.append(result)
 
     return result_list
 
+# TODO too slow
 def _arrange_result(result_list, cmnct):
+    _cnt = 0
     for r_ in result_list:
+        _cnt += 1
+        cplt_r = _cnt / len(result_list) * 100
+        print("\r_arrange_result Completed: {} %".format(cplt_r), end='')
         score, time_cost, network_index = r_.get()
-        print(SYS_EVA_RESULT_TEM.format(network_index, score, time_cost))
-        cmnct.result.put([score, network_index, time_cost])
+        # print(SYS_EVA_RESULT_TEM.format(network_index, score, time_cost))
+        cmnct.result.put((score, network_index, time_cost))
+    print('done!')
     return
 
 
@@ -151,7 +165,7 @@ class Nas():
         return block.pre_block
 
     def _worker_run(eva, cmnct):
-        _filln_queue(IDLE_GPUQ, NAS_CONFIG["num_gpu"])
+        _filln_queue(cmnct.idle_gpuq, NAS_CONFIG["num_gpu"])
         pool = Pool(processes=NAS_CONFIG["num_gpu"])
         while cmnct.end_flag.empty():
             _wait_for_event(cmnct.data_sync.empty)
