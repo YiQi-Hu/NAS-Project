@@ -96,8 +96,8 @@ class Cell(tuple):
 
         Cell._check_condition(fs_tv, ks_tv, at_tv, err_msg % 'arg type invalid') 
         # '_rv' -> 'range valid'
-        fs_rv = (fs >=  1) and (fs <= 1024)
-        ks_rv = (ks % 2 == 1) and (ks >= 1) and (ks <= 9)
+        fs_rv = (fs in range(1, 1025))
+        ks_rv = (ks % 2 == 1) and (ks in range(1, 10))
         at_rv = (at in ['relu', 'tanh', 'sigmoid', 'identity', 'leakrelu'])
 
         Cell._check_condition(fs_rv, ks_rv, at_rv, err_msg % 'arg type invalid') 
@@ -117,7 +117,7 @@ class Cell(tuple):
         Cell._check_condition(pt_tv, ks_tv, err_msg % 'arg type invalid')
         # '_rv' -> 'range valid'
         pt_rv = (pt in ['avg', 'max', 'global'])
-        ks_rv = (ks >= 1 and ks <= 10)
+        ks_rv = (ks in range(1, 11))
 
         Cell._check_condition(pt_rv, ks_rv, err_msg % 'arg range invalid')
         return
