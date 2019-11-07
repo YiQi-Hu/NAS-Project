@@ -55,6 +55,8 @@ class Cell(tuple):
     
     def __getattr__(self, key):
         """Get items though meaningful name
+        if key is 'type':
+            cell[0] == cell.type
         if type is 'conv':
             cell[1] == cell.filter_size
             cell[2] == cell.kernel_size
