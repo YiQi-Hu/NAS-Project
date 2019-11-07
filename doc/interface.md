@@ -24,7 +24,7 @@
 ## Cell (inherit from Tuple)
 
 > No Method, Data only.
-> ex. cell = Cell('name', 'conv', 48, 7, 'relu')
+> ex. cell = Cell('conv', 48, 7, 'relu')
 
 + type (string, 'conv' or 'pooling')
 + 'conv' items
