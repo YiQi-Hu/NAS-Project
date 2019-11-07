@@ -172,7 +172,7 @@ if __name__ == "__main__":
     cc = Cell('conv', 1024, 7, 'relu') # conv cell
     pc = Cell('pooling', 'avg', 10) # pooling cell
 
-    print(cc.filter_siz)
+    print(cc.kernel_size)
     print(pc.type)
     print(cc)
     print(pc)
