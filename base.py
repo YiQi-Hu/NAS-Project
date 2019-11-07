@@ -31,29 +31,58 @@ class Cell(tuple):
 
         print(conv_cell.type) # 'conv'
         print(pooling_cell.type) # 'pooling'
-        print(conv_cell) # (48, 7, 'relu')
-        print(pooling_cell) # ('avg', 9)
+        print(conv_cell) # ('conv', 48, 7, 'relu')
+        print(pooling_cell) # ('pooling', 'avg', 9)
     """
-    def __init__(self, cell_type, *args):
-        self.type = cell_type
+    __keys_index = {
+        "conv":{
+            "filter_size": 1,
+            "kernel_size": 2,
+            "activation": 3
+        },
+        "pooling":{
+            "ptype": 1,
+            "kernel_size": 2
+        }
+    }
+
+    def __init__(self, *args):
         tuple.__init__(self)
     
-    def __new__(self, cell_type, *args):
-        Cell._check_vaild(cell_type, *args)
+    def __new__(self, *args):
+        Cell._check_vaild(args)
         return tuple.__new__(self, args)
     
+    def __getattr__(self, key):
+        """Get items though meaningful name
+        if type is 'conv':
+            cell[1] == cell.filter_size
+            cell[2] == cell.kernel_size
+            cell[3] == cell.activation
+        if type is 'pooling':
+            cell[1] == cell.ptype
+            cell[2] == cell.kernel_size
+        Note: Other Keys will raise KeyError.
+        """
+        cell_type = self.__getitem__(0)
+        if key == 'type':
+            return cell_type
+        return self.__getitem__(self.__keys_index[cell_type][key])
+
     @staticmethod
-    def _check_vaild(cell_type, *args):
+    def _check_vaild(args):
+        cell_type = args[0]
+        type_args = args[1:]
         if cell_type is 'conv':
-            Cell._conv_vaild(*args)
+            Cell._conv_vaild(type_args)
         elif cell_type is 'pooling':
-            Cell._pool_valid(*args)
+            Cell._pool_valid(type_args)
         else:
             raise CellInitError('type error')
         return
     
     @staticmethod
-    def _conv_vaild(*args):
+    def _conv_vaild(args):
         err_msg = 'cell type \'conv\' %s.'
 
         if (len(args) > 3):
@@ -75,7 +104,7 @@ class Cell(tuple):
         return
     
     @staticmethod
-    def _pool_valid(*args):
+    def _pool_valid(args):
         err_msg = 'cell type \'pooling\' %s'
         if (len(args) > 2):
             return CellInitError(err_msg % 'args num > 2')
@@ -143,7 +172,7 @@ if __name__ == "__main__":
     cc = Cell('conv', 1024, 7, 'relu') # conv cell
     pc = Cell('pooling', 'avg', 10) # pooling cell
 
-    print(cc.type)
+    print(cc.filter_siz)
     print(pc.type)
     print(cc)
     print(pc)
