@@ -1,0 +1,85 @@
+{
+    "num_gpu": 2,
+    "enum":{
+        "debug": 0,
+        "depth": 6,
+        "width": 0,
+        "max_depth": 0,
+        "enum_debug": 1
+    },
+    "cmnct":{
+        "is_ps": 1,
+        "ps_host": "127.0.0.1:5000",
+        "worker_host": ""
+    },
+    "nas_main":{
+        "subp_debug": 0,
+        "eva_debug": 0,
+        "block_num": 3
+    },
+    "core":{
+        "ops_debug": 0,
+        "opt_best_k": 2,
+        "finetune_threshold": 5
+    },
+    "spl":{
+        "pattern": "Global",
+        "opt_para": {
+            "sample_size#": "the instance number of sampling in an iteration",
+            "sample_size": 3,
+            "budget#": "budget in online style",
+            "budget": 20000,
+            "positive_num#": "the set size of PosPop",
+            "positive_num": 2,
+            "rand_probability#": "the probability of sample in model",
+            "rand_probability": 0.99,
+            "uncertain_bit#": "the dimension size that is sampled randomly",
+            "uncertain_bit": 3
+        }
+    },
+    "space":{
+        "block_num": 1,
+        "graph": {
+            "depth": 6,
+            "width": 0,
+            "max_branch_depth": 0
+        },
+        "skipping_max_dist": 6,
+        "skipping_max_num": 3,
+        "ops": {
+            "conv": {
+                "filter_size": [
+                        32,
+                        48,
+                        64,
+                        128,
+                        192,
+                        256,
+                        512
+                ],
+                "kernel_size": [
+                    1,
+                    3,
+                    5
+                ],
+                "activation": [
+                    "relu",
+                    "leakyrelu"
+                ]
+            },
+        "pooling": {
+                "pooling_type": [
+                    "avg",
+                    "max"
+                ],
+                "kernel_size": [
+                    2,
+                    3,
+                    6,
+                    7,
+                    8
+                ]
+            }
+        }
+    }
+}
