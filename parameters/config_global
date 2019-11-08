@@ -1,0 +1,37 @@
+{
+	"num_gpu": 2,
+	"opt_best_k":10,
+	"rand_seed": 1000,
+	"add_data_for_winner": 10000,
+	"eva_para": {
+		"image_size": 32,
+		"num_classes": 10,
+		"num_examples_per_epoch_for_train": 40000,
+		"num_examples_per_epoch_for_eval": 10000,
+		"initial_learning_rate": 0.001,
+		"moving_average_decay": 0.99,
+		"regularization_rate": 0.0001,
+		"batch_size": 50,
+		"epoch_for_gamer": 100,
+		"epoch_for_winner": 16,
+		"weight_decay": 0.0003,
+		"momentum_rate": 0.9,
+		"train_log_save_path": "./logs",
+		"model_save_path": "./model/",
+		"path": "./data/"
+	},
+	"spl_para": {
+		"opt_para": {
+			"sample_size#": "the instance number of sampling in an iteration",
+			"sample_size": 5,
+			"budget#": "budget in online style",
+			"budget": 20000,
+			"positive_num#": "the set size of PosPop",
+			"positive_num": 3,
+			"rand_probability#": "the probability of sample in model",
+			"rand_probability": 0.99,
+			"uncertain_bit#": "the dimension size that is sampled randomly",
+			"uncertain_bit": 20
+		}
+	}
+}
