@@ -48,6 +48,32 @@
     1. ptype (string, 'avg' or 'max' or 'global')
     2. kernel_size (int, 1 ~ 10)
 
+## info_str
+
+> Except NAS_CONFIG, every property else is string.
+
+### NAS_CONFIG
+
+> Defined in *nas_config.json*.
+>
+> Please use `from info_str import NAS_CONFIG` to get 
+> project's configuration.
+>
+> The following keys correspond to modul parameters:
+>
+> 1. enum -> Enumerater
+> 2. eva -> Evalutor
+> 3. spl -> Sampler
+> 4. pred -> Predictor
+>
+> You can get Nas parameter directly with its name.
+>
+> Ex. `NAS_CONFIG['NUM_GPU']`, `NAS_CONFIG['ENUM']['MAX_DEPTH']`
+
+### Properties (string)
+
+<!-- TODO -->
+
 ## Nas
 
 > The core of NAS Project.
