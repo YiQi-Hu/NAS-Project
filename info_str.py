@@ -5,7 +5,7 @@ import json
 CUR_VER_DIR = os.getcwd()
 
 # NAS configuration dic object
-_NAS_CONFIG_PATH = os.path.join(CUR_VER_DIR, 'nas_config.json')
+_NAS_CONFIG_PATH = os.path.join(CUR_VER_DIR, 'nas_gloconfig.json')
 NAS_CONFIG = json.load(open(_NAS_CONFIG_PATH, encoding='utf-8'))
 
 # File path
