@@ -24,7 +24,15 @@
 ## Cell (inherit from Tuple)
 
 > No Method, Data only.
-> ex. cell = Cell('conv', 48, 7, 'relu')
+>
+> **Example:**
+>
+> ```python
+> cell = Cell('conv', 48, 7, 'relu')
+> cell.type # 'conv'
+> cell.filter_size # 48
+> cell # ('conv', 48, 7, 'relu')
+>```
 
 + type (string, 'conv' or 'pooling')
 + 'conv' items
@@ -57,10 +65,11 @@
 ### Method
 
 + run
-    > **Args**
-    > 1. proc_pool (mutiprocessor.Pool)
-    > **Returns**
-    > 1. best_nn (Network)
+    > **Args**:
+    > 1. *proc_pool* (mutiprocessor.Pool)
+    >
+    > **Returns**:
+    > 1. *best_nn* (Network)
 
 ## Enumerater
 
@@ -76,8 +85,9 @@
 
 1. enumrate
     > **Args**: None
-    > **Returns**
-    > 1. pool (Network list)
+    >
+    > **Returns**:
+    > 1. *pool* (Network list)
 
 ## Evaluator
 
@@ -142,16 +152,16 @@
 
 + sample
     > **Args**:
-    > 1. graph_part (2d int list, as NetworkUnit.graph_part)
-    > 2. block_id (int, 0 ~ BLOCK_NUM - 1)
+    > 1. *graph_part* (2d int list, as NetworkUnit.graph_part)
+    > 2. *block_id* (int, 0 ~ BLOCK_NUM - 1)
     >
     > **Returns**:
-    > 1. cell: (class Cell list)
-    > 2. graph: (2d int list, as NetworkUnit.graph_part)
+    > 1. *cell*: (class Cell list)
+    > 2. *graph*: (2d int list, as NetworkUnit.graph_part)
 + update_model
     > **Args**:
-    > 1. table (1d int list, depending on dimension)
-    > 2. score （float, 0 ~ 1.0)
+    > 1. *table* (1d int list, depending on dimension)
+    > 2. *score* （float, 0 ~ 1.0)
     >
     > **Returns**: None
 
@@ -164,5 +174,5 @@
     > 1. 
     >
     > **Returns**
-    > 1. ops
+    > 1. *ops*
     >
