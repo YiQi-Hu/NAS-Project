@@ -72,9 +72,9 @@ def dis_global(enu,eva,num_gpu):
 		k=0
 		for result in results[i-2:]:
 			Net.item_list[i-2+k].score=result.get();#print("score",score)
-			nn.spl.update_model(Net.item_list[i-2+k].code,Net.item_list[i-2+k].score)
+			nn.spl.update_opt_model(Net.item_list[i-2+k].code,Net.item_list[i-2+k].score)
 			Net_item.cell ,Net_item.graph, Net_item.code =nn.spl.sample()
-			Net.item_list.apennd(Net_item)
+			Net.item_list.append(Net_item)
 			save_glolog(f1,Net,i-2+k)
 			k=k+1;
 	pool.close()#
