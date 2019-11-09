@@ -56,7 +56,7 @@
 
 > Defined in *nas_config.json*.
 >
-> Please use `from info_str import NAS_CONFIG` to get 
+> Please use `from info_str import NAS_CONFIG` to get
 > project's configuration.
 >
 > The following keys correspond to modul parameters:
@@ -172,7 +172,7 @@
   + pooling_type (1d string list, value as Cell.pooling_type)
   + kernel_size (1d int list, value as Cell.kernel_size)
 + POOL_SWITCH (boolean)
-+ SPL_LOG_PATH
++ SPL_LOG_PATH (string, file path)
 
 ### Method
 
@@ -191,21 +191,27 @@
     >
     > **Returns**: None
 + convert
-    > **Args**
-    > 1. table
-    > **Returns**
-    > 1. cell
-    > 2. graph
+    > **Args**:
+    > 1. *table*
+    >
+    > **Returns**:
+    > 1. *cell*
+    > 2. *graph*
 
 ## Predictor
 <!-- TODO -->
 ### Method
 
 + predict
-    > **Args**
-    > 1. *graph*
+    > **Args**:
+    > 1. *graph* (2d int list, adjacency table)
     >
-    > **Returns**
+    > **Returns**:
     > 1. *ops*
     >
+<!-- TODO -->
 + train_model
+    > **Args**:
+    >
+    > **Returns**:
+    >
