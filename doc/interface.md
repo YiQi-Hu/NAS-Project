@@ -190,6 +190,12 @@
     > 2. *score* （float, 0 ~ 1.0)
     >
     > **Returns**: None
++ convert
+    > **Args**
+    > 1. table
+    > **Returns**
+    > 1. cell
+    > 2. graph
 
 ## Predictor
 <!-- TODO -->
@@ -197,8 +203,9 @@
 
 + predict
     > **Args**
-    > 1. 
+    > 1. *graph*
     >
     > **Returns**
     > 1. *ops*
     >
++ train_model
