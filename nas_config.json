@@ -30,6 +30,9 @@
     "epoch": 167,
     "weight_decay": 0.0003,
     "momentum_rate": 0.9,
-    "model_path": "model"
+    "model_path": "model",
+    "learning_rate_type":"",
+    "boundaries":[0,80,120],
+    "learing_rate":[0.1,0.01,0.001]
   }
 }

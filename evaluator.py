@@ -280,15 +280,21 @@ class Evaluator:
 
     def _train(self, global_step, loss):
         # Variables that affect learning rate.
+        lr_type=NAS_CONFIG['eva']['learning_rate_type']
         num_batches_per_epoch = self.train_num / self.batch_size
         decay_steps = int(num_batches_per_epoch * self.NUM_EPOCHS_PER_DECAY)
 
-        # Decay the learning rate exponentially based on the number of steps.
-        lr = tf.train.exponential_decay(self.INITIAL_LEARNING_RATE,
-                                        global_step,
-                                        decay_steps,
-                                        self.LEARNING_RATE_DECAY_FACTOR,
-                                        staircase=True)
+        if lr_type == 'const':
+            lr=tf.train.piecewise_constant(global_step, boundaries=NAS_CONFIG['eva']['boundaries'], values=NAS_CONFIG['eva']['learing_rate'])
+        elif lr_type=='cos':
+            lr=tf.train.cosine_decay(self.INITIAL_LEARNING_RATE,global_step,decay_steps)
+        else:
+            # Decay the learning rate exponentially based on the number of steps.
+            lr = tf.train.exponential_decay(self.INITIAL_LEARNING_RATE,
+                                            global_step,
+                                            decay_steps,
+                                            self.LEARNING_RATE_DECAY_FACTOR,
+                                            staircase=True)
 
         # Build a Graph that trains the model with one batch of examples and
         # updates the model parameters.
