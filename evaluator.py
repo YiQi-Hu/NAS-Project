@@ -110,7 +110,7 @@ class Evaluator:
         self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 10000
         # Constants describing the training process.
         self.INITIAL_LEARNING_RATE = NAS_CONFIG['eva']['INITIAL_LEARNING_RATE']  # Initial learning rate.
-        self.NUM_EPOCHS_PER_DECAY = NAS_CONFIG['eva']['NUM_EPOCHS_PER_DECAY']  # Epochs after which learning rate decays.
+        self.NUM_EPOCHS_PER_DECAY = NAS_CONFIG['eva']['NUM_EPOCHS_PER_DECAY']  # Epochs after which learning rate decays
         self.LEARNING_RATE_DECAY_FACTOR = NAS_CONFIG['eva']['LEARNING_RATE_DECAY_FACTOR']  # Learning rate decay factor.
         self.MOVING_AVERAGE_DECAY = NAS_CONFIG['eva']['MOVING_AVERAGE_DECAY']
         self.batch_size = NAS_CONFIG['eva']['batch_size']
@@ -335,6 +335,7 @@ class Evaluator:
                 input = x
 
             logits = self._inference(input, graph_part, cell_list, train_flag)
+            logits = tf.nn.dropout(logits, keep_prob=1.0)
             # softmax
             logits = self._makedense(logits, ('', [self.NUM_CLASSES], 'identity'), train_flag)
 
