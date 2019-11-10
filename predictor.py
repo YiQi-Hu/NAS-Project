@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from enumerater import Enumerater
 from predict_op.label_encoding import decoder, encoder, getClassNum
@@ -8,6 +10,10 @@ MAX_NETWORK_LENGTH = 71
 model_json_path = './predict_op/model.json'
 model_weights_path = './predict_op/model.json.h5'
 
+from nas import CUR_VER_DIR
+
+model_json_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json')
+model_weights_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json.h5')
 
 class Feature:
     def __init__(self, graph):
