@@ -6,6 +6,7 @@ import pickle
 import random
 from info_str import NAS_CONFIG
 
+# TODO data_path should also load from config file
 data_path = '/data/data'
 
 
@@ -303,13 +304,13 @@ class Evaluator:
             minimize(loss, global_step=global_step)
         return train_op, lr
 
-    def evaluate(self, graph_part, cell_list, pre_block=[], is_bestNN=False, update_pre_weight=False):
+    def evaluate(self, network, pre_block=[], update_pre_weight=False):
         '''Method for evaluate the given network.
         Args:
-            graph_part: The topology structure of the network given by adjacency table
-            cell_list: The configuration of this network for each node in graph_part.
+            network: NetworkItem().
             pre_block: The pre-block structure, every block has two parts: graph_part and cell_list of this block.
-            is_bestNN: Symbol for indicating whether the evaluating network is the best network of this round, default False.
+                       The topology structure of the network given by adjacency table
+                       The configuration of this network for each node in graph_part.
             update_pre_weight: Symbol for indicating whether to update previous blocks' weight, default by False.
         Returns:
             Accuracy'''
@@ -323,6 +324,7 @@ class Evaluator:
 
             # if it got previous blocks
             if self.block_num > 0:
+                # TODO check whether there is a model file exit
                 new_saver = tf.train.import_meta_graph(
                     os.path.join(self.model_path, 'model_block' + str(self.blocks - 1) + '.meta'))
                 new_saver.restore(sess, tf.train.latest_checkpoint(self.model_path))
@@ -341,7 +343,7 @@ class Evaluator:
                 labels = tf.placeholder(tf.int32, [self.batch_size, self.NUM_CLASSES], name="label")
                 input = x
 
-            logits = self._inference(input, graph_part, cell_list, train_flag)
+            logits = self._inference(input, network.graph_part, network.cell_list, train_flag)
             logits = tf.nn.dropout(logits, keep_prob=1.0)
             # softmax
             logits = self._makedense(logits, ('', [self.NUM_CLASSES], 'identity'), train_flag)
@@ -395,8 +397,7 @@ class Evaluator:
 
                 print('%d epoch: precision = %.3f, cost time %.3f' % (ep, precision[ep], float(time.time() - start_time)))
 
-            if is_bestNN:  # Save the model
-                saver.save(sess, self.model_path + 'model_block' + str(self.blocks))
+            saver.save(sess, self.model_path + str(network.id) + 'model_block' + str(self.blocks))  # save model
 
         return precision[-1]
 
