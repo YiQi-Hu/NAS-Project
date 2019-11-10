@@ -10,6 +10,7 @@
 + id (int, any)
 + graph_template (2d int list, adjacency list)
 + item_list (1d NetworkItem list)
++ pre_block (1d NetworkItem list)
 
 ## NetworkItem
 
@@ -139,11 +140,11 @@
 
 + evaluate
     > **Args**:
-    > 1. *graph_full*
-    > 2. *cell_list*
-    > 3. *pre_block*
-    > 4. *is_bestNN*
-    > 5. *update_pre_weight*
+    > 1. *graph* (2d int list, as NetworkItem.graph)
+    > 2. *cell_list* (1d Cell list)
+    > 3. *pre_block* (1d NetworkItem list)
+    > 4. *is_bestNN* (boolean)
+    > 5. *update_pre_weight* (boolean)
     >
     > **Returns**:
     > 1. *Accuracy* (float, 0 ~ 1.0)
