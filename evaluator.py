@@ -280,14 +280,15 @@ class Evaluator:
 
     def _train(self, global_step, loss):
         # Variables that affect learning rate.
-        lr_type=NAS_CONFIG['eva']['learning_rate_type']
+        lr_type = NAS_CONFIG['eva']['learning_rate_type']
         num_batches_per_epoch = self.train_num / self.batch_size
         decay_steps = int(num_batches_per_epoch * self.NUM_EPOCHS_PER_DECAY)
 
         if lr_type == 'const':
-            lr=tf.train.piecewise_constant(global_step, boundaries=NAS_CONFIG['eva']['boundaries'], values=NAS_CONFIG['eva']['learing_rate'])
-        elif lr_type=='cos':
-            lr=tf.train.cosine_decay(self.INITIAL_LEARNING_RATE,global_step,decay_steps)
+            lr = tf.train.piecewise_constant(global_step, boundaries=NAS_CONFIG['eva']['boundaries'],
+                                             values=NAS_CONFIG['eva']['learing_rate'])
+        elif lr_type == 'cos':
+            lr = tf.train.cosine_decay(self.INITIAL_LEARNING_RATE, global_step, decay_steps)
         else:
             # Decay the learning rate exponentially based on the number of steps.
             lr = tf.train.exponential_decay(self.INITIAL_LEARNING_RATE,
@@ -356,6 +357,7 @@ class Evaluator:
             # Start running operations on the Graph.
             sess.run(tf.global_variables_initializer())
 
+            precision = np.zeros([self.epoch])
             for ep in range(self.epoch):
                 # train step
                 for step in range(self.max_steps):
@@ -366,7 +368,8 @@ class Evaluator:
                     _, loss_value = sess.run([train_op, cross_entropy],
                                              feed_dict={x: batch_x, labels: batch_y, train_flag: True})
 
-                    assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
+                    if np.isnan(loss_value):
+                        return -1
 
                     if step % 100 == 0:
                         format_str = ('step %d, loss = %.2f (%.3f sec)')
@@ -374,22 +377,28 @@ class Evaluator:
 
                 # evaluation step
                 num_iter = self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL // self.batch_size
-                precision = 0
                 start_time = time.time()
                 for step in range(num_iter):
                     batch_x = self.test_data[step * self.batch_size:(step + 1) * self.batch_size]
                     batch_y = self.test_label[step * self.batch_size:(step + 1) * self.batch_size]
                     l, acc_ = sess.run([cross_entropy, accuracy],
                                        feed_dict={x: batch_x, labels: batch_y, train_flag: False})
-                    precision += acc_ / num_iter
+                    precision[ep] += acc_ / num_iter
                     step += 1
 
-                print('%d epoch: precision = %.3f, cost time %.3f' % (ep, precision, float(time.time() - start_time)))
+                if ep > 10:
+                    if precision[ep] < 0.15:
+                        return -1
+                    if 2 * precision[ep] - precision[ep - 10] - precision[ep - 1] < 0.001:
+                        precision = precision[:ep]
+                        break
+
+                print('%d epoch: precision = %.3f, cost time %.3f' % (ep, precision[ep], float(time.time() - start_time)))
 
             if is_bestNN:  # Save the model
                 saver.save(sess, self.model_path + 'model_block' + str(self.blocks))
 
-        return precision
+        return precision[-1]
 
     def add_data(self, add_num=0):
         if self.train_num + add_num > self.NUM_EXAMPLES_FOR_TRAIN or add_num < 0:
