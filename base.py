@@ -8,6 +8,8 @@ class Network(object):
         self.id = _id
         self.graph_template = graph_tmp
         self.item_list = []
+        self.pre_block = []
+        self.spl = None
 
         return
 
@@ -28,7 +30,6 @@ class Cell(tuple):
     Example:
         conv_cell = Cell('conv', 48, 7, 'relu')
         pooling_cell = Cell('pooling', 'avg', 9)
-
         print(conv_cell.type) # 'conv'
         print(pooling_cell.type) # 'pooling'
         print(conv_cell) # ('conv', 48, 7, 'relu')
@@ -55,6 +56,8 @@ class Cell(tuple):
     
     def __getattr__(self, key):
         """Get items though meaningful name
+        if key is 'type':
+            cell[0] == cell.type
         if type is 'conv':
             cell[1] == cell.filter_size
             cell[2] == cell.kernel_size
