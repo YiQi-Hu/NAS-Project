@@ -126,6 +126,22 @@ class Evaluator:
         self.train_data, self.train_label, self.valid_data, self.valid_label, \
         self.test_data, self.test_label = DataSet().inputs()
 
+    def _toposort(self, graph):
+        in_degrees = dict((u, 0) for u in range(len(graph)))
+        for u in range(len(graph)):
+            for v in graph[u]:
+                in_degrees[v] += 1
+        queue = [u for u in range(len(graph)) if in_degrees[u] == 0]
+        result = []
+        while queue:
+            u = queue.pop()
+            result.append(u)
+            for v in graph[u]:
+                in_degrees[v] -= 1
+                if in_degrees[v] == 0:
+                    queue.append(v)
+        return result
+
     def _batch_norm(self, input, train_flag):
         return tf.contrib.layers.batch_norm(input, decay=0.9, center=True, scale=True, epsilon=1e-3,
                                             updates_collections=None, is_training=train_flag)
@@ -222,8 +238,9 @@ class Evaluator:
         inputs = [images for _ in range(nodelen)]  # input list for every cell in network
         getinput = [False for _ in range(nodelen)]  # bool list for whether this cell has already got input or not
         getinput[0] = True
+        topo_order = self._toposort(graph_part)
 
-        for node in range(nodelen):
+        for node in topo_order:
             # print('Evaluater:right now we are processing node %d'%node,', ',cellist[node])
             if cellist[node][0] == 'conv':
                 layer = self._makeconv(inputs[node], cellist[node], node, train_flag)
@@ -365,8 +382,8 @@ class Evaluator:
                 # train step
                 for step in range(self.max_steps):
                     start_time = time.time()
-                    batch_x = self.train_data[step * self.batch_size:step * self.batch_size + self.batch_size]
-                    batch_y = self.train_label[step * self.batch_size:step * self.batch_size + self.batch_size]
+                    batch_x = self.train_data[step * self.batch_size:(step + 1) * self.batch_size]
+                    batch_y = self.train_label[step * self.batch_size:(step + 1) * self.batch_size]
                     batch_x = DataSet().process(batch_x)
                     _, loss_value = sess.run([train_op, cross_entropy],
                                              feed_dict={x: batch_x, labels: batch_y, train_flag: True})
@@ -394,13 +411,13 @@ class Evaluator:
                         return -1
                     if 2 * precision[ep] - precision[ep - 10] - precision[ep - 1] < 0.001:
                         precision = precision[:ep]
-                        print('early stop at %d epoch'%ep)
+                        print('early stop at %d epoch' % ep)
                         break
 
                 print('%d epoch: precision = %.3f, cost time %.3f' % (ep, precision[ep], float(time.time() - start_time)))
 
-            if is_bestNN:
-                saver.save(sess, os.path.join(self.model_path, best_id + 'model_block' + str(self.blocks)))  # save model
+            if is_bestNN:  # save model
+                saver.save(sess, os.path.join(self.model_path, best_id + 'model_block' + str(self.blocks)))
 
         return precision[-1], best_id
 
@@ -420,6 +437,7 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
     eval.add_data(50000)
+    # print(eval._toposort([[1, 4, 3], [2], [3], [], [3]]))
     # graph_full = [[1], [2], [3], []]
     # cell_list = [('conv', 64, 5, 'relu'), ('pooling', 'max', 3), ('conv', 64, 5, 'relu'), ('pooling', 'max', 3)]
     # cell_list = [cell_list]
