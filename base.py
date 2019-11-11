@@ -30,7 +30,6 @@ class Cell(tuple):
     Example:
         conv_cell = Cell('conv', 48, 7, 'relu')
         pooling_cell = Cell('pooling', 'avg', 9)
-
         print(conv_cell.type) # 'conv'
         print(pooling_cell.type) # 'pooling'
         print(conv_cell) # ('conv', 48, 7, 'relu')
