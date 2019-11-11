@@ -273,7 +273,7 @@ class Evaluator:
         inputs[0] = images
         getinput = [False for i in range(nodelen)]  # bool list for whether this cell has already got input or not
         getinput[0] = True
-        topo_order = self._toposort(graph_part)
+        topo_order = self._toposort(graph_full)
 
         for node in topo_order:
             # print('Evaluater:right now we are processing node %d'%node,', ',cellist[node])
