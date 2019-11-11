@@ -3,12 +3,11 @@ from queue import Queue
 import time
 import networkx as nx
 import pickle
-from base import NetworkUnit
-
+from base import Network
+import matplotlib.pyplot as plt
 from info_str import NAS_CONFIG
 
 # from .base import NetworkUnit, NETWORK_POOL
-
 
 def read_pool(path):
     pool = None
@@ -28,6 +27,13 @@ def save_pool(path, pool):
     print('Saved in %s' % path)
 
 class Enumerater:
+    """Summary of class here.
+        Generate adjacency of network topology.
+        Attributes:
+            depth: Maximum length of the network topology.
+            width: Number of branches in the network topology.
+            max_branch_depth: The maximum number of nodes in the number of branches of the network topology
+    """
 
     def __init__(self, depth=6, width=1, max_branch_depth=6):
         self.depth = depth
@@ -38,33 +44,29 @@ class Enumerater:
         self.log = ""
         self.pickle_name = 'pcache\\enum_%d-%d-%d.pickle' % (depth, width, max_branch_depth)
 
-    # 生成Adjacney 填充全局变量NETWORK_POOL
-
     def enumerate(self):
+        """
+        The main function of generating network topology.
+        """
         pool = read_pool(self.pickle_name)
 
         if pool and NAS_CONFIG['enum_debug']:
             return pool  # for debug
 
-        # 生成链字典
-        self.filldict()
-        # print(len(self.info_dict))
+        self.filldict()  # Generate chain dictionary
 
-        # 生成拓扑结构编号
-        self.fillgroup()
-        # print(len(self.info_group))
+        self.fillgroup()  # Generate topology number
 
-        # 还原拓扑结构
-        pool = self.encode2adjaceny()
+        pool = self.encode2adjaceny()  # Restore network topology
 
         save_pool(self.pickle_name, pool)
+        return pool  # return the list of NetworkUnit [Net,Net,...]
 
-        return pool
-        # 填满全局变量；NetworkUnit类的序列[Net,Net,Net,...]
-
-    # 遍历以起点i,终点j,链节点个数k，判断合法并加入字典结构种
-    # max_branch_depth 规定支链节点个数不超过max_branch_depth个
     def filldict(self):
+        """
+        The starting node i, the ending node J, the number of chain nodes k,
+        Judge legal and add to dictionary structure.
+        """
         cnt = 0
         for i in range(self.depth - 2):
             for j in range(self.depth):
@@ -77,19 +79,19 @@ class Enumerater:
                         cnt += 1
         return
 
-    # 以广搜的方法搜索 非递增拓扑结构编号
-    def fillgroup(self):
 
+    def fillgroup(self):
+        """
+        Search for non-incrementing topology numbers by breadth-first search.
+        """
         q = Queue()
         q.put([[], 0])
-        while q.empty() != True:
+        while not q.empty():
             t = q.get()
             #   print(t[0])
             self.info_group.append(t[0])
-
             if t[1] == self.width:
                 continue
-
             m = -1
             for i in t[0]:
                 m = max(m, i)
@@ -101,10 +103,14 @@ class Enumerater:
                     q.put(tmp)
         return
 
-    # 利用链的字典，拓扑结构编号，还原拓扑结构邻接表
     def encode2adjaceny(self):
+        """
+        Use the dictionary of the chain, the topology number
+        to restore the network topology adjacency list.
+        """
         pool = []
         tmp_init = []
+        id_tmp = 0
         for i in range(self.depth):
             if i != self.depth - 1:
                 tmp_init.append([i + 1])
@@ -125,13 +131,19 @@ class Enumerater:
                     s = p
                 tmp[s].append(e)
             if self.judgemultiple(tmp) == 1:
-                tmp_net = NetworkUnit(tmp, [])
+                # TODO(pjs) del
+                # tmp_net = NetworkUnit(tmp, [])
+                tmp_net = Network(id_tmp, tmp)
+                id_tmp += 1
+
                 # print(tmp)
                 pool.append(tmp_net)
         return pool
 
-    # 还原邻接表种的判重部分
     def judgemultiple(self, adja):
+        """
+        Judging the repetition when restore the network topology adjacency list.
+        """
         for i in adja:
             for j in i:
                 cnt = 0
@@ -142,8 +154,10 @@ class Enumerater:
                         return 0
         return 1
 
-    # 一个比较烂的可视化
     def adjaceny2visualzation(self, adja):
+        """
+        Enter a network adjacency table to display its topology by pyplot.
+        """
         nodelist = []
         edgelist = []
         for i in range(len(adja)):
@@ -157,7 +171,6 @@ class Enumerater:
         plt.show()
 
     def save_adj_log(self, POOL, PATH, date):
-
         for i, j in enumerate(POOL):
             s = 'nn_graph_'
             s = s + str(i) + '_'
@@ -169,6 +182,7 @@ class Enumerater:
 
 if __name__ == '__main__':
     time1 = time.time()
+
     D = 10
     W = 2
     W_number = 30
@@ -187,5 +201,6 @@ if __name__ == '__main__':
     NETWORK_POOL = res
     print(len(NETWORK_POOL))
     for i in NETWORK_POOL:
-        print(i.graph_part)
+        print(i.graph_template)
+        print(i.id)
     # 取 9，4 不约束支链节点数量产生 6980275 运行时间8分左右
