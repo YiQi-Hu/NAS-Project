@@ -22,6 +22,24 @@
         "opt_best_k": 2,
         "finetune_threshold": 5
     },
+    "eva": {
+    "IMAGE_SIZE": 32,
+    "NUM_CLASSES": 10,
+    "NUM_EXAMPLES_FOR_TRAIN": 40000,
+    "NUM_EXAMPLES_PER_EPOCH_FOR_EVAL": 10000,
+    "INITIAL_LEARNING_RATE": 0.1,
+    "NUM_EPOCHS_PER_DECAY": 80.0,
+    "LEARNING_RATE_DECAY_FACTOR": 0.1,
+    "MOVING_AVERAGE_DECAY": 0.98,
+    "batch_size": 50,
+    "epoch": 167,
+    "weight_decay": 0.0003,
+    "momentum_rate": 0.9,
+    "model_path": "model",
+    "learning_rate_type":"",
+    "boundaries":[0,80,120],
+    "learing_rate":[0.1,0.01,0.001]
+    },
     "spl":{
         "pattern": "Global",
         "opt_para": {
