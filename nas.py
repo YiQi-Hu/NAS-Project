@@ -257,6 +257,7 @@ def _game(eva, net_pool, scores, com, round):
 
 def _train_winner(net_pool, round):
     """
+
     Args:
         net_pool: list of NetworkUnit, and its length equals to 1
         round: the round number of game
@@ -296,6 +297,7 @@ def _save_ops_copy(pool):
 
 def _init_ops(net_pool):
     """Generates ops and skipping for every Network,
+
     Args:
         net_pool (list of NetworkUnit)
     Returns:
