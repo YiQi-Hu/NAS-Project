@@ -11,6 +11,7 @@
 + graph_template (2d int list, adjacency list)
 + item_list (1d NetworkItem list)
 + pre_block (1d NetworkItem list)
++ spl (class Sampler)
 
 ## NetworkItem
 
@@ -177,42 +178,54 @@
 
 ### Method
 
-+ sample
++ __init__
     > **Args**:
-    > 1. *graph_part* (2d int list, as NetworkUnit.graph_part)
-    > 2. *block_id* (int, 0 ~ BLOCK_NUM - 1)
+    > 1. graph
+    > 2. block_num
+    > **Returns**: None
+    >
++ sample
+    > **Args**: None
     >
     > **Returns**:
     > 1. *cell*: (class Cell list)
     > 2. *graph*: (2d int list, as NetworkUnit.graph_part)
+    > 3. *table*
 + update_model
     > **Args**:
     > 1. *table* (1d int list, depending on dimension)
     > 2. *score* （float, 0 ~ 1.0)
     >
     > **Returns**: None
++ ops2table
+    > **Args**
+    > 1. *ops*
+    > **Retruns**
+    > 1. *table*
+    >
 + convert
     > **Args**:
     > 1. *table*
     >
     > **Returns**:
-    > 1. *cell*
-    > 2. *graph*
+    > 1. *cell_list* (1d Cell list)
+    > 2. *graph_full*
 
 ## Predictor
-<!-- TODO -->
+
 ### Method
 
 + predict
     > **Args**:
-    > 1. *graph* (2d int list, adjacency table)
+    > 1. *graph_ful* (2d int list, adjacency table)
+    > 2. *pre_block*
     >
     > **Returns**:
     > 1. *ops*
-    >
-<!-- TODO -->
+
 + train_model
     > **Args**:
-    >
-    > **Returns**:
+    > 1. *graph_full*
+    > 2. *cell_list*
+    > **Returns**: None
     >
