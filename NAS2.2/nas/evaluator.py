@@ -55,6 +55,22 @@ class Evaluator:
         self.max_steps = 0
         self.block_num = 0
 
+    def _toposort(self, graph):
+        in_degrees = dict((u, 0) for u in range(len(graph)))
+        for u in range(len(graph)):
+            for v in graph[u]:
+                in_degrees[v] += 1
+        queue = [u for u in range(len(graph)) if in_degrees[u] == 0]
+        result = []
+        while queue:
+            u = queue.pop()
+            result.append(u)
+            for v in graph[u]:
+                in_degrees[v] -= 1
+                if in_degrees[v] == 0:
+                    queue.append(v)
+        return result
+
     def unpickle(self, file):
         with open(file, 'rb') as fo:
             dict = pickle.load(fo, encoding='bytes')
@@ -257,8 +273,9 @@ class Evaluator:
         inputs[0] = images
         getinput = [False for i in range(nodelen)]  # bool list for whether this cell has already got input or not
         getinput[0] = True
+        topo_order = self._toposort(graph_part)
 
-        for node in range(nodelen):
+        for node in topo_order:
             # print('Evaluater:right now we are processing node %d'%node,', ',cellist[node])
             if cellist[node][0] == 'conv':
                 layer = self._makeconv(inputs[node], cellist[node], node)
