@@ -3,7 +3,7 @@ from queue import Queue
 import time
 import networkx as nx
 import pickle
-from base import NetworkUnit
+from base import Network
 import matplotlib.pyplot as plt
 from info_str import NAS_CONFIG
 
@@ -110,6 +110,7 @@ class Enumerater:
         """
         pool = []
         tmp_init = []
+        id_tmp = 0
         for i in range(self.depth):
             if i != self.depth - 1:
                 tmp_init.append([i + 1])
@@ -130,7 +131,11 @@ class Enumerater:
                     s = p
                 tmp[s].append(e)
             if self.judgemultiple(tmp) == 1:
-                tmp_net = NetworkUnit(tmp, [])
+                # TODO(pjs) del
+                # tmp_net = NetworkUnit(tmp, [])
+                tmp_net = Network(id_tmp, tmp)
+                id_tmp += 1
+
                 # print(tmp)
                 pool.append(tmp_net)
         return pool
@@ -177,6 +182,7 @@ class Enumerater:
 
 if __name__ == '__main__':
     time1 = time.time()
+
     D = 10
     W = 2
     W_number = 30
@@ -195,5 +201,6 @@ if __name__ == '__main__':
     NETWORK_POOL = res
     print(len(NETWORK_POOL))
     for i in NETWORK_POOL:
-        print(i.graph_part)
+        print(i.graph_template)
+        print(i.id)
     # 取 9，4 不约束支链节点数量产生 6980275 运行时间8分左右
