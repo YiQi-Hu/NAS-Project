@@ -6,6 +6,7 @@ import pickle
 import random
 from info_str import NAS_CONFIG
 
+# TODO data_path should also load from config file
 data_path = '/data/data'
 
 
@@ -110,7 +111,7 @@ class Evaluator:
         self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 10000
         # Constants describing the training process.
         self.INITIAL_LEARNING_RATE = NAS_CONFIG['eva']['INITIAL_LEARNING_RATE']  # Initial learning rate.
-        self.NUM_EPOCHS_PER_DECAY = NAS_CONFIG['eva']['NUM_EPOCHS_PER_DECAY']  # Epochs after which learning rate decays.
+        self.NUM_EPOCHS_PER_DECAY = NAS_CONFIG['eva']['NUM_EPOCHS_PER_DECAY']  # Epochs after which learning rate decays
         self.LEARNING_RATE_DECAY_FACTOR = NAS_CONFIG['eva']['LEARNING_RATE_DECAY_FACTOR']  # Learning rate decay factor.
         self.MOVING_AVERAGE_DECAY = NAS_CONFIG['eva']['MOVING_AVERAGE_DECAY']
         self.batch_size = NAS_CONFIG['eva']['batch_size']
@@ -280,15 +281,22 @@ class Evaluator:
 
     def _train(self, global_step, loss):
         # Variables that affect learning rate.
+        lr_type = NAS_CONFIG['eva']['learning_rate_type']
         num_batches_per_epoch = self.train_num / self.batch_size
         decay_steps = int(num_batches_per_epoch * self.NUM_EPOCHS_PER_DECAY)
 
-        # Decay the learning rate exponentially based on the number of steps.
-        lr = tf.train.exponential_decay(self.INITIAL_LEARNING_RATE,
-                                        global_step,
-                                        decay_steps,
-                                        self.LEARNING_RATE_DECAY_FACTOR,
-                                        staircase=True)
+        if lr_type == 'const':
+            lr = tf.train.piecewise_constant(global_step, boundaries=NAS_CONFIG['eva']['boundaries'],
+                                             values=NAS_CONFIG['eva']['learing_rate'])
+        elif lr_type == 'cos':
+            lr = tf.train.cosine_decay(self.INITIAL_LEARNING_RATE, global_step, decay_steps)
+        else:
+            # Decay the learning rate exponentially based on the number of steps.
+            lr = tf.train.exponential_decay(self.INITIAL_LEARNING_RATE,
+                                            global_step,
+                                            decay_steps,
+                                            self.LEARNING_RATE_DECAY_FACTOR,
+                                            staircase=True)
 
         # Build a Graph that trains the model with one batch of examples and
         # updates the model parameters.
@@ -296,13 +304,13 @@ class Evaluator:
             minimize(loss, global_step=global_step)
         return train_op, lr
 
-    def evaluate(self, graph_part, cell_list, pre_block=[], is_bestNN=False, update_pre_weight=False):
+    def evaluate(self, network, pre_block=[], update_pre_weight=False):
         '''Method for evaluate the given network.
         Args:
-            graph_part: The topology structure of the network given by adjacency table
-            cell_list: The configuration of this network for each node in graph_part.
+            network: NetworkItem().
             pre_block: The pre-block structure, every block has two parts: graph_part and cell_list of this block.
-            is_bestNN: Symbol for indicating whether the evaluating network is the best network of this round, default False.
+                       The topology structure of the network given by adjacency table
+                       The configuration of this network for each node in graph_part.
             update_pre_weight: Symbol for indicating whether to update previous blocks' weight, default by False.
         Returns:
             Accuracy'''
@@ -316,6 +324,7 @@ class Evaluator:
 
             # if it got previous blocks
             if self.block_num > 0:
+                # TODO check whether there is a model file exit
                 new_saver = tf.train.import_meta_graph(
                     os.path.join(self.model_path, 'model_block' + str(self.blocks - 1) + '.meta'))
                 new_saver.restore(sess, tf.train.latest_checkpoint(self.model_path))
@@ -334,7 +343,8 @@ class Evaluator:
                 labels = tf.placeholder(tf.int32, [self.batch_size, self.NUM_CLASSES], name="label")
                 input = x
 
-            logits = self._inference(input, graph_part, cell_list, train_flag)
+            logits = self._inference(input, network.graph_part, network.cell_list, train_flag)
+            logits = tf.nn.dropout(logits, keep_prob=1.0)
             # softmax
             logits = self._makedense(logits, ('', [self.NUM_CLASSES], 'identity'), train_flag)
 
@@ -349,6 +359,7 @@ class Evaluator:
             # Start running operations on the Graph.
             sess.run(tf.global_variables_initializer())
 
+            precision = np.zeros([self.epoch])
             for ep in range(self.epoch):
                 # train step
                 for step in range(self.max_steps):
@@ -359,7 +370,8 @@ class Evaluator:
                     _, loss_value = sess.run([train_op, cross_entropy],
                                              feed_dict={x: batch_x, labels: batch_y, train_flag: True})
 
-                    assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
+                    if np.isnan(loss_value):
+                        return -1
 
                     if step % 100 == 0:
                         format_str = ('step %d, loss = %.2f (%.3f sec)')
@@ -367,22 +379,27 @@ class Evaluator:
 
                 # evaluation step
                 num_iter = self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL // self.batch_size
-                precision = 0
                 start_time = time.time()
                 for step in range(num_iter):
                     batch_x = self.test_data[step * self.batch_size:(step + 1) * self.batch_size]
                     batch_y = self.test_label[step * self.batch_size:(step + 1) * self.batch_size]
                     l, acc_ = sess.run([cross_entropy, accuracy],
                                        feed_dict={x: batch_x, labels: batch_y, train_flag: False})
-                    precision += acc_ / num_iter
+                    precision[ep] += acc_ / num_iter
                     step += 1
 
-                print('%d epoch: precision = %.3f, cost time %.3f' % (ep, precision, float(time.time() - start_time)))
+                if ep > 10:
+                    if precision[ep] < 0.15:
+                        return -1
+                    if 2 * precision[ep] - precision[ep - 10] - precision[ep - 1] < 0.001:
+                        precision = precision[:ep]
+                        break
 
-            if is_bestNN:  # Save the model
-                saver.save(sess, self.model_path + 'model_block' + str(self.blocks))
+                print('%d epoch: precision = %.3f, cost time %.3f' % (ep, precision[ep], float(time.time() - start_time)))
 
-        return precision
+            saver.save(sess, self.model_path + str(network.id) + 'model_block' + str(self.blocks))  # save model
+
+        return precision[-1]
 
     def add_data(self, add_num=0):
         if self.train_num + add_num > self.NUM_EXAMPLES_FOR_TRAIN or add_num < 0:
