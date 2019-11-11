@@ -7,7 +7,7 @@ import random
 from info_str import NAS_CONFIG
 
 # TODO data_path should also load from config file
-data_path = ''
+data_path = 'data/data'
 
 
 class DataSet:
