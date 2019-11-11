@@ -8,6 +8,8 @@ class Network(object):
         self.id = _id
         self.graph_template = graph_tmp
         self.item_list = []
+        self.pre_block = []
+        self.spl = None
 
         return
 

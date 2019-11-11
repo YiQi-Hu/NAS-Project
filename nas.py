@@ -11,6 +11,7 @@ from numpy import zeros
 from enumerater import Enumerater
 from communicator import Communicator
 from evaluator import Evaluator
+from sampler import Sampler
 from info_str import (
     NAS_CONFIG,
     CUR_VER_DIR,
@@ -322,6 +323,11 @@ def _init_ops(net_pool):
 
     return net_pool, scores
 
+def _init_npool_sampler(netpool, block_num):
+    for nw in netpool:
+        nw.spl = Sampler(nw.graph_part, block_num)
+    return
+
 def Corenas(block_num, eva, com, npool_tem):
     # Different code is ran on different machine depends on whether it's a ps host or a worker host.
     # PS host is used for generating all the networks and collect the final result of evaluation.
@@ -330,8 +336,8 @@ def Corenas(block_num, eva, com, npool_tem):
 
     # implement the copy when searching for every block
     net_pool = copy.deepcopy(npool_tem)
-    for network in net_pool:  # initialize the sample module
-        network.init_sample(NAS_CONFIG['pattern'], block_num)
+    # initialize sampler
+    _init_npool_sampler(net_pool, block_num)
 
     # Step 2: Search best structure
     print(SYS_CONFIG_ING)
@@ -347,7 +353,7 @@ def Corenas(block_num, eva, com, npool_tem):
         # _datasize_ctrl('same', epic)
     print(SYS_GET_WINNER)
     # Step 5: Global optimize the best network
-    best_nn, best_index = _train_winner(net_pool, round+1, eva)
+    best_nn, best_index = _train_winner(net_pool, round+1)
 
     return best_nn, best_index
 
