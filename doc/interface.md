@@ -141,11 +141,9 @@
 
 + evaluate
     > **Args**:
-    > 1. *graph* (2d int list, as NetworkItem.graph)
-    > 2. *cell_list* (1d Cell list)
-    > 3. *pre_block* (1d NetworkItem list)
-    > 4. *is_bestNN* (boolean)
-    > 5. *update_pre_weight* (boolean)
+    > 1. *network_item* (NetworkItem)
+    > 2. *is_bestNN* (boolean)
+    > 3. *update_pre_weight* (boolean)
     >
     > **Returns**:
     > 1. *Accuracy* (float, 0 ~ 1.0)
