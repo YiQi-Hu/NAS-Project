@@ -10,6 +10,8 @@
 + id (int, any)
 + graph_template (2d int list, adjacency list)
 + item_list (1d NetworkItem list)
++ pre_block (1d NetworkItem list)
++ spl (class Sampler)
 
 ## NetworkItem
 
@@ -56,7 +58,7 @@
 
 > Defined in *nas_config.json*.
 >
-> Please use `from info_str import NAS_CONFIG` to get 
+> Please use `from info_str import NAS_CONFIG` to get
 > project's configuration.
 >
 > The following keys correspond to modul parameters:
@@ -139,11 +141,11 @@
 
 + evaluate
     > **Args**:
-    > 1. *graph_full*
-    > 2. *cell_list*
-    > 3. *pre_block*
-    > 4. *is_bestNN*
-    > 5. *update_pre_weight*
+    > 1. *graph* (2d int list, as NetworkItem.graph)
+    > 2. *cell_list* (1d Cell list)
+    > 3. *pre_block* (1d NetworkItem list)
+    > 4. *is_bestNN* (boolean)
+    > 5. *update_pre_weight* (boolean)
     >
     > **Returns**:
     > 1. *Accuracy* (float, 0 ~ 1.0)
@@ -172,33 +174,58 @@
   + pooling_type (1d string list, value as Cell.pooling_type)
   + kernel_size (1d int list, value as Cell.kernel_size)
 + POOL_SWITCH (boolean)
-+ SPL_LOG_PATH
++ SPL_LOG_PATH (string, file path)
 
 ### Method
 
-+ sample
++ __init__
     > **Args**:
-    > 1. *graph_part* (2d int list, as NetworkUnit.graph_part)
-    > 2. *block_id* (int, 0 ~ BLOCK_NUM - 1)
+    > 1. graph
+    > 2. block_num
+    > **Returns**: None
+    >
++ sample
+    > **Args**: None
     >
     > **Returns**:
     > 1. *cell*: (class Cell list)
     > 2. *graph*: (2d int list, as NetworkUnit.graph_part)
+    > 3. *table*
 + update_model
     > **Args**:
     > 1. *table* (1d int list, depending on dimension)
     > 2. *score* （float, 0 ~ 1.0)
     >
     > **Returns**: None
++ ops2table
+    > **Args**
+    > 1. *ops*
+    > **Retruns**
+    > 1. *table*
+    >
++ convert
+    > **Args**:
+    > 1. *table*
+    >
+    > **Returns**:
+    > 1. *cell_list* (1d Cell list)
+    > 2. *graph_full*
 
 ## Predictor
-<!-- TODO -->
+
 ### Method
 
 + predict
-    > **Args**
-    > 1. 
+    > **Args**:
+    > 1. *graph_ful* (2d int list, adjacency table)
+    > 2. *pre_block*
     >
-    > **Returns**
+    > **Returns**:
     > 1. *ops*
+
++ train_model
+    > **Args**:
+    > 1. *graph_full*
+    > 2. *cell_list*
+    > **Returns**: None
     >
