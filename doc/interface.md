@@ -10,8 +10,6 @@
 + id (int, any)
 + graph_template (2d int list, adjacency list)
 + item_list (1d NetworkItem list)
-+ pre_block (1d NetworkItem list)
-+ spl (class Sampler)
 
 ## NetworkItem
 
@@ -141,14 +139,16 @@
 
 + evaluate
     > **Args**:
-
-    > 1. *network* (NetworkItem)
-    > 2. *is_bestNN* (bool, default False)
-    > 3. *update_pre_weight* (bool, default False)
-
+    > 1. *graph_part*
+    > 2. *cell_list*
+    > 3. *pre_block* (list, default [])
+    > 4. *best_id* (string, default '')
+    > 5. *is_bestNN* (bool, default False)
+    > 6. *update_pre_weight* (bool, default False)
     >
     > **Returns**:
     > 1. *Accuracy* (float, 0 ~ 1.0)
+    > 2. *best_id* 
     >
     > **Invalid**:
     > 1. *pre_block* = [] & *update_pre_weight* != True
