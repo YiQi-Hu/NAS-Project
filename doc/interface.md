@@ -139,16 +139,12 @@
 
 + evaluate
     > **Args**:
-    > 1. *graph_part*
-    > 2. *cell_list*
-    > 3. *pre_block* (list, default [])
-    > 4. *best_id* (string, default '')
+    > 1. *network* (NetworkItem)
     > 5. *is_bestNN* (bool, default False)
     > 6. *update_pre_weight* (bool, default False)
     >
     > **Returns**:
     > 1. *Accuracy* (float, 0 ~ 1.0)
-    > 2. *best_id* 
     >
     > **Invalid**:
     > 1. *pre_block* = [] & *update_pre_weight* != True
