@@ -60,7 +60,7 @@ class Enumerater:
         pool = self.encode2adjaceny()  # Restore network topology
 
         save_pool(self.pickle_name, pool)
-        return pool  # return the list of NetworkUnit [Net,Net,...]
+        return pool  # return the list of Network [Net,Net,...]
 
     def filldict(self):
         """
