@@ -1,19 +1,24 @@
 import os
 
+from nas import CUR_VER_DIR
 import numpy as np
 from enumerater import Enumerater
 from predict_op.label_encoding import decoder, encoder, getClassNum
 from keras.utils.np_utils import to_categorical
 from keras.models import model_from_json
 import time
-MAX_NETWORK_LENGTH = 71
-model_json_path = './predict_op/model.json'
-model_weights_path = './predict_op/model.json.h5'
 
-from nas import CUR_VER_DIR
+MAX_NETWORK_LENGTH = 71
+#model_json_path = './predict_op/model.json'
+#model_weights_path = './predict_op/model.json.h5'
+
+net_data_path = './predict_op/data/net.npy'
+label_data_path = './predict_op/data/label.npy'
+
 
 model_json_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json')
 model_weights_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json.h5')
+
 
 class Feature:
     def __init__(self, graph):
@@ -22,7 +27,7 @@ class Feature:
     def feature_links(self):
         # 从邻接矩阵中提取所有的支链，每一条支链有五个特征，编号，起点，终点，长度，节点编号
         g = self.graph
-        endpoint = np.zeros((len(g), 1),dtype=int)
+        endpoint = np.zeros((len(g), 1), dtype=int)
         endpoint[0] = 1
         link_set = []
         endpoint_link_num_set = []
@@ -46,7 +51,6 @@ class Feature:
             if endpoint[i] == 1:
                 for j in range(len(g)):
                     if g[i][j] == 1:
-
                         link = [link_id, i, 0, 0, []]
                         link = self._find_link(endpoint, j, link, g, node_link_num_set)
                         link_id += 1
@@ -81,7 +85,7 @@ class Feature:
         node_feature[:, 4] = min_length
         node_feature[:, 5] = min_link_index
 
-        mean = len(link_set)/node_num
+        mean = len(link_set) / node_num
         link_len = []
         for i in range(len(link_set)):
             link_len.append(link_set[i][3])
@@ -99,29 +103,29 @@ class Feature:
         for i in range(node_num):
 
             node_feature[i][global_num] = self._is_endpoint(i, endpointLinkNumSet)
-            node_feature[i][global_num+1] = i
+            node_feature[i][global_num + 1] = i
 
             if node_feature[i][global_num] == 1:
-                node_feature[i][global_num+2] = self._link_num(i, endpointLinkNumSet)
+                node_feature[i][global_num + 2] = self._link_num(i, endpointLinkNumSet)
                 links = self._find_endpoint_link_set(i, endpointLinkNumSet, link_set)
-                node_feature[i][global_num+3] = self._mean_link(links)
-                node_feature[i][global_num+4] = self._var_link(links)
+                node_feature[i][global_num + 3] = self._mean_link(links)
+                node_feature[i][global_num + 4] = self._var_link(links)
                 _, max_length = self._find_max_link(links)
                 _, min_length = self._find_min_link(links)
-                node_feature[i][global_num+5] = max_length
-                node_feature[i][global_num+6] = min_length
+                node_feature[i][global_num + 5] = max_length
+                node_feature[i][global_num + 6] = min_length
 
             else:
 
                 link = self._find_node_link(i, nodeLinkNumSet, link_set)
-                node_feature[i][global_num+7] = self._relative_Loc(i, link)
-                node_feature[i][global_num+8] = link[3]
-                node_feature[i][global_num+9] = link[1]
-                node_feature[i][global_num+10] = link[2]
+                node_feature[i][global_num + 7] = self._relative_Loc(i, link)
+                node_feature[i][global_num + 8] = link[3]
+                node_feature[i][global_num + 9] = link[1]
+                node_feature[i][global_num + 10] = link[2]
 
                 links = self._find_node_links(i, nodeLinkNumSet, link_set)
-                node_feature[i][global_num+11] = self._mean_link(links)
-                node_feature[i][global_num+12] = self._var_link(links)
+                node_feature[i][global_num + 11] = self._mean_link(links)
+                node_feature[i][global_num + 12] = self._var_link(links)
 
         return node_feature
 
@@ -172,7 +176,7 @@ class Feature:
         for i in range(len(endpoint_link_num_set)):
             if endpoint_link_num_set[i][0] == node_id:
                 e = endpoint_link_num_set[i]
-                return len(e)-1
+                return len(e) - 1
         return 0
 
     @staticmethod
@@ -196,7 +200,7 @@ class Feature:
         # 节点在支链中的相对位置
         for i in range(len(link[4])):
             if link[4][i] == id:
-                return i+1
+                return i + 1
 
     @staticmethod
     def _find_max_link(link_set):
@@ -238,7 +242,6 @@ class Feature:
 
 class Predictor:
     def __init__(self):
-        self.cell_list = []
         with open(model_json_path, 'r') as file:
             model_json = file.read()
         self.model = model_from_json(model_json)
@@ -365,6 +368,15 @@ class Predictor:
             labels.append(label)
         return labels
 
+    def _read_data(self, net_data_path, label_data_path):
+        network_feature = np.load(net_data_path)
+        label = np.load(label_data_path)
+        return network_feature, label
+
+    def _save_data(self, net, label):
+        np.save(net_data_path, net)
+        np.save(label_data_path, label)
+
     def _predict(self, inputs):
         # 根据输入特征预测操作
         inputs = np.array(inputs)
@@ -378,33 +390,38 @@ class Predictor:
         return output
 
     # 模块接口
-    def predictor(self, blocks, graph_part):
+    def predictor(self, pre_block, graph_full):
         graph_list = []
-        if blocks:
-            for block in blocks:
+        if pre_block:
+            for block in pre_block:
                 graph_list.append(block)
-        graph_list.append(graph_part)
+        graph_list.append(graph_full)
         graphs_mat, graphs_orders = self._trans(graph_list)
         new_graph = self._graph_concat(graphs_mat)
         inputs = Feature(new_graph).feature_nodes()
         inputs = self._padding(inputs, MAX_NETWORK_LENGTH)
         class_list = self._predict(inputs)
-        self.cell_list = self._class_id_2_parameter(graphs_orders[-1],
-                                                    class_list[len(new_graph) - len(graph_part):len(new_graph)])
-        return self.cell_list
+        ops = self._class_id_2_parameter(graphs_orders[-1],
+                                                    class_list[len(new_graph) - len(graph_full):len(new_graph)])
+        return ops
 
-    def train(self, graph_part_group, cell_list_group, batch_size=32, epochs=50):
+    def train(self, graph_full, cell_list):
         x_train = []
         y_train = []
-        graphs_mat,_ = self._trans(graph_part_group)
+        net, label = self._read_data(net_data_path, label_data_path)
+        for k in net:
+            x_train.append(k)
+        for k in label:
+            y_train.append(k)
+        graphs_mat, _ = self._trans(graph_full)
         for graph in graphs_mat:
             x = Feature(graph).feature_nodes()
             x = self._padding(x, MAX_NETWORK_LENGTH)
             x_train.append(x)
             x_train = np.array(x_train)
-        for cell_list in cell_list_group:
-            cell_list = self._my_param_style(cell_list)
-            y = encoder(cell_list)
+        for cell in cell_list:
+            cell = self._my_param_style(cell)
+            y = encoder(cell)
             y = to_categorical(y, getClassNum())
             y = self._padding(y, MAX_NETWORK_LENGTH)
             y_train.append(y)
@@ -417,37 +434,40 @@ class Predictor:
         self.model.compile(loss='categorical_crossentropy',
                            optimizer='rmsprop',
                            metrics=['accuracy'])
-        self.model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs)
+        self.model.fit(x_train, y_train, batch_size=32, epochs=5)
 
         self._save_model(model=self.model,
                          json_path=model_json_path,
                          weights_path=model_weights_path)
 
+        self._save_data(x_train, y_train)
+
+
 
 if __name__ == '__main__':
-    graph = [[[1],[2],[3],[4],[5],[]]]
-    cell_list = [[('conv', 256, 3, 'relu'), ('conv', 192, 3, 'relu'), ('conv', 512, 1, 'relu'), ('pooling','max',4)
-    , ('conv', 128, 1, 'relu'),('conv', 512, 5, 'relu')]]
-    pred = Predictor()
-    Blocks = []
-    pred.train(graph, cell_list)
-
-    # enu = Enumerater(depth=6, width=3)
-    # network_pool = enu.enumerate()
-    # print(len(network_pool))
-    # start = time.time()
-    # i = 0
+    # graph = [[[1], [2], [3], [4], [5], []]]
+    # cell_list = [[('conv', 256, 3, 'relu'), ('conv', 192, 3, 'relu'), ('conv', 512, 1, 'relu'), ('pooling', 'max', 4)
+    #                  , ('conv', 128, 1, 'relu'), ('conv', 512, 5, 'relu')]]
     # pred = Predictor()
-    # for ind in range(2, len(network_pool)):
-    #     gra = network_pool[ind].graph_part
-    #
-    #     #Blocks = [network_pool[ind - 2].graph_part, network_pool[ind - 1].graph_part]
-    #     Blocks = []
-    #     cell_list = pred.predictor(Blocks, gra)
-    #     if i%100 == 0:
-    #         print("iterator:", i)
-    #     i += 1
-    #     print(gra)
-    #     print(cell_list)
-    # end = time.time()
-    # print(end-start)
+    # Blocks = []
+    # pred.train(graph, cell_list)
+
+    enu = Enumerater(depth=6, width=3)
+    network_pool = enu.enumerate()
+    print(len(network_pool))
+    start = time.time()
+    i = 0
+    pred = Predictor()
+    for ind in range(2, len(network_pool)):
+        gra = network_pool[ind].graph_part
+
+        #Blocks = [network_pool[ind - 2].graph_part, network_pool[ind - 1].graph_part]
+        Blocks = []
+        cell_list = pred.predictor(Blocks, gra)
+        if i%100 == 0:
+            print("iterator:", i)
+        i += 1
+        print(gra)
+        print(cell_list)
+    end = time.time()
+    print(end-start)

@@ -141,9 +141,11 @@
 
 + evaluate
     > **Args**:
+
     > 1. *network* (NetworkItem)
-    > 5. *is_bestNN* (bool, default False)
-    > 6. *update_pre_weight* (bool, default False)
+    > 2. *is_bestNN* (bool, default False)
+    > 3. *update_pre_weight* (bool, default False)
+
     >
     > **Returns**:
     > 1. *Accuracy* (float, 0 ~ 1.0)
