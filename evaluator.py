@@ -126,6 +126,22 @@ class Evaluator:
         self.train_data, self.train_label, self.valid_data, self.valid_label, \
         self.test_data, self.test_label = DataSet().inputs()
 
+    def _toposort(self, graph):
+        in_degrees = dict((u, 0) for u in range(len(graph)))
+        for u in range(len(graph)):
+            for v in graph[u]:
+                in_degrees[v] += 1
+        queue = [u for u in range(len(graph)) if in_degrees[u] == 0]
+        result = []
+        while queue:
+            u = queue.pop()
+            result.append(u)
+            for v in graph[u]:
+                in_degrees[v] -= 1
+                if in_degrees[v] == 0:
+                    queue.append(v)
+        return result
+
     def _batch_norm(self, input, train_flag):
         return tf.contrib.layers.batch_norm(input, decay=0.9, center=True, scale=True, epsilon=1e-3,
                                             updates_collections=None, is_training=train_flag)
@@ -222,8 +238,9 @@ class Evaluator:
         inputs = [images for _ in range(nodelen)]  # input list for every cell in network
         getinput = [False for _ in range(nodelen)]  # bool list for whether this cell has already got input or not
         getinput[0] = True
+        topo_order = self._toposort(graph_part)
 
-        for node in range(nodelen):
+        for node in topo_order:
             # print('Evaluater:right now we are processing node %d'%node,', ',cellist[node])
             if cellist[node][0] == 'conv':
                 layer = self._makeconv(inputs[node], cellist[node], node, train_flag)
@@ -304,13 +321,14 @@ class Evaluator:
             minimize(loss, global_step=global_step)
         return train_op, lr
 
-    def evaluate(self, network, pre_block=[], update_pre_weight=False):
+    def evaluate(self, graph_full, cell_list, pre_block=[], best_id='', is_bestNN=False, update_pre_weight=False):
         '''Method for evaluate the given network.
         Args:
-            network: NetworkItem().
+            graph_part: The topology structure of the network given by adjacency table
+            cell_list: The configuration of this network for each node in graph_part.
             pre_block: The pre-block structure, every block has two parts: graph_part and cell_list of this block.
-                       The topology structure of the network given by adjacency table
-                       The configuration of this network for each node in graph_part.
+            is_bestNN: Symbol for indicating whether the evaluating network is the best network of this round, default False.
+            best_id: Id symbol for winner-training.
             update_pre_weight: Symbol for indicating whether to update previous blocks' weight, default by False.
         Returns:
             Accuracy'''
@@ -343,7 +361,7 @@ class Evaluator:
                 labels = tf.placeholder(tf.int32, [self.batch_size, self.NUM_CLASSES], name="label")
                 input = x
 
-            logits = self._inference(input, network.graph_part, network.cell_list, train_flag)
+            logits = self._inference(input, graph_full, cell_list, train_flag)
             logits = tf.nn.dropout(logits, keep_prob=1.0)
             # softmax
             logits = self._makedense(logits, ('', [self.NUM_CLASSES], 'identity'), train_flag)
@@ -364,8 +382,8 @@ class Evaluator:
                 # train step
                 for step in range(self.max_steps):
                     start_time = time.time()
-                    batch_x = self.train_data[step * self.batch_size:step * self.batch_size + self.batch_size]
-                    batch_y = self.train_label[step * self.batch_size:step * self.batch_size + self.batch_size]
+                    batch_x = self.train_data[step * self.batch_size:(step + 1) * self.batch_size]
+                    batch_y = self.train_label[step * self.batch_size:(step + 1) * self.batch_size]
                     batch_x = DataSet().process(batch_x)
                     _, loss_value = sess.run([train_op, cross_entropy],
                                              feed_dict={x: batch_x, labels: batch_y, train_flag: True})
@@ -381,8 +399,8 @@ class Evaluator:
                 num_iter = self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL // self.batch_size
                 start_time = time.time()
                 for step in range(num_iter):
-                    batch_x = self.test_data[step * self.batch_size:(step + 1) * self.batch_size]
-                    batch_y = self.test_label[step * self.batch_size:(step + 1) * self.batch_size]
+                    batch_x = self.valid_data[step * self.batch_size:(step + 1) * self.batch_size]
+                    batch_y = self.valid_label[step * self.batch_size:(step + 1) * self.batch_size]
                     l, acc_ = sess.run([cross_entropy, accuracy],
                                        feed_dict={x: batch_x, labels: batch_y, train_flag: False})
                     precision[ep] += acc_ / num_iter
@@ -393,13 +411,15 @@ class Evaluator:
                         return -1
                     if 2 * precision[ep] - precision[ep - 10] - precision[ep - 1] < 0.001:
                         precision = precision[:ep]
+                        print('early stop at %d epoch' % ep)
                         break
 
                 print('%d epoch: precision = %.3f, cost time %.3f' % (ep, precision[ep], float(time.time() - start_time)))
 
-            saver.save(sess, self.model_path + str(network.id) + 'model_block' + str(self.blocks))  # save model
+            if is_bestNN:  # save model
+                saver.save(sess, os.path.join(self.model_path, best_id + 'model_block' + str(self.blocks)))
 
-        return precision[-1]
+        return precision[-1], best_id
 
     def add_data(self, add_num=0):
         if self.train_num + add_num > self.NUM_EXAMPLES_FOR_TRAIN or add_num < 0:
@@ -417,6 +437,7 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
     eval.add_data(50000)
+    # print(eval._toposort([[1, 4, 3], [2], [3], [], [3]]))
     # graph_full = [[1], [2], [3], []]
     # cell_list = [('conv', 64, 5, 'relu'), ('pooling', 'max', 3), ('conv', 64, 5, 'relu'), ('pooling', 'max', 3)]
     # cell_list = [cell_list]
