@@ -10,7 +10,7 @@
 + id (int, any)
 + graph_part (2d int list, adjacency list)
 + item_list (1d NetworkItem list)
-+ pre_block (1d NetworkItem list)
++ pre_block (1d NetworkItem list, class static variable)
 + spl (class Sampler)
 
 ## NetworkItem
