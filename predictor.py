@@ -9,11 +9,11 @@ from keras.models import model_from_json
 import time
 
 MAX_NETWORK_LENGTH = 71
-model_json_path = './predict_op/model.json'
-model_weights_path = './predict_op/model.json.h5'
+#model_json_path = './predict_op/model.json'
+#model_weights_path = './predict_op/model.json.h5'
 
-#net_data_path = './predict_op/data/net.npy'
-#label_data_path = './predict_op/data/label.npy'
+net_data_path = './predict_op/data/net.npy'
+label_data_path = './predict_op/data/label.npy'
 
 
 model_json_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json')
