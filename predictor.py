@@ -9,11 +9,11 @@ from keras.models import model_from_json
 import time
 
 MAX_NETWORK_LENGTH = 71
-#model_json_path = './predict_op/model.json'
-#model_weights_path = './predict_op/model.json.h5'
+model_json_path = './predict_op/model.json'
+model_weights_path = './predict_op/model.json.h5'
 
-net_data_path = './predict_op/data/net.npy'
-label_data_path = './predict_op/data/label.npy'
+#net_data_path = './predict_op/data/net.npy'
+#label_data_path = './predict_op/data/label.npy'
 
 
 model_json_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json')
@@ -418,14 +418,14 @@ class Predictor:
             x = Feature(graph).feature_nodes()
             x = self._padding(x, MAX_NETWORK_LENGTH)
             x_train.append(x)
-            x_train = np.array(x_train)
+        x_train = np.array(x_train)
         for cell in cell_list:
             cell = self._my_param_style(cell)
             y = encoder(cell)
             y = to_categorical(y, getClassNum())
             y = self._padding(y, MAX_NETWORK_LENGTH)
             y_train.append(y)
-            y_train = np.array(y_train)
+        y_train = np.array(y_train)
 
         self._save_model(model=self.model,
                          json_path='./predict_op/outdated_model.json',
@@ -434,7 +434,7 @@ class Predictor:
         self.model.compile(loss='categorical_crossentropy',
                            optimizer='rmsprop',
                            metrics=['accuracy'])
-        self.model.fit(x_train, y_train, batch_size=32, epochs=5)
+        self.model.fit(x_train, y_train, batch_size=32, epochs=500)
 
         self._save_model(model=self.model,
                          json_path=model_json_path,
@@ -445,29 +445,29 @@ class Predictor:
 
 
 if __name__ == '__main__':
-    # graph = [[[1], [2], [3], [4], [5], []]]
-    # cell_list = [[('conv', 256, 3, 'relu'), ('conv', 192, 3, 'relu'), ('conv', 512, 1, 'relu'), ('pooling', 'max', 4)
-    #                  , ('conv', 128, 1, 'relu'), ('conv', 512, 5, 'relu')]]
-    # pred = Predictor()
-    # Blocks = []
-    # pred.train(graph, cell_list)
-
-    enu = Enumerater(depth=6, width=3)
-    network_pool = enu.enumerate()
-    print(len(network_pool))
-    start = time.time()
-    i = 0
+    graph = [[[1], [2], [3], [4], [5], []]]
+    cell_list = [[('conv', 256, 3, 'relu'), ('conv', 192, 3, 'relu'), ('conv', 512, 1, 'relu'), ('pooling', 'max', 4)
+                     , ('conv', 128, 1, 'relu'), ('conv', 512, 5, 'relu')]]
     pred = Predictor()
-    for ind in range(2, len(network_pool)):
-        gra = network_pool[ind].graph_part
+    Blocks = []
+    pred.train([], [])
 
-        #Blocks = [network_pool[ind - 2].graph_part, network_pool[ind - 1].graph_part]
-        Blocks = []
-        cell_list = pred.predictor(Blocks, gra)
-        if i%100 == 0:
-            print("iterator:", i)
-        i += 1
-        print(gra)
-        print(cell_list)
-    end = time.time()
-    print(end-start)
+    # enu = Enumerater(depth=6, width=3)
+    # network_pool = enu.enumerate()
+    # print(len(network_pool))
+    # start = time.time()
+    # i = 0
+    # pred = Predictor()
+    # for ind in range(2, len(network_pool)):
+    #     gra = network_pool[ind].graph_part
+    #
+    #     #Blocks = [network_pool[ind - 2].graph_part, network_pool[ind - 1].graph_part]
+    #     Blocks = []
+    #     cell_list = pred.predictor(Blocks, gra)
+    #     if i%100 == 0:
+    #         print("iterator:", i)
+    #     i += 1
+    #     print(gra)
+    #     print(cell_list)
+    # end = time.time()
+    # print(end-start)
