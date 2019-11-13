@@ -115,7 +115,7 @@
     > **Args**: None
     >
     > **Returns**:
-    > 1. *pool* (Network list)
+    > 1. *pool* (1d Network list)
 
 ## Evaluator
 

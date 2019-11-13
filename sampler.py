@@ -19,6 +19,8 @@ from info_str import NAS_CONFIG
 SPL_CONFIG = NAS_CONFIG['spl']
 SPACE_CONFIG = NAS_CONFIG['space']
 
+# TODO Please let each functions be less than 30 lines 
+# Sampler.__init__, convert, opt2table
 
 class Sampler:
 
@@ -246,6 +248,7 @@ class Sampler:
         return dic
 
     # log
+    # TODO This function is public. Please fix its name.
     def get_cell_log(self, POOL, PATH, date):
         for i, j in enumerate(POOL):
             s = 'nn_param_' + str(i) + '_' + str(date)

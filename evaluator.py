@@ -9,6 +9,10 @@ from info_str import NAS_CONFIG
 # TODO data_path should also load from config file
 data_path = '/data/data'
 
+# TODO PLEASE REDUCE THE NUMBER OF WORDS PER LINE UNDER 80 CHARACTERS !!!
+
+# TODO Please let each functions be less than 30 lines 
+# Evaluator._inference, evaluate
 
 class DataSet:
 
