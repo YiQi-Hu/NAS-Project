@@ -12,6 +12,7 @@ MAX_NETWORK_LENGTH = 71
 #model_json_path = './predict_op/model.json'
 #model_weights_path = './predict_op/model.json.h5'
 
+# TODO Please use os.path.join instead.
 net_data_path = './predict_op/data/net.npy'
 label_data_path = './predict_op/data/label.npy'
 
@@ -19,6 +20,10 @@ label_data_path = './predict_op/data/label.npy'
 model_json_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json')
 model_weights_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json.h5')
 
+# TODO Predictor.train -> Predictor.train_model (defined in interface.md)
+# TODO DO NOT overuse @staticmethod. It can be your private function in predictor.py.
+# TODO Wrtie Predictor.predict & Predictor.train_model discriptions.
+# TODO Let each functions be less than 30 line and 80 characters per line.
 
 class Feature:
     def __init__(self, graph):
