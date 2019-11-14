@@ -17,6 +17,11 @@
   "pattern": "Global",
   "block_num": 3,
   "finetune_threshold": 5,
+  "add_data_every_round": 50,
+  "add_data_for_winner": -1,
+  "eliminate_policy_candidate#":"best_score_have_ever_met,average_score_this_round",
+  "eliminate_policy":"best_score_have_ever_met",
+  "spl_round_net": 6,
   "eva": {
     "IMAGE_SIZE": 32,
     "NUM_CLASSES": 10,
