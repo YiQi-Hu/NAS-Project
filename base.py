@@ -3,7 +3,10 @@ All basic data structure in this file.
 PLEASE DO NOT USE 'from .base import *' !!!
 """
 
+
 class Network(object):
+    pre_block = []
+
     def __init__(self, _id, graph_tmp):
         self.id = _id
         self.graph_template = graph_tmp
@@ -13,15 +16,17 @@ class Network(object):
 
         return
 
+
 class NetworkItem(object):
-    def __init__(self, _id):
+    def __init__(self, _id, graph, cell_list, code):
         self.id = _id
-        self.graph = []
-        self.cell_list = []
-        self.code = []
+        self.graph = graph
+        self.cell_list = cell_list
+        self.code = code
         self.score = 0
 
         return
+
 
 class Cell(tuple):
     """class Cell inheirt from tuple
