@@ -1,31 +1,9 @@
 import queue
 import sys, os
 import multiprocessing
-from info_str import (
-    NAS_CONFIG,
-    CUR_VER_DIR,
-    EVALOG_PATH_TEM,
-    NETWORK_INFO_PATH,
-    WINNER_LOG_PATH,
-    LOG_EVAINFO_TEM,
-    LOG_EVAFAIL,
-    LOG_WINNER_TEM,
-    SYS_EVAFAIL,
-    SYS_EVA_RESULT_TEM,
-    SYS_ELIINFO_TEM,
-    SYS_INIT_ING,
-    SYS_I_AM_PS,
-    SYS_I_AM_WORKER,
-    SYS_ENUM_ING,
-    SYS_SEARCH_BLOCK_TEM,
-    SYS_WORKER_DONE,
-    SYS_WAIT_FOR_TASK,
-    SYS_CONFIG_ING,
-    SYS_GET_WINNER,
-    SYS_BEST_AND_SCORE_TEM,
-    SYS_START_GAME_TEM,
-    SYS_CONFIG_OPS_ING
-)
+
+from info_str import NAS_CONFIG
+import info_str as ifs
 
 
 class Communication:
@@ -41,7 +19,7 @@ def save_info(path, network, round, original_index, network_num):
     tmpa = 'number of scheme: {}\n'
     tmpb = 'graph_part: {}\n'
     tmpc = '    graph_full: {}\n    cell_list: {}\n    score: {}\n'
-    s = LOG_EVAINFO_TEM.format(len(network.pre_block) + 1, round, original_index, network_num)
+    s = ifs.LOG_EVAINFO_TEM.format(len(network.pre_block) + 1, round, original_index, network_num)
     s = s + tmpa.format(len(network.item_list))
     s = s + tmpb.format(str(network.graph_part))
 

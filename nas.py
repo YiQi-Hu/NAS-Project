@@ -13,6 +13,8 @@ from enumerater import Enumerater
 from utils import Communication, list_swap, save_info
 from evaluator import Evaluator
 from sampler import Sampler
+
+from info_str import NAS_CONFIG
 from info_str import (
     NAS_CONFIG,
     CUR_VER_DIR,
