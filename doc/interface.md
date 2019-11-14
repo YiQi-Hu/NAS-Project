@@ -136,6 +136,11 @@
 + MOMENTUM_RATE (float, 0 ~ 1.0)
 + EVA_LOG_PATH (string, file path)
 + MODEL_SAVE_PATH (string, file path)
++ DATASET_PATH (string, file path)
++ TASK_NAME (string, value:)
+    1. cifar-10
+    2. cifar-100
+    3. imagnet
   
 ### Method
 
