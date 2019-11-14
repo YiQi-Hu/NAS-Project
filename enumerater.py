@@ -9,6 +9,9 @@ from info_str import NAS_CONFIG
 
 # from .base import NetworkUnit, NETWORK_POOL
 
+# TODO Please fix your variables and functions naming.
+# Ref: Google Code Style (Python) - Python 風格規範 “命名”
+
 def read_pool(path):
     pool = None
     try:
@@ -47,6 +50,9 @@ class Enumerater:
     def enumerate(self):
         """
         The main function of generating network topology.
+        No Args.
+        Retruns:
+            1. pool (1d Network list)
         """
         pool = read_pool(self.pickle_name)
 

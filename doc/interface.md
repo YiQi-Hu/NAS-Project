@@ -8,9 +8,9 @@
 > No Method, Data only.
 
 + id (int, any)
-+ graph_template (2d int list, adjacency list)
++ graph_part (2d int list, adjacency list)
 + item_list (1d NetworkItem list)
-+ pre_block (1d NetworkItem list)
++ pre_block (1d NetworkItem list, class static variable)
 + spl (class Sampler)
 
 ## NetworkItem
@@ -18,7 +18,7 @@
 > No Method, Data only.
 
 + id (int, any)
-+ graph (2d int list, adjacency list)
++ graph_full (2d int list, adjacency list)
 + cell_list (1d Cell list)
 + code (1d int list, depending on dimension)
 + score (int, 0 ~ 1)
@@ -115,7 +115,7 @@
     > **Args**: None
     >
     > **Returns**:
-    > 1. *pool* (Network list)
+    > 1. *pool* (1d Network list)
 
 ## Evaluator
 
@@ -141,11 +141,9 @@
 
 + evaluate
     > **Args**:
-    > 1. *graph* (2d int list, as NetworkItem.graph)
-    > 2. *cell_list* (1d Cell list)
-    > 3. *pre_block* (1d NetworkItem list)
-    > 4. *is_bestNN* (boolean)
-    > 5. *update_pre_weight* (boolean)
+    > 1. *network_item* (NetworkItem)
+    > 2. *is_bestNN* (boolean)
+    > 3. *update_pre_weight* (boolean)
     >
     > **Returns**:
     > 1. *Accuracy* (float, 0 ~ 1.0)
@@ -160,7 +158,7 @@
     >
     > **Returns**: None
   
-## Sample
+## Sampler
 
 ### Config
 
@@ -180,17 +178,18 @@
 
 + __init__
     > **Args**:
-    > 1. graph
-    > 2. block_num
+    > 1. graph_part (2d int list, as Network.graph_part)
+    > 2. block_num (int, 0 ~ any)
+    >
     > **Returns**: None
     >
 + sample
     > **Args**: None
     >
     > **Returns**:
-    > 1. *cell*: (class Cell list)
-    > 2. *graph*: (2d int list, as NetworkUnit.graph_part)
-    > 3. *table*
+    > 1. *cell*: (1d Cell list)
+    > 2. *graph_full*: (2d int list, as NetworkItem.graph_full)
+    > 3. *table*: (1d int list, depending on dimension)
 + update_model
     > **Args**:
     > 1. *table* (1d int list, depending on dimension)
@@ -201,15 +200,15 @@
     > **Args**
     > 1. *ops*
     > **Retruns**
-    > 1. *table*
+    > 1. *table*: (1d int list, depending on dimension)
     >
 + convert
     > **Args**:
-    > 1. *table*
+    > 1. *table*: (1d int list, depending on dimension)
     >
     > **Returns**:
-    > 1. *cell_list* (1d Cell list)
-    > 2. *graph_full*
+    > 1. *cell_list*: (1d Cell list)
+    > 2. *graph_full*: (2d int list, as NetworkItem.graph_full)
 
 ## Predictor
 
@@ -218,14 +217,14 @@
 + predict
     > **Args**:
     > 1. *graph_ful* (2d int list, adjacency table)
-    > 2. *pre_block*
+    > 2. *pre_block* (1d NetworkItem list)
     >
     > **Returns**:
     > 1. *ops*
 
 + train_model
     > **Args**:
-    > 1. *graph_full*
-    > 2. *cell_list*
+    > 1. *graph_full*: (2d int list, as NetworkItem.graph_full)
+    > 2. *cell_list*: (1d Cell list)
     > **Returns**: None
     >
