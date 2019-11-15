@@ -19,6 +19,8 @@ from info_str import NAS_CONFIG
 SPL_CONFIG = NAS_CONFIG['spl']
 SPACE_CONFIG = NAS_CONFIG['space']
 
+# TODO Please let each functions be less than 30 lines 
+# Sampler.__init__, convert, opt2table
 
 class Sampler:
 
@@ -53,6 +55,7 @@ class Sampler:
         self.setting = copy.deepcopy(SPACE_CONFIG['ops'])
 
         if self.pattern == "Block":
+            # TODO The number of words in this line is over 80 characters.
             self.setting['conv']['filter_size'] = self.setting['conv']['filter_size'][block_id]
 
         self.dic_index = self._init_dict()  # check
@@ -72,6 +75,7 @@ class Sampler:
         rand_probability = opt_para["rand_probability"]  # the probability of sample in model
         uncertain_bit = opt_para["uncertain_bit"]  # the dimension size that is sampled randomly
         # set hyper-parameter for optimization, budget is useless for single step optimization
+        # TODO The number of words in this line is over 80 characters.
         self.opt.set_parameters(ss=sample_size, bud=budget, pn=positive_num, rp=rand_probability, ub=uncertain_bit)
         self.opt.clear()  # clear optimization model
 
@@ -80,6 +84,11 @@ class Sampler:
         Get table based on the optimization module sampling,
         update table in Sampler,
         and sample the operation configuration.
+        No Args.
+        Retruns:
+            1. cell (1d Cell list)
+            2. graph_full (2d int list, as NetworkItem.graph_full)
+            3. table (1d int list, depending on dimension)
         """
 
         table = self.opt.sample()
@@ -87,9 +96,15 @@ class Sampler:
         return cell, graph, table
 
     def update_opt_model(self, table, score):
+        # TODO Please give the function's discrption.
         """
         As title.
+        Args:
+            1. table (1d int list, depending on dimension)
+            2. score（float, 0 ~ 1.0)
+        No returns.
         """
+        # TODO optimier.update_model returns NOTHING ???????????? What is 'result' ?
         result = self.opt.update_model(table, score)  # here "-" represent that we minimize the loss
         if result:
             pos, neg = result
@@ -159,7 +174,7 @@ class Sampler:
         __region = []
         __type = []
         for i in range(self.node_number):
-            #
+            # TODO Over 80 characters
             __region_cross, __type_cross = self._region_cross_type(__region_tmp, __type_tmp, i)
 
             __region = __region + __region_cross
@@ -198,7 +213,7 @@ class Sampler:
 
             first = p_node[self.dic_index['conv'][-1]]
             tmp = ()
-
+            # TODO Please write in other way between line 215 to 229.
             if self.pattern == "Block":
                 first = 0
             if first == 0:
@@ -233,6 +248,7 @@ class Sampler:
         return dic
 
     # log
+    # TODO This function is public. Please fix its name.
     def get_cell_log(self, POOL, PATH, date):
         for i, j in enumerate(POOL):
             s = 'nn_param_' + str(i) + '_' + str(date)

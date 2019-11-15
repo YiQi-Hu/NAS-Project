@@ -11,10 +11,12 @@ NAS_CONFIG = json.load(open(_nas_config_path, encoding='utf-8'))
 
 # TODO Move to logger.py
 # File path
-# evalog_path_tem = os.path.join(cur_ver_dir, 'memory',
-#                                 'evaluating_log_with_gpu{}.txt')
-# network_info_path = os.path.join(cur_ver_dir, 'memory', 'network_info.txt')
-# winner_log_path = os.path.join(cur_ver_dir, 'memory', 'train_winner_log.txt')
+# if not os.path.exists("memory"):
+#     os.mkdir("memory")
+# LOG_DIR = os.path.join(CUR_VER_DIR, 'memory')
+# EVALOG_PATH_TEM = os.path.join(LOG_DIR, 'evaluating_log_with_gpu{}.txt')
+# NETWORK_INFO_PATH = os.path.join(LOG_DIR, 'network_info.txt')
+# WINNER_LOG_PATH = os.path.join(LOG_DIR, 'train_winner_log.txt')
 
 # Log content
 # log_evainfo_tem = 'block_num:{} round:{} network_index:{}/{}\n'
