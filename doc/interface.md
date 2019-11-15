@@ -36,8 +36,8 @@
 > cell # ('conv', 48, 7, 'relu')
 >```
 
-+ type (string, 'conv' or 'pooling')
-+ 'conv' items
++ type (string, 'conv' or 'pooling' or 'sep_conv')
++ 'sep_conv', 'conv' items
     1. filter_size (int, 1 ~ 1024)
     2. kernel_size (int, odd and 1 ~ 9)
     3. activation (string, valid values: )

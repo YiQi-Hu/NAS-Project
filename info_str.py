@@ -2,36 +2,38 @@ import os
 import json
 
 # Current file name
-CUR_VER_DIR = os.getcwd()
+_cur_ver_dir = os.getcwd()
 
 # NAS configuration dic object
-_NAS_CONFIG_PATH = os.path.join(CUR_VER_DIR, 'nas_config.json')
-NAS_CONFIG = json.load(open(_NAS_CONFIG_PATH, encoding='utf-8'))
+_nas_config_path = os.path.join(_cur_ver_dir, 'nas_config.json')
 
+NAS_CONFIG = json.load(open(_nas_config_path, encoding='utf-8'))
+
+# TODO Move to logger.py
 # File path
-EVALOG_PATH_TEM = os.path.join(CUR_VER_DIR, 'memory',
-                                'evaluating_log_with_gpu{}.txt')
-NETWORK_INFO_PATH = os.path.join(CUR_VER_DIR, 'memory', 'network_info.txt')
-WINNER_LOG_PATH = os.path.join(CUR_VER_DIR, 'memory', 'train_winner_log.txt')
+# evalog_path_tem = os.path.join(cur_ver_dir, 'memory',
+#                                 'evaluating_log_with_gpu{}.txt')
+# network_info_path = os.path.join(cur_ver_dir, 'memory', 'network_info.txt')
+# winner_log_path = os.path.join(cur_ver_dir, 'memory', 'train_winner_log.txt')
 
 # Log content
-LOG_EVAINFO_TEM = 'block_num:{} round:{} network_index:{}/{}\n'
-LOG_EVAFAIL = 'evaluating failed and we will try again...\n'
-LOG_WINNER_TEM = 'block_num:{} sample_count:{}/{}\n'
+# log_evainfo_tem = 'block_num:{} round:{} network_index:{}/{}\n'
+# log_evafail = 'evaluating failed and we will try again...\n'
+# log_winner_tem = 'block_num:{} sample_count:{}/{}\n'
 
 # System information
-SYS_EVAFAIL = 'NAS: ' + LOG_EVAFAIL
-SYS_EVA_RESULT_TEM = 'NAS: network_index:{} score:{} time_cost:{} '
-SYS_ELIINFO_TEM = 'NAS: eliminating {}, remaining {}...'
-SYS_INIT_ING = 'NAS: Initializing...'
-SYS_I_AM_PS = 'NAS: I am ps.'
-SYS_I_AM_WORKER = 'NAS: I am worker.'
-SYS_ENUM_ING = 'NAS: Enumerating all possible networks!'
-SYS_SEARCH_BLOCK_TEM = 'NAS: Searching for block {}/{}...'
-SYS_WORKER_DONE = 'NAS: all of the blocks have been evaluated, please go to the ps manager to view the result...'
-SYS_WAIT_FOR_TASK = 'NAS: waiting for assignment of next round...'
-SYS_CONFIG_ING = 'NAS: Configuring the networks in the first round...'
-SYS_GET_WINNER = 'NAS: We got a WINNER!'
-SYS_BEST_AND_SCORE_TEM = 'NAS: We have got the best network and its score is {}'
-SYS_START_GAME_TEM = 'NAS: Now we have {} networks. Start game!'
-SYS_CONFIG_OPS_ING = "NAS: Configuring ops and skipping for the best structure and training them..."
+evafail = 'NAS: evaluating failed and we will try again...'
+eva_result_tem = 'NAS: network_index:{} score:{} time_cost:{} '
+eliinfo_tem = 'NAS: eliminating {}, remaining {}...'
+init_ing = 'NAS: Initializing...'
+i_am_ps = 'NAS: I am ps.'
+i_am_worker = 'NAS: I am worker.'
+enum_ing = 'NAS: Enumerating all possible networks!'
+search_block_tem = 'NAS: Searching for block {}/{}...'
+worker_done = 'NAS: all of the blocks have been evaluated, please go to the ps manager to view the result...'
+wait_for_task = 'NAS: waiting for assignment of next round...'
+config_ing = 'NAS: Configuring the networks in the first round...'
+get_winner = 'NAS: We got a WINNER!'
+best_and_score_tem = 'NAS: We have got the best network and its score is {}'
+start_game_tem = 'NAS: Now we have {} networks. Start game!'
+config_ops_ing = "NAS: Configuring ops and skipping for the best structure and training them..."
