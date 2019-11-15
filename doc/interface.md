@@ -45,7 +45,8 @@
         2. tanh
         3. sigmoid
         4. identity
-        5. "leakyrelu"
+        5. leakyrelu
+        6. relu6
 + 'pooling' items
     1. ptype (string, 'avg' or 'max' or 'global')
     2. kernel_size (int, 1 ~ 10)
@@ -82,8 +83,6 @@
 
 ### Config
 
-+ ps_host (string, host address)
-+ job_name (string, 'ps' or 'worker')
 + num_opt_best (int, >= 1)
 + block_num (int, >= 1)
 + num_gpu (int, >= 1)
@@ -134,6 +133,9 @@
 + epoch (int, any)
 + weight_decay (float, 0 ~ 1.0)
 + momentum_rate (float, 0 ~ 1.0)
++ boundaries (1d int list, )
++ learning_rate_type (string, )
++ learning_rate (1d float list, )
 + eva_log_path (string, file path)
 + model_save_path (string, file path)
   

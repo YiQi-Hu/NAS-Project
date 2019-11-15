@@ -1,22 +1,21 @@
 {
-  "subp_debug": 0,
-  "eva_debug": 0,
-  "enum_debug": 1,
-  "ops_debug": 0,
-  "ps_host": "",
-  "worker_host": "",
-  "job_name": "ps",
-  "task_index": -1,
-  "m_best": 1,
-  "opt_best_k": 2,
-  "randseed": -1,
-  "depth": 3,
-  "width": 1,
-  "max_depth": 2,
-  "num_gpu": 2,
-  "pattern": "Global",
-  "block_num": 3,
-  "finetune_threshold": 5,
+  "nas_main": {
+    "num_gpu": 2,
+    "block_num": 3,
+    "num_opt_best":2,
+    "opt_best_k": 2,
+    "finetune_threshold": 5,
+    "subp_debug": 0,
+    "eva_debug": 0,
+    "ops_debug": 0
+  },
+  "enum":{
+    "debug": 0,
+    "depth": 3,
+    "width": 1,
+    "max_depth": 2,
+    "enum_debug": 1
+  },
   "eva": {
     "image_size": 32,
     "num_classes": 10,
@@ -31,8 +30,63 @@
     "weight_decay": 0.0003,
     "momentum_rate": 0.9,
     "model_path": "model",
-    "learning_rate_type":"",
-    "boundaries":[0,80,120],
-    "learing_rate":[0.1,0.01,0.001]
+    "learning_rate_type": "",
+    "boundaries": [
+      0,
+      80,
+      120
+    ],
+    "learing_rate": [
+      0.1,
+      0.01,
+      0.001
+    ]
+  },
+  "spl":{
+    "skip_max_dist":2,
+    "skip_max_num":2,
+    "conv_space":{
+      "filter_size": [
+        [
+          32,
+          48,
+          64
+        ],
+        [
+          48,
+          64,
+          128
+        ],
+        [
+          64,
+          128,
+          192
+        ]
+      ],
+      "kernel_size": [
+        1,
+        3,
+        5
+      ],
+      "activation": [
+        "relu",
+        "leakyrelu"
+      ]
+    },
+    "pool_space":{
+      "pooling_type": [
+        "avg",
+        "max"
+      ],
+      "kernel_size": [
+        2,
+        3,
+        6,
+        7,
+        8
+      ]
+    },
+    "pool_switch": 0,
+    "spl_log_path": ""
   }
 }
