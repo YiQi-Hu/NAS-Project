@@ -110,7 +110,7 @@
 >
 > `NAS_LOG << ('eva_result', nn_id, score, time_cost) # '_subproc_eva' in nas.py`
 >
-> Logger saves the resutl from evaluator in log file (like 'memory\evaluating_log.txt') automatically.
+> Logger saves the result from evaluator in log file (like 'memory\evaluating_log.txt') automatically.
 
 
 ## Enumerater

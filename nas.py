@@ -234,9 +234,6 @@ def _init_ops(net_pool):
         except:
             print('Nas: _get_ops_copy failed')
 
-    for nn in net_pool:
-        nn.first_sample()
-
     # for debug
     if NAS_CONFIG['ops_debug']:
         _save_ops_copy(net_pool)
