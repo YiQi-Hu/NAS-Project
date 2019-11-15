@@ -52,13 +52,13 @@
 
 ## info_str
 
-> Except NAS_CONFIG, every property else is string.
+> Except nas_config, every property else is string.
 
-### NAS_CONFIG
+### nas_config
 
 > Defined in *nas_config.json*.
 >
-> Please use `from info_str import NAS_CONFIG` to get
+> Please use `from info_str import nas_config` to get
 > project's configuration.
 >
 > The following keys correspond to modul parameters:
@@ -70,7 +70,7 @@
 >
 > You can get Nas parameter directly with its name.
 >
-> Ex. `NAS_CONFIG['NUM_GPU']`, `NAS_CONFIG['ENUM']['MAX_DEPTH']`
+> Ex. `nas_config['num_gpu']`, `nas_config['enum']['max_depth']`
 
 ### Properties (string)
 
@@ -78,17 +78,17 @@
 
 ## Nas
 
-> The core of NAS Project.
+> The core of nas Project.
 
 ### Config
 
-+ PS_HOST (string, host address)
-+ JOB_NAME (string, 'ps' or 'worker')
-+ NUM_OPT_BEST (int, >= 1)
-+ BLOCK_NUM (int, >= 1)
-+ NUM_GPU (int, >= 1)
-+ FINETUNE_THRESHOLD (int, ?) <!--TODO-->
-+ SPL_NETWORK_ROUND (int, >= 1)
++ ps_host (string, host address)
++ job_name (string, 'ps' or 'worker')
++ num_opt_best (int, >= 1)
++ block_num (int, >= 1)
++ num_gpu (int, >= 1)
++ finetune_threshold (int, ?) <!--TODO-->
++ spl_network_round (int, >= 1)
 
 ### Method
 
@@ -104,10 +104,10 @@
 ### Config
 
 <!-- TODO -->
-1. MAX_DEPTH (int, any)
-2. MAX_WIDTH (int, any)
-3. MAX_BRANCH_DEPTH (int, any)
-4. ENUM_LOG_PATH (string, file path)
+1. max_depth (int, any)
+2. max_width (int, any)
+3. max_branch_depth (int, any)
+4. enum_log_path (string, file path)
 
 ### Method
 
@@ -121,21 +121,21 @@
 
 ### Config
 
-> Note: The range of IMAGE_SIZE, NUM_CLASSES, NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN, NUM_EXAMPLES_PER_EPOCH_FOR_EVAL depend on dateset.
+> Note: The range of image_size, num_classes, num_examples_per_epoch_for_train, num_examples_per_epoch_for_eval depend on dateset.
 
-+ IMAGE_SIZE (int, unknown)
-+ NUM_CLASSES (int, unknown)
-+ NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN (int, unknown)
-+ NUM_EXAMPLES_PER_EPOCH_FOR_EVAL (int, unknown)
-+ INITIAL_LEARNING_RATE (float, 1.0 ~ 1e-5)
-+ MOVING_AVERAGE_DECAY (float, 1.0 ~ 1e-5)
-+ REGULARAZTION_RATE (float, 1.0 ~ 1e-5)
-+ BATCH_SIZE (int, <= 200)
-+ EPOCH (int, any)
-+ WEIGHT_DECAY (float, 0 ~ 1.0)
-+ MOMENTUM_RATE (float, 0 ~ 1.0)
-+ EVA_LOG_PATH (string, file path)
-+ MODEL_SAVE_PATH (string, file path)
++ image_size (int, unknown)
++ num_classes (int, unknown)
++ num_examples_per_epoch_for_train (int, unknown)
++ num_examples_per_epoch_for_eval (int, unknown)
++ initial_learning_rate (float, 1.0 ~ 1e-5)
++ moving_average_decay (float, 1.0 ~ 1e-5)
++ regularaztion_rate (float, 1.0 ~ 1e-5)
++ batch_size (int, <= 200)
++ epoch (int, any)
++ weight_decay (float, 0 ~ 1.0)
++ momentum_rate (float, 0 ~ 1.0)
++ eva_log_path (string, file path)
++ model_save_path (string, file path)
   
 ### Method
 
@@ -154,7 +154,7 @@
     > 3. *is_bestNN* = True & *update_pre_weight* = True
 + add_data
     > **Args**:
-    > 1. *add_num* (int, *BATCH_SIZE* ~ *NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN* - *self.train_num*)
+    > 1. *add_num* (int, *batch_size* ~ *num_examples_per_epoch_for_train* - *self.train_num*)
     >
     > **Returns**: None
   
@@ -162,17 +162,17 @@
 
 ### Config
 
-+ SKIP_MAX_DIST (int, 0 ~ MAX_DEPTH)
-+ SKIP_MAX_NUM (int, 0 ~ MAX_DEPTH - 1)
-+ CONV_SPACE (dict)
++ skip_max_dist (int, 0 ~ max_depth)
++ skip_max_num (int, 0 ~ max_depth - 1)
++ conv_space (dict)
   + filter_size (1d int list, value as Cell.filter_size)
   + kernel_size (2d int list, value as Cell.kernel_size)
   + activation (1d string list, value as Cell.activation)
-+ POOL_SPACE (dict)
++ pool_space (dict)
   + pooling_type (1d string list, value as Cell.pooling_type)
   + kernel_size (1d int list, value as Cell.kernel_size)
-+ POOL_SWITCH (boolean)
-+ SPL_LOG_PATH (string, file path)
++ pool_switch (boolean)
++ spl_log_path (string, file path)
 
 ### Method
 
