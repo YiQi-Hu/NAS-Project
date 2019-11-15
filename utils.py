@@ -32,7 +32,7 @@ class Logger(object):
         self._module_log = open('memory/module_log.txt', 'w')
 
     def __del__(self):
-        self._eva_log.close()
+        self.__subproc_eva_log.close()
         self._winner_log.close()
         self._network_log.close()
         self._module_log.close()
@@ -88,7 +88,6 @@ class Logger(object):
         temp = ifs.MF_TEMP[module][func][act]
 
         self._log_output(func, temp % others)
-        return
 
 NAS_LOG = Logger()
 
