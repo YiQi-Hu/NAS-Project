@@ -98,6 +98,21 @@
     > **Returns**:
     > 1. *best_nn* (Network)
 
+## Logger
+
+> Write log or print system information.
+> Use `from utils import NAS_LOG` to get project logger
+> No attributes. Use '<<' operator to save information.
+>
+> Example:
+>
+> `NAS_LOG << 'enuming # 'run' in nas.py'`
+>
+> `NAS_LOG << ('eva_result', nn_id, score, time_cost) # '_subproc_eva' in nas.py`
+>
+> Logger saves the resutl from evaluator in log file (like 'memory\evaluating_log.txt') automatically.
+
+
 ## Enumerater
 
 ### Config

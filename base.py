@@ -176,6 +176,7 @@ class NetworkUnit(object):
         self.opt.clear()
         return
 
+
 if __name__ == "__main__":
     cc = Cell('conv', 1024, 7, 'relu') # conv cell
     pc = Cell('pooling', 'avg', 10) # pooling cell
