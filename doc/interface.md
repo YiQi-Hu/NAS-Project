@@ -112,7 +112,6 @@
 >
 > Logger saves the result from evaluator in log file (like 'memory\evaluating_log.txt') automatically.
 
-
 ## Enumerater
 
 ### Config
@@ -148,9 +147,9 @@
 + epoch (int, any)
 + weight_decay (float, 0 ~ 1.0)
 + momentum_rate (float, 0 ~ 1.0)
-+ boundaries (1d int list, )
-+ learning_rate_type (string, )
-+ learning_rate (1d float list, )
++ boundaries (1d int list, values > 0)
++ learning_rate_type (string, 'const' or 'cos' or 'exp_decay')
++ learning_rate (1d float list, value 0 ~ 1, len is same as boundaries)
 + eva_log_path (string, file path)
 + model_save_path (string, file path)
 + dataset_path (string, file path)
@@ -158,6 +157,7 @@
     1. cifar-10
     2. cifar-100
     3. imagnet
++ repeat_search (int, >= 1)
 
 ### Method
 
