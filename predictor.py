@@ -16,7 +16,6 @@ MAX_NETWORK_LENGTH = 71
 net_data_path = './predict_op/data/net.npy'
 label_data_path = './predict_op/data/label.npy'
 
-
 model_json_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json')
 model_weights_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json.h5')
 
@@ -32,25 +31,11 @@ class Feature:
     def feature_links(self):
         # 从邻接矩阵中提取所有的支链，每一条支链有五个特征，编号，起点，终点，长度，节点编号
         g = self.graph
-        endpoint = np.zeros((len(g), 1), dtype=int)
-        endpoint[0] = 1
         link_set = []
         endpoint_link_num_set = []
         node_link_num_set = []
-        for i in range(1, len(g)):
-            out_link_num = 0
-            in_link_num = 0
-            for j in range(len(g)):
-                if g[i][j] == 1:
-                    out_link_num += 1
-                if g[j][i] == 1:
-                    in_link_num += 1
-                if out_link_num > 1 and in_link_num > 1:
-                    break
-            if out_link_num != 1:
-                endpoint[i] = 1
-            if in_link_num > 1:
-                endpoint[i] = 1
+        endpoint = self._find_endpoint()
+
         link_id = 0
         for i in range(len(endpoint)):
             if endpoint[i] == 1:
@@ -133,6 +118,26 @@ class Feature:
                 node_feature[i][global_num + 12] = self._var_link(links)
 
         return node_feature
+
+    def _find_endpoint(self):
+        g = self.graph
+        endpoint = np.zeros((len(g), 1), dtype=int)
+        endpoint[0] = 1
+        for i in range(1, len(g)):
+            out_link_num = 0
+            in_link_num = 0
+            for j in range(len(g)):
+                if g[i][j] == 1:
+                    out_link_num += 1
+                if g[j][i] == 1:
+                    in_link_num += 1
+                if out_link_num > 1 and in_link_num > 1:
+                    break
+            if out_link_num != 1:
+                endpoint[i] = 1
+            if in_link_num > 1:
+                endpoint[i] = 1
+        return endpoint
 
     @staticmethod
     def _find_endpoint_link_set(id, endpoint_link_num_set, link_set):
@@ -450,29 +455,29 @@ class Predictor:
 
 
 if __name__ == '__main__':
-    graph = [[[1], [2], [3], [4], [5], []]]
-    cell_list = [[('conv', 256, 3, 'relu'), ('conv', 192, 3, 'relu'), ('conv', 512, 1, 'relu'), ('pooling', 'max', 4)
-                     , ('conv', 128, 1, 'relu'), ('conv', 512, 5, 'relu')]]
-    pred = Predictor()
-    Blocks = []
-    pred.train([], [])
-
-    # enu = Enumerater(depth=6, width=3)
-    # network_pool = enu.enumerate()
-    # print(len(network_pool))
-    # start = time.time()
-    # i = 0
+    # graph = [[[1], [2], [3], [4], [5], []]]
+    # cell_list = [[('conv', 256, 3, 'relu'), ('conv', 192, 3, 'relu'), ('conv', 512, 1, 'relu'), ('pooling', 'max', 4)
+    #                  , ('conv', 128, 1, 'relu'), ('conv', 512, 5, 'relu')]]
     # pred = Predictor()
-    # for ind in range(2, len(network_pool)):
-    #     gra = network_pool[ind].graph_part
-    #
-    #     #Blocks = [network_pool[ind - 2].graph_part, network_pool[ind - 1].graph_part]
-    #     Blocks = []
-    #     cell_list = pred.predictor(Blocks, gra)
-    #     if i%100 == 0:
-    #         print("iterator:", i)
-    #     i += 1
-    #     print(gra)
-    #     print(cell_list)
-    # end = time.time()
-    # print(end-start)
+    # Blocks = []
+    # pred.train([], [])
+
+    enu = Enumerater(depth=6, width=3)
+    network_pool = enu.enumerate()
+    print(len(network_pool))
+    start = time.time()
+    i = 0
+    pred = Predictor()
+    for ind in range(2, len(network_pool)):
+        gra = network_pool[ind].graph_part
+
+        #Blocks = [network_pool[ind - 2].graph_part, network_pool[ind - 1].graph_part]
+        Blocks = []
+        cell_list = pred.predictor(Blocks, gra)
+        if i%100 == 0:
+            print("iterator:", i)
+        i += 1
+        print(gra)
+        print(cell_list)
+    end = time.time()
+    print(end-start)
