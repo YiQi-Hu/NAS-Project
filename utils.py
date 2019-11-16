@@ -1,32 +1,18 @@
 import queue
-import sys, os
+import sys
+import os
+import traceback
 import multiprocessing
-from info_str import (
-    NAS_CONFIG,
-    CUR_VER_DIR,
-    EVALOG_PATH_TEM,
-    NETWORK_INFO_PATH,
-    WINNER_LOG_PATH,
-    LOG_EVAINFO_TEM,
-    LOG_EVAFAIL,
-    LOG_WINNER_TEM,
-    SYS_EVAFAIL,
-    SYS_EVA_RESULT_TEM,
-    SYS_ELIINFO_TEM,
-    SYS_INIT_ING,
-    SYS_I_AM_PS,
-    SYS_I_AM_WORKER,
-    SYS_ENUM_ING,
-    SYS_SEARCH_BLOCK_TEM,
-    SYS_WORKER_DONE,
-    SYS_WAIT_FOR_TASK,
-    SYS_CONFIG_ING,
-    SYS_GET_WINNER,
-    SYS_BEST_AND_SCORE_TEM,
-    SYS_START_GAME_TEM,
-    SYS_CONFIG_OPS_ING
-)
 
+from info_str import NAS_CONFIG
+import info_str as ifs
+
+
+def list_swap(ls, i, j):
+    cpy = ls[i]
+    ls[i] = ls[j]
+    ls[j] = cpy
+    
 
 class Communication:
     def __init__(self):
@@ -36,58 +22,75 @@ class Communication:
         for gpu in range(NAS_CONFIG['num_gpu']):
             self.idle_gpuq.put(gpu)
 
+class Logger(object):
+    def __init__(self):
+        # File object '_funcname_log'
+        # All function in every module has 1 log at most.
+        self.__subproc_eva_log = open(ifs.evalog_path, 'w')
+        self._winner_log = open(ifs.winner_log_path, 'w')
+        self._network_log = open(ifs.network_info_path, 'w')
+        self._module_log = open('memory/module_log.txt', 'w')
 
-def save_info(path, network, round, original_index, network_num):
-    tmpa = 'number of scheme: {}\n'
-    tmpb = 'graph_part: {}\n'
-    tmpc = '    graph_full: {}\n    cell_list: {}\n    score: {}\n'
-    s = LOG_EVAINFO_TEM.format(len(network.pre_block) + 1, round, original_index, network_num)
-    s = s + tmpa.format(len(network.item_list))
-    s = s + tmpb.format(str(network.graph_part))
+    def __del__(self):
+        self.__subproc_eva_log.close()
+        self._winner_log.close()
+        self._network_log.close()
+        self._module_log.close()
+        
+    @staticmethod
+    def _get_where_called():
+        last_stack = traceback.extract_stack()[-3]
+        # absolute path -> last file name
+        where_file = os.path.split(last_stack[0])[-1]
+        where_func = last_stack[2]
+        # get rid of '.py'
+        where_module = os.path.splitext(where_file)[0]
 
-    for item in zip(network.graph_full_list, network.cell_list, network.score_list):
-        s = s + tmpc.format(str(item[0]), str(item[1]), str(item[2]))
+        return where_module, where_func
 
-    with open(path, 'a') as f:
-        f.write(s)
+    @staticmethod
+    def _get_action(args):
+        if isinstance(args, str) and len(args):
+            return args, ()
+        elif isinstance(args, tuple) and len(args):
+            return args[0], args[1:]
+        else:
+            raise Exception("empty or wrong log args")
+        return
 
-
-def list_swap(ls, i, j):
-    cpy = ls[i]
-    ls[i] = ls[j]
-    ls[j] = cpy
-
-
-def try_secure(func_type, func, args=(), f=None, in_child=False):
-    eva_try_again = "\nevaluating failed and we will try again...\n"
-    eva_return_direct = "\nevaluating failed many times and we return score 0.05 directly...\n"
-    spl_try_again = "\nsample failed and we will try again...\n"
-    spl_exit = "\nsample failed many times and we stop the program...\n"
-    count = 0
-
-    while True:
+    def _log_output(self, func, context):
+        func = func.strip('<>_ \'\"')
         try:
-            result = func(*args)
-            break
-        except Exception as e:
-            count += 1
-            if func_type == "eva":
-                print(e, eva_try_again)
-                if f:
-                    f.write("\n"+str(e)+eva_try_again)
-            if func_type == "spl":
-                print(e, spl_try_again)
-            if count > 10:
-                if func_type == "eva":
-                    print(e, eva_return_direct)
-                    if f:
-                        f.write("\n"+str(e)+eva_return_direct)
-                    result = 0.05
-                if func_type == "spl":
-                    print(e, spl_exit)
-                    if in_child:
-                        result = None
-                    else:
-                        sys.exit(0)
-                break
-    return result
+            log_name = '_%s_log' % func
+            output = self.__getattribute__(log_name)
+            output.write(context)
+            output.write('\n')
+        except:
+            print(context)
+        return
+
+    def __lshift__(self, args):
+        """
+        Wrtie log or print system information.
+        The specified log templeate is defined in info_str.py
+        Args:
+            args (string or tuple, non-empty)
+                When it's tuple, its value is string.
+                The first value must be action.
+        Return: 
+            None
+        Example:
+            NAS_LOG = LOGGER() # 'Nas.run' func in nas.py 
+            NAS_LOG << 'enuming'
+        """
+        module, func = Logger._get_where_called()
+        act, others = Logger._get_action(args)
+        temp = ifs.MF_TEMP[module][func][act]
+
+        self._log_output(func, temp % others)
+
+NAS_LOG = Logger()
+
+if __name__ == '__main__':
+    NAS_LOG << ('hello', 'I am bread', 'hello world!')
+    NAS_LOG << 'enuming'

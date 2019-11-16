@@ -10,40 +10,15 @@ from multiprocessing import Pool
 import numpy as np
 from base import NetworkItem
 from enumerater import Enumerater
-from utils import Communication, list_swap, save_info
+from utils import Communication, list_swap
 from evaluator import Evaluator
 from sampler import Sampler
-from info_str import (
-    NAS_CONFIG,
-    CUR_VER_DIR,
-    EVALOG_PATH_TEM,
-    NETWORK_INFO_PATH,
-    WINNER_LOG_PATH,
-    LOG_EVAINFO_TEM,
-    LOG_EVAFAIL,
-    LOG_WINNER_TEM,
-    SYS_EVAFAIL,
-    SYS_EVA_RESULT_TEM,
-    SYS_ELIINFO_TEM,
-    SYS_INIT_ING,
-    SYS_I_AM_PS,
-    SYS_I_AM_WORKER,
-    SYS_ENUM_ING,
-    SYS_SEARCH_BLOCK_TEM,
-    SYS_WORKER_DONE,
-    SYS_WAIT_FOR_TASK,
-    SYS_CONFIG_ING,
-    SYS_GET_WINNER,
-    SYS_BEST_AND_SCORE_TEM,
-    SYS_START_GAME_TEM,
-    SYS_CONFIG_OPS_ING,
-    SYS_SEARCH_FIN,
-    SYS_CUR_BLK_SEARCH_FIN,
-    SYS_ROUND_OVER,
-    SYS_TRAIN_WINNER_FIN
-    )
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
+from info_str import NAS_CONFIG
+import info_str as ifs
+from utils import NAS_LOG
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 def _subproc_eva(params, eva, gpuq):
     ngpu = gpuq.get()
@@ -55,15 +30,12 @@ def _subproc_eva(params, eva, gpuq):
     else:
         item, nn_pb, rd, nn_id, pl_len, spl_id, bt_nm, blk_wnr, ft_sign = params
         os.environ['CUDA_VISIBLE_DEVICES'] = str(ngpu)
-        with open(EVALOG_PATH_TEM.format(ngpu), 'w') as f:
-            f.write(LOG_EVAINFO_TEM.format(
-                len(nn_pb) + 1, rd, nn_id, pl_len, spl_id, bt_nm, os.getpid(), ngpu
-            ))
-            f.write(str(item.graph) + "\n" + str(item.cell_list) + "\n" + str(nn_pb) + "\n")
-            score = eva.evaluate(item, nn_pb, is_bestNN=blk_wnr,
-                                 update_pre_weight=ft_sign, log_file=f)
+        score = eva.evaluate(item, nn_pb, is_bestNN=blk_wnr,
+                                 update_pre_weight=ft_sign)
     gpuq.put(ngpu)
     time_cost = time.time() - start_time
+
+    NAS_LOG << ('eva_result', nn_id, score, time_cost)
     return score, time_cost, nn_id, spl_id
 
 
@@ -86,7 +58,7 @@ def _arrange_result(cmnct, net_pl, block_winner=False):
     while not cmnct.result.empty():
         r_ = cmnct.result.get()
         score, time_cost, nn_id, spl_id = r_.get()
-        print(SYS_EVA_RESULT_TEM.format(nn_id, spl_id, score, time_cost))
+        print(ifs.eva_result_tem.format(nn_id, spl_id, score, time_cost))
         # mark down the score
         net_pl[nn_id - 1].item_list[-spl_id].score = score
     # TODO remove other model
@@ -187,11 +159,10 @@ def _eliminate(net_pool=None, round=0):
             list_swap(net_pool, i, len(net_pool) - 1)
             list_swap(scores, i, len(scores) - 1)
             list_swap(original_index, i, len(original_index) - 1)
-            save_info(NETWORK_INFO_PATH, net_pool.pop(), round, original_index.pop(), original_num)
             scores.pop()
         else:
             i += 1
-    print(SYS_ELIINFO_TEM.format(original_num - len(scores), len(scores)))
+    print(ifs.eliinfo_tem.format(original_num - len(scores), len(scores)))
 
 
 def _train_winner(net_pl, com, pro_pl, round):
@@ -203,7 +174,7 @@ def _train_winner(net_pl, com, pro_pl, round):
     Returns:
         best_nn: object of Class NetworkUnit
     """
-    print(SYS_CONFIG_OPS_ING)
+    print(ifs.config_ops_ing)
     start_train_winner = time.time()
     eva_winner = Evaluator()
     _datasize_ctrl(eva_winner)
@@ -225,8 +196,7 @@ def _train_winner(net_pl, com, pro_pl, round):
     best_nn = net_pl[0]
     scores = [x.score for x in best_nn.item_list[-NAS_CONFIG['opt_best_k']:]]
     best_index = scores.index(max(scores)) - len(scores)
-    save_info(NETWORK_INFO_PATH, best_nn, round, 1, 1)
-    print(SYS_TRAIN_WINNER_FIN.format(time.time() - start_train_winner))
+    print(ifs.train_winner_tem.format(time.time() - start_train_winner))
     return best_nn, best_index
 
 # Debug function
@@ -264,9 +234,6 @@ def _init_ops(net_pool):
         except:
             print('Nas: _get_ops_copy failed')
 
-    for nn in net_pool:
-        nn.first_sample()
-
     # for debug
     if NAS_CONFIG['ops_debug']:
         _save_ops_copy(net_pool)
@@ -289,10 +256,10 @@ def algo(block_num, eva, com, npool_tem, process_pool):
     :return:
     """
     net_pool = copy.deepcopy(npool_tem)
-    print(SYS_START_GAME_TEM.format(len(net_pool)))
+    print(ifs.start_game_tem.format(len(net_pool)))
     _init_npool_sampler(net_pool, block_num)
 
-    print(SYS_CONFIG_ING)
+    print(ifs.config_ing)
     _init_ops(net_pool)
     round = 0
     start_game = time.time()
@@ -301,8 +268,8 @@ def algo(block_num, eva, com, npool_tem, process_pool):
         round += 1
         _game(eva, net_pool, com, round, process_pool)
         _eliminate(net_pool, round)
-        print(SYS_ROUND_OVER.format(time.time() - start_round))
-    print(SYS_GET_WINNER.format(time.time() - start_game))
+        print(ifs.round_over.format(time.time() - start_round))
+    print(ifs.get_winner.format(time.time() - start_game))
     best_nn, best_index = _train_winner(net_pool, com, process_pool, round+1)
 
     return best_nn, best_index
@@ -310,26 +277,26 @@ def algo(block_num, eva, com, npool_tem, process_pool):
 
 class Nas:
     def __init__(self, pool):
-        print(SYS_INIT_ING)
+        print(ifs.init_ing)
         self.enu = Enumerater()
         self.eva = Evaluator()
         self.com = Communication()
         self.pool = pool
 
     def run(self):
-        print(SYS_ENUM_ING)
+        NAS_LOG << 'enuming'
         network_pool_tem = self.enu.enumerate()
         start_search = time.time()
         for i in range(NAS_CONFIG["block_num"]):
-            print(SYS_SEARCH_BLOCK_TEM.format(i+1, NAS_CONFIG["block_num"]))
+            NAS_LOG << ('search_blk', (i+1) / NAS_CONFIG["block_num"])
             start_block = time.time()
             block, best_index = algo(i, self.eva, self.com, network_pool_tem, self.pool)
             block.pre_block.append([
                 block.graph_template,
                 block.item_list[best_index]
             ])
-            print(SYS_CUR_BLK_SEARCH_FIN.format(time.time() - start_block))
-        print(SYS_SEARCH_FIN.format(time.time() - start_search))
+            NAS_LOG << ('search_blk_end', time.time() - start_block)
+        NAS_LOG << ('nas_end', time.time() - start_search)
         return block.pre_block
 
 

@@ -5,9 +5,9 @@ import tensorflow as tf
 import pickle
 import random
 from info_str import NAS_CONFIG
+# TODO new structure
+# TODO different dataset
 
-# TODO data_path should also load from config file
-data_path = '/data/data'
 
 # TODO PLEASE REDUCE THE NUMBER OF WORDS PER LINE UNDER 80 CHARACTERS !!!
 
@@ -18,30 +18,42 @@ class DataSet:
 
     def __init__(self):
         self.IMAGE_SIZE = 32
-        self.NUM_CLASSES = 10
-        self.NUM_EXAMPLES_FOR_TRAIN = 50000
+        self.NUM_CLASSES = NAS_CONFIG['eva']['NUM_CLASSES']
+        self.NUM_EXAMPLES_FOR_TRAIN = NAS_CONFIG['eva']['NUM_EXAMPLES_FOR_TRAIN']
+        self.task=NAS_CONFIG['eva']['task']
+        self.data_path=NAS_CONFIG['eva']['data_path']
         return
 
     def inputs(self):
         print("======Loading data======")
-        train_files = ['data_batch_%d' % d for d in range(1, 6)]
+        if self.task=='cifar10':
+            test_files=['test_batch']
+            train_files = ['data_batch_%d' % d for d in range(1, 6)]
+        else:
+            train_files = ['train']
+            test_files = ['test']
         train_data, train_label = self._load(train_files)
         train_data, train_label, valid_data, valid_label = self._split(train_data, train_label)
-        test_data, test_label = self._load(['test_batch'])
+        test_data, test_label = self._load(test_files)
         print("======Data Process Done======")
         return train_data, train_label, valid_data, valid_label, test_data, test_label
 
-    def _load(self, files):
-        data_dir = os.path.join(data_path, 'cifar-10-batches-py')
-        with open(os.path.join(data_dir, files[0]), 'rb') as fo:
+    def _load_one(self,file):
+        with open(file, 'rb') as fo:
             batch = pickle.load(fo, encoding='bytes')
         data = batch[b'data']
-        label = np.array(batch[b'labels'])
+        label = batch[b'labels'] if self.task=='cifar10' else batch[b'fine_labels']
+        return data,label
+
+
+    def _load(self, files):
+        file_name='cifar-10-batches-py'if self.task=='cifar10' else 'cifar-100-python'
+        data_dir = os.path.join(self.data_path, file_name)
+        data,label=self._load_one(os.path.join(data_dir, files[0]))
         for f in files[1:]:
-            with open(os.path.join(data_dir, f), 'rb') as fo:
-                batch = pickle.load(fo, encoding='bytes')
-            data = np.append(data, batch[b'data'], axis=0)
-            label = np.append(label, batch[b'labels'], axis=0)
+            batch_data,batch_label=self._load_one(os.path.join(data_dir, f))
+            data = np.append(data, batch_data, axis=0)
+            label = np.append(label, batch_label, axis=0)
         label = np.array([[float(i == label) for i in range(self.NUM_CLASSES)] for label in label])
         data = data.reshape([-1, 3, self.IMAGE_SIZE, self.IMAGE_SIZE])
         data = data.transpose([0, 2, 3, 1])
@@ -110,8 +122,8 @@ class Evaluator:
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
         # Global constants describing the CIFAR-10 data set.
         self.IMAGE_SIZE = 32
-        self.NUM_CLASSES = 10
-        self.NUM_EXAMPLES_FOR_TRAIN = 50000
+        self.NUM_CLASSES = NAS_CONFIG['eva']['NUM_CLASSES']
+        self.NUM_EXAMPLES_FOR_TRAIN = NAS_CONFIG['eva']['NUM_EXAMPLES_FOR_TRAIN']
         self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 10000
         # Constants describing the training process.
         self.INITIAL_LEARNING_RATE = NAS_CONFIG['eva']['INITIAL_LEARNING_RATE']  # Initial learning rate.
@@ -124,9 +136,8 @@ class Evaluator:
         self.momentum_rate = NAS_CONFIG['eva']['momentum_rate']
         self.model_path = NAS_CONFIG['eva']['model_path']
         self.train_num = 0
-        self.network_num = 0
         self.max_steps = 0
-        self.blocks = 0
+        self.block_num = 0
         self.train_data, self.train_label, self.valid_data, self.valid_label, \
         self.test_data, self.test_label = DataSet().inputs()
 
@@ -150,7 +161,7 @@ class Evaluator:
         return tf.contrib.layers.batch_norm(input, decay=0.9, center=True, scale=True, epsilon=1e-3,
                                             updates_collections=None, is_training=train_flag)
 
-    def _makeconv(self, inputs, hplist, node, train_flag):
+    def _makeconv(self, inputs, hplist, node, train_flag,sep=False):
         """Generates a convolutional layer according to information in hplist
         Args:
         inputs: inputing data.
@@ -160,16 +171,24 @@ class Evaluator:
         tensor.
         """
         # print('Evaluater:right now we are making conv layer, its node is %d, and the inputs is'%node,inputs,'and the node before it is ',cellist[node-1])
-        with tf.variable_scope('conv' + str(node) + 'block' + str(self.blocks)) as scope:
+        with tf.variable_scope('conv' + str(node) + 'block' + str(self.block_num)) as scope:
             inputdim = inputs.shape[3]
             assert type(hplist[2]) == type(1), 'Wrong type of filter size: %s.' % str(type(hplist[2]))
             kernel = tf.get_variable('weights', shape=[hplist[2], hplist[2], inputdim, hplist[1]],
                                      initializer=tf.contrib.keras.initializers.he_normal())
-            conv = tf.nn.conv2d(inputs, kernel, [1, 1, 1, 1], padding='SAME')
+            if sep:
+                kernel = tf.get_variable('weights', shape=[hplist[2], hplist[2], inputdim, 1],
+                                         initializer=tf.contrib.keras.initializers.he_normal())
+                pfilter=tf.get_variable('pointwise_filter',[1,1,inputdim,hplist[1]])
+                conv=tf.nn.separable_conv2d(inputs,kernel,pfilter)
+            else:
+                conv = tf.nn.conv2d(inputs, kernel, [1, 1, 1, 1], padding='SAME')
             biases = tf.get_variable('biases', hplist[1], initializer=tf.constant_initializer(0.0))
             bias = self._batch_norm(tf.nn.bias_add(conv, biases), train_flag)
             if hplist[3] == 'relu':
                 conv1 = tf.nn.relu(bias, name=scope.name)
+            elif hplist[3] == 'relu6':
+                conv1 = tf.nn.relu6(bias, name=scope.name)
             elif hplist[3] == 'tanh':
                 conv1 = tf.tanh(bias, name=scope.name)
             elif hplist[3] == 'sigmoid':
@@ -238,6 +257,12 @@ class Evaluator:
         Returns:
           Logits.'''
         # print('Evaluater:starting to reconstruct the network')
+        # a pooling later for every block
+        if self.block_num==NAS_CONFIG['block_num']:
+            cell_list.append(('pooling','global'))
+        else:
+            cell_list.append(('pooling','max',2))
+
         nodelen = len(graph_part)
         inputs = [images for _ in range(nodelen)]  # input list for every cell in network
         getinput = [False for _ in range(nodelen)]  # bool list for whether this cell has already got input or not
@@ -250,8 +275,8 @@ class Evaluator:
                 layer = self._makeconv(inputs[node], cellist[node], node, train_flag)
             elif cellist[node][0] == 'pooling':
                 layer = self._makepool(inputs[node], cellist[node])
-            elif cellist[node][0] == 'dense':
-                layer = self._makedense(inputs[node], cellist[node], train_flag)
+            elif cellist[node][0] == 'sep_conv':
+                layer = self._makeconv(inputs[node], cellist[node],node, train_flag,sep=True)
             else:
                 print('WRONG!!!!! Notice that you got a layer type we cant process!', cellist[node][0])
                 layer = []
@@ -259,25 +284,30 @@ class Evaluator:
             # update inputs information of the cells below this cell
             for j in graph_part[node]:
                 if getinput[j]:  # if this cell already got inputs from other cells precedes it
-                    # padding
-                    a = int(layer.shape[1])
-                    b = int(inputs[j].shape[1])
-                    pad = abs(a - b)
-                    if layer.shape[1] > inputs[j].shape[1]:
-                        tmp = tf.pad(inputs[j], [[0, 0], [0, pad], [0, pad], [0, 0]])
-                        inputs[j] = tf.concat([tmp, layer], 3)
-                    elif layer.shape[1] < inputs[j].shape[1]:
-                        tmp = tf.pad(layer, [[0, 0], [0, pad], [0, pad], [0, 0]])
-                        inputs[j] = tf.concat([inputs[j], tmp], 3)
-                    else:
-                        inputs[j] = tf.concat([inputs[j], layer], 3)
+                    inputs[j]=self._pad(inputs[j],layer)
                 else:
                     inputs[j] = layer
                     getinput[j] = True
 
         # give last layer a name
-        last_layer = tf.identity(layer, name="last_layer" + str(self.blocks))
+        last_layer = tf.identity(layer, name="last_layer" + str(self.block_num))
         return last_layer
+
+    def _pad(self,inputs,layer):
+        # padding
+        a = int(layer.shape[1])
+        b = int(inputs.shape[1])
+        pad = abs(a - b)
+        if layer.shape[1] > inputs.shape[1]:
+            tmp = tf.pad(inputs, [[0, 0], [0, pad], [0, pad], [0, 0]])
+            inputs = tf.concat([tmp, layer], 3)
+        elif layer.shape[1] < inputs.shape[1]:
+            tmp = tf.pad(layer, [[0, 0], [0, pad], [0, pad], [0, 0]])
+            inputs = tf.concat([inputs, tmp], 3)
+        else:
+            inputs = tf.concat([inputs, layer], 3)
+
+        return inputs
 
     def _loss(self, labels, logits):
         """
@@ -287,14 +317,6 @@ class Evaluator:
           Returns:
             Loss tensor of type float.
           """
-        # Reshape the labels into a dense Tensor of shape [self.batch_size, self.NUM_CLASSES].
-        # sparse_labels = tf.reshape(labels, [self.batch_size, 1])
-        # indices = tf.reshape(tf.range(self.batch_size), [self.batch_size, 1])
-        # concated = tf.concat([indices, sparse_labels], 1)
-        # dense_labels = tf.sparse_to_dense(concated,
-        #                                   [self.batch_size, self.NUM_CLASSES],
-        #                                   1.0, 0.0)
-        # Calculate loss.
         cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
         l2 = tf.add_n([tf.nn.l2_loss(var) for var in tf.trainable_variables()])
         loss = cross_entropy + l2 * self.weight_decay
@@ -325,14 +347,13 @@ class Evaluator:
             minimize(loss, global_step=global_step)
         return train_op, lr
 
-    def evaluate(self, graph_full, cell_list, pre_block=[], best_id='', is_bestNN=False, update_pre_weight=False):
+    def evaluate(self, graph_full, cell_list, pre_block=[], is_bestNN=False, update_pre_weight=False):
         '''Method for evaluate the given network.
         Args:
             graph_part: The topology structure of the network given by adjacency table
             cell_list: The configuration of this network for each node in graph_part.
             pre_block: The pre-block structure, every block has two parts: graph_part and cell_list of this block.
             is_bestNN: Symbol for indicating whether the evaluating network is the best network of this round, default False.
-            best_id: Id symbol for winner-training.
             update_pre_weight: Symbol for indicating whether to update previous blocks' weight, default by False.
         Returns:
             Accuracy'''
@@ -348,14 +369,12 @@ class Evaluator:
             if self.block_num > 0:
                 # TODO check whether there is a model file exit
                 new_saver = tf.train.import_meta_graph(
-                    os.path.join(self.model_path, 'model_block' + str(self.blocks - 1) + '.meta'))
+                    os.path.join(self.model_path, 'model_block' + str(self.block_num - 1) + '.meta'))
                 new_saver.restore(sess, tf.train.latest_checkpoint(self.model_path))
                 graph = tf.get_default_graph()
                 x = graph.get_tensor_by_name("input:0")
                 labels = graph.get_tensor_by_name("label:0")
                 input = graph.get_tensor_by_name("last_layer" + str(self.block_num - 1) + ":0")
-                # a pooling later for every block
-                input = self._makepool(input, ('pool', 'max', 2))
                 # only when there's not so many network in the pool will we update the previous blocks' weight
                 if not update_pre_weight:
                     input = tf.stop_gradient(input, name="stop_gradient")
@@ -392,9 +411,7 @@ class Evaluator:
                     _, loss_value = sess.run([train_op, cross_entropy],
                                              feed_dict={x: batch_x, labels: batch_y, train_flag: True})
 
-                    if np.isnan(loss_value):
-                        return -1
-
+                    if np.isnan(loss_value): return -1
                     if step % 100 == 0:
                         format_str = ('step %d, loss = %.2f (%.3f sec)')
                         print(format_str % (step, loss_value, float(time.time() - start_time) * 100))
@@ -408,7 +425,6 @@ class Evaluator:
                     l, acc_ = sess.run([cross_entropy, accuracy],
                                        feed_dict={x: batch_x, labels: batch_y, train_flag: False})
                     precision[ep] += acc_ / num_iter
-                    step += 1
 
                 if ep > 10:
                     if precision[ep] < 0.15:
@@ -421,9 +437,9 @@ class Evaluator:
                 print('%d epoch: precision = %.3f, cost time %.3f' % (ep, precision[ep], float(time.time() - start_time)))
 
             if is_bestNN:  # save model
-                saver.save(sess, os.path.join(self.model_path, best_id + 'model_block' + str(self.blocks)))
+                saver.save(sess, os.path.join(self.model_path, 'model'))
 
-        return precision[-1], best_id
+        return precision[-1]
 
     def add_data(self, add_num=0):
         if self.train_num + add_num > self.NUM_EXAMPLES_FOR_TRAIN or add_num < 0:
