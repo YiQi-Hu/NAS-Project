@@ -16,7 +16,6 @@ MAX_NETWORK_LENGTH = 71
 net_data_path = './predict_op/data/net.npy'
 label_data_path = './predict_op/data/label.npy'
 
-
 model_json_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json')
 model_weights_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json.h5')
 
@@ -32,25 +31,11 @@ class Feature:
     def feature_links(self):
         # 从邻接矩阵中提取所有的支链，每一条支链有五个特征，编号，起点，终点，长度，节点编号
         g = self.graph
-        endpoint = np.zeros((len(g), 1), dtype=int)
-        endpoint[0] = 1
         link_set = []
         endpoint_link_num_set = []
         node_link_num_set = []
-        for i in range(1, len(g)):
-            out_link_num = 0
-            in_link_num = 0
-            for j in range(len(g)):
-                if g[i][j] == 1:
-                    out_link_num += 1
-                if g[j][i] == 1:
-                    in_link_num += 1
-                if out_link_num > 1 and in_link_num > 1:
-                    break
-            if out_link_num != 1:
-                endpoint[i] = 1
-            if in_link_num > 1:
-                endpoint[i] = 1
+        endpoint = self._find_endpoint()
+
         link_id = 0
         for i in range(len(endpoint)):
             if endpoint[i] == 1:
@@ -133,6 +118,26 @@ class Feature:
                 node_feature[i][global_num + 12] = self._var_link(links)
 
         return node_feature
+
+    def _find_endpoint(self):
+        g = self.graph
+        endpoint = np.zeros((len(g), 1), dtype=int)
+        endpoint[0] = 1
+        for i in range(1, len(g)):
+            out_link_num = 0
+            in_link_num = 0
+            for j in range(len(g)):
+                if g[i][j] == 1:
+                    out_link_num += 1
+                if g[j][i] == 1:
+                    in_link_num += 1
+                if out_link_num > 1 and in_link_num > 1:
+                    break
+            if out_link_num != 1:
+                endpoint[i] = 1
+            if in_link_num > 1:
+                endpoint[i] = 1
+        return endpoint
 
     @staticmethod
     def _find_endpoint_link_set(id, endpoint_link_num_set, link_set):
@@ -423,14 +428,14 @@ class Predictor:
             x = Feature(graph).feature_nodes()
             x = self._padding(x, MAX_NETWORK_LENGTH)
             x_train.append(x)
-            x_train = np.array(x_train)
+        x_train = np.array(x_train)
         for cell in cell_list:
             cell = self._my_param_style(cell)
             y = encoder(cell)
             y = to_categorical(y, getClassNum())
             y = self._padding(y, MAX_NETWORK_LENGTH)
             y_train.append(y)
-            y_train = np.array(y_train)
+        y_train = np.array(y_train)
 
         self._save_model(model=self.model,
                          json_path='./predict_op/outdated_model.json',
@@ -439,7 +444,7 @@ class Predictor:
         self.model.compile(loss='categorical_crossentropy',
                            optimizer='rmsprop',
                            metrics=['accuracy'])
-        self.model.fit(x_train, y_train, batch_size=32, epochs=5)
+        self.model.fit(x_train, y_train, batch_size=32, epochs=500)
 
         self._save_model(model=self.model,
                          json_path=model_json_path,
@@ -455,7 +460,7 @@ if __name__ == '__main__':
     #                  , ('conv', 128, 1, 'relu'), ('conv', 512, 5, 'relu')]]
     # pred = Predictor()
     # Blocks = []
-    # pred.train(graph, cell_list)
+    # pred.train([], [])
 
     enu = Enumerater(depth=6, width=3)
     network_pool = enu.enumerate()
