@@ -89,6 +89,7 @@ class Logger(object):
 
         self._log_output(func, temp % others)
 
+
 NAS_LOG = Logger()
 
 if __name__ == '__main__':

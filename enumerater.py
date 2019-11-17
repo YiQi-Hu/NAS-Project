@@ -1,10 +1,10 @@
 import copy
 from queue import Queue
 import time
-import networkx as nx
+# import networkx as nx
 import pickle
 from base import Network
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from info_str import NAS_CONFIG
 
 # from .base import NetworkUnit, NETWORK_POOL
@@ -38,16 +38,17 @@ class Enumerater:
     """
 
     def __init__(self):
-        self.depth = NAS_CONFIG['depth']
-        self.width = NAS_CONFIG['width']
-        self.max_branch_depth = NAS_CONFIG['max_depth']
+        self.enum_config = NAS_CONFIG['enum']
+        self.depth = self.enum_config['depth']
+        self.width = self.enum_config['width']
+        self.max_branch_depth = self.enum_config['max_depth']
         self.depth = 7
         self.width = 2
         self.max_branch_depth = 10
         self._info_dict = {}
         self._info_group = []
         self._log = ""
-        self._pickle_name = 'pcache\\enum_%d-%d-%d.pickle' % (NAS_CONFIG['depth'], NAS_CONFIG['width'], NAS_CONFIG['max_depth'])
+        self._pickle_name = 'pcache\\enum_%d-%d-%d.pickle' % (self.enum_config['depth'], self.enum_config['width'], self.enum_config['max_depth'])
 
     def enumerate(self):
         """
@@ -58,7 +59,7 @@ class Enumerater:
         """
         pool = _read_pool(self._pickle_name)
 
-        if pool and NAS_CONFIG['enum_debug']:
+        if pool and self.enum_config['enum_debug']:
             return pool  # for debug
 
         self._filldict()  # Generate chain dictionary

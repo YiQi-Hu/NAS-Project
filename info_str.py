@@ -43,6 +43,11 @@ search_tem = "NAS: Search finished and cost time: %d"
 blk_search_tem = "NAS: Search current block finished and cost time: %d"
 train_winner_tem = "NAS: Train winner finished and cost time: {}"
 round_over = "NAS: The round is over, cost time: {}"
+retrain_end = "NAS: We retrain the final network, socre {}  cost time {}"
+no_dim_spl = "There maybe no dim for sample, {} table sampled !!!"
+no_dim_ini = "There maybe no dim for first sample !!!"
+elim_net_info = "\nblock_num: {} round: {} network_index: {}/{} number of scheme: {}\n"
+
 
 # moudle X function X ACTION -> logger template string
 MF_TEMP = {
@@ -50,8 +55,12 @@ MF_TEMP = {
         'run': {
             'enuming': enum_ing,
             'search_blk': search_block_tem,
-            'search_blk': blk_search_tem,
-            'nas_end': search_tem
+            'search_blk_end': blk_search_tem,
+            'nas_end': search_tem,
+            'retrain_end': retrain_end,
+            'no_dim_spl': no_dim_spl,
+            'no_dim_ini': no_dim_ini,
+            'elim_net_info': elim_net_info
         }
     },
     'evaluator': {

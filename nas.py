@@ -4,11 +4,11 @@ import random
 import os
 from multiprocessing import Queue, Pool
 # from tensorflow import set_random_seed
-
+import re
 import copy
 from multiprocessing import Pool
 import numpy as np
-from base import NetworkItem
+from base import Network, NetworkItem
 from enumerater import Enumerater
 from utils import Communication, list_swap
 from evaluator import Evaluator
@@ -54,16 +54,13 @@ def _do_task(pool, cmnct, eva):
         cmnct.result.put(result)
 
 
-def _arrange_result(cmnct, net_pl, block_winner=False):
+def _arrange_result(cmnct, net_pl):
     while not cmnct.result.empty():
         r_ = cmnct.result.get()
         score, time_cost, nn_id, spl_id = r_.get()
         print(ifs.eva_result_tem.format(nn_id, spl_id, score, time_cost))
         # mark down the score
         net_pl[nn_id - 1].item_list[-spl_id].score = score
-    # TODO remove other model
-    if block_winner:
-        pass
 
 
 def _datasize_ctrl(eva=None, in_game=False):
@@ -74,6 +71,53 @@ def _datasize_ctrl(eva=None, in_game=False):
         eva.add_data(NAS_CONFIG['add_data_every_round'])
     else:
         eva.add_data(NAS_CONFIG['add_data_for_winner'])
+
+
+def _init_ops_dup_chk(network, pred, task_num=NAS_CONFIG['spl_round_net']):
+    """init ops with duplicate check
+
+    :return:
+    """
+    cnt = 0
+    while True:
+        cnt += 1
+        if cnt > 500:
+            NAS_LOG << 'no_dim_ini'
+            raise ValueError("sample error")
+        _gpu_batch_spl(network)
+        _gpu_batch_init_ops(network, pred)
+        tables = []
+        for spl_id in range(1, task_num + 1):
+            tables.append(network.item_list[-spl_id].code)
+        if len(set(tables)) == task_num:
+            break
+        del network.item_list[-task_num:]
+
+
+def _spl_dup_chk(network, task_num=NAS_CONFIG['spl_round_net']):
+    """sample with duplicate check
+
+    :param network:
+    :param task_num:
+    :return:
+    """
+    tables = []
+    cells = []
+    graphs = []
+    spl_index = 0
+    cnt = 0
+    while spl_index < task_num:
+        cnt += 1
+        if cnt > 500:
+            NAS_LOG << ('no_dim_spl', spl_index)
+            raise ValueError("sample error")
+        cell, graph = network.spl.sample()
+        if network.spl.p not in tables:
+            tables.append(network.spl.p)
+            cells.append(cell)
+            graphs.append(graph)
+            spl_index += 1
+    return cells, graphs, tables
 
 
 def _gpu_batch_update_model(nn, batch_num=NAS_CONFIG['spl_round_net']):
@@ -94,9 +138,26 @@ def _gpu_batch_spl(nn, batch_num=NAS_CONFIG['spl_round_net']):
     :param batch_num:
     :return:
     """
-    for spl_id in range(1, batch_num + 1):
-        cell, graph, table = nn.spl.sample()
+    cells, graphs, tables = _spl_dup_chk(nn, batch_num)
+    for cell, graph, table, spl_id in zip(cells, graphs, tables, range(1, batch_num + 1)):
         nn.item_list.append(NetworkItem(spl_id, graph, cell, table))
+
+
+def _gpu_batch_init_ops(nn, pred, batch_num=NAS_CONFIG['spl_round_net']):
+    """
+
+    :param nn:
+    :param batch_num:
+    :return:
+    """
+    pre_block = [item[-1] for item in nn.pre_block]
+    for spl_id in range(1, batch_num + 1):
+        pred_ops = pred.predictor(pre_block, nn.item_list[-spl_id].graph)
+        table = nn.spl.ops2table(pred_ops, nn.item_list[-spl_id].code)
+        cell, graph = nn.spl.convert(table)
+        nn.item_list[-spl_id].graph = graph
+        nn.item_list[-spl_id].cell_list = cell
+        nn.item_list[-spl_id].code = table
 
 
 def _gpu_batch_task_inqueue(para):
@@ -139,9 +200,9 @@ def _eliminate(net_pool=None, round=0):
     """
     Eliminates the worst 50% networks in net_pool depending on scores.
     """
-    if NAS_CONFIG['eliminate_policy'] == "best_score_have_ever_met":
+    if NAS_CONFIG['eliminate_policy'] == "best_score":
         policy = max
-    elif NAS_CONFIG['eliminate_policy'] == "average_score_this_round":
+    elif NAS_CONFIG['eliminate_policy'] == "average_score":
         policy = np.mean
     scores = [policy([x.score for x in net_pool[nn_id].item_list[-NAS_CONFIG['spl_round_net']:]])
               for nn_id in range(len(net_pool))]
@@ -159,10 +220,21 @@ def _eliminate(net_pool=None, round=0):
             list_swap(net_pool, i, len(net_pool) - 1)
             list_swap(scores, i, len(scores) - 1)
             list_swap(original_index, i, len(original_index) - 1)
+            net = net_pool.pop()
+            orig_id = original_index.pop()
+            NAS_LOG << ("elim_net_info", len(net.pre_block+1), round, orig_id+1, original_num,
+                        len(net.score_list))
             scores.pop()
         else:
             i += 1
     print(ifs.eliinfo_tem.format(original_num - len(scores), len(scores)))
+
+
+def _rm_other_model(best_index):
+    models = [os.listdir(NAS_CONFIG['eva']['model_path'])]
+    models = [model for model in models if not re.match(str(best_index), model)]
+    for model in models:
+        os.remove(os.path.join(NAS_CONFIG['eva']['model_path'], model))
 
 
 def _train_winner(net_pl, com, pro_pl, round):
@@ -192,17 +264,19 @@ def _train_winner(net_pl, com, pro_pl, round):
                 block_winner = True
             _assign_task(net_pl, com, round, task_num, block_winner=block_winner)
             _do_task(pro_pl, com, eva_winner)
-            _arrange_result(com, net_pl, block_winner=block_winner)
+            _arrange_result(com, net_pl)
     best_nn = net_pl[0]
     scores = [x.score for x in best_nn.item_list[-NAS_CONFIG['opt_best_k']:]]
-    best_index = scores.index(max(scores)) - len(scores)
+    best_index = scores.index(max(scores))
+    best_item_index = best_index - len(scores)
+    _rm_other_model(best_index)
     print(ifs.train_winner_tem.format(time.time() - start_train_winner))
-    return best_nn, best_index
+    return best_nn, best_item_index
 
 # Debug function
 import pickle
 _OPS_PNAME = 'pcache\\ops_%d-%d-%d.pickle' % (
-    NAS_CONFIG["depth"], NAS_CONFIG["width"], NAS_CONFIG["max_depth"])
+    NAS_CONFIG["enum"]["depth"], NAS_CONFIG["enum"]["width"], NAS_CONFIG["enum"]["max_depth"])
 
 
 def _get_ops_copy():
@@ -217,7 +291,14 @@ def _save_ops_copy(pool):
     return
 
 
-def _init_ops(net_pool):
+def _subproc_init_ops(net_pool):
+    from predictor import Predictor
+    pred = Predictor()
+    for nn in net_pool:
+        _init_ops_dup_chk(nn, pred)
+
+
+def _init_ops(net_pool, process_pool):
     """Generates ops and skipping for every Network,
 
     Args:
@@ -226,13 +307,14 @@ def _init_ops(net_pool):
         net_pool (list of NetworkUnit)
         scores (list of score, and its length equals to that of net_pool)
     """
-
     # for debug
     if NAS_CONFIG['ops_debug']:
         try:
             return _get_ops_copy()
         except:
             print('Nas: _get_ops_copy failed')
+
+    process_pool.apply(_subproc_init_ops, (net_pool,))
 
     # for debug
     if NAS_CONFIG['ops_debug']:
@@ -241,7 +323,7 @@ def _init_ops(net_pool):
 
 def _init_npool_sampler(netpool, block_num):
     for nw in netpool:
-        nw.spl = Sampler(nw.graph_part, block_num)
+        nw.spl = Sampler(nw.graph_template, block_num)
     return
 
 
@@ -260,7 +342,7 @@ def algo(block_num, eva, com, npool_tem, process_pool):
     _init_npool_sampler(net_pool, block_num)
 
     print(ifs.config_ing)
-    _init_ops(net_pool)
+    _init_ops(net_pool, process_pool)
     round = 0
     start_game = time.time()
     while len(net_pool) > 1:
@@ -273,6 +355,13 @@ def algo(block_num, eva, com, npool_tem, process_pool):
     best_nn, best_index = _train_winner(net_pool, com, process_pool, round+1)
 
     return best_nn, best_index
+
+
+def _retrain(pre_block):
+    retrain_eva = Evaluator(retrain=True)
+    _datasize_ctrl(retrain_eva)
+    score = retrain_eva.evaluate([], [], pre_block, is_bestNN=True, update_pre_weight=True)
+    return score
 
 
 class Nas:
@@ -291,13 +380,16 @@ class Nas:
             NAS_LOG << ('search_blk', (i+1) / NAS_CONFIG["block_num"])
             start_block = time.time()
             block, best_index = algo(i, self.eva, self.com, network_pool_tem, self.pool)
-            block.pre_block.append([
+            Network.pre_block.append([
                 block.graph_template,
                 block.item_list[best_index]
             ])
             NAS_LOG << ('search_blk_end', time.time() - start_block)
         NAS_LOG << ('nas_end', time.time() - start_search)
-        return block.pre_block
+        start_retrain = time.time()
+        retrain_score = _retrain(Network.pre_block)
+        NAS_LOG << ('retrain_end', time.time() - start_retrain)
+        return Network.pre_block, retrain_score
 
 
 if __name__ == '__main__':

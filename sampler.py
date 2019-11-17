@@ -39,7 +39,7 @@ class Sampler:
         self._p_table = []  # initializing the table value in Sampler.
         self._graph_part = graph_part
         self._node_number = len(self._graph_part)
-        self._pattern = SPL_CONFIG['pattern']  #  Parameter setting based on search method
+        self._pattern = NAS_CONFIG['pattern']  #  Parameter setting based on search method
         self._crosslayer_dis = SPACE_CONFIG['skipping_max_dist'] + 1  # dis control
         self._cross_node_number = SPACE_CONFIG['skipping_max_num']
         self._graph_part_invisible_node = self.graph_part_add_invisible_node()

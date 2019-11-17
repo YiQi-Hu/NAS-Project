@@ -18,8 +18,8 @@ class DataSet:
 
     def __init__(self):
         self.IMAGE_SIZE = 32
-        self.NUM_CLASSES = NAS_CONFIG['eva']['NUM_CLASSES']
-        self.NUM_EXAMPLES_FOR_TRAIN = NAS_CONFIG['eva']['NUM_EXAMPLES_FOR_TRAIN']
+        self.NUM_CLASSES = NAS_CONFIG['eva']['num_classes']
+        self.NUM_EXAMPLES_FOR_TRAIN = NAS_CONFIG['eva']['num_examples_for_train']
         self.task=NAS_CONFIG['eva']['task']
         self.data_path=NAS_CONFIG['eva']['data_path']
         return
@@ -118,20 +118,20 @@ class DataSet:
 
 
 class Evaluator:
-    def __init__(self):
+    def __init__(self, retrain=False):
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
         # Global constants describing the CIFAR-10 data set.
         self.IMAGE_SIZE = 32
-        self.NUM_CLASSES = NAS_CONFIG['eva']['NUM_CLASSES']
-        self.NUM_EXAMPLES_FOR_TRAIN = NAS_CONFIG['eva']['NUM_EXAMPLES_FOR_TRAIN']
+        self.NUM_CLASSES = NAS_CONFIG['eva']['num_classes']
+        self.NUM_EXAMPLES_FOR_TRAIN = NAS_CONFIG['eva']['num_examples_for_train']
         self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 10000
         # Constants describing the training process.
-        self.INITIAL_LEARNING_RATE = NAS_CONFIG['eva']['INITIAL_LEARNING_RATE']  # Initial learning rate.
-        self.NUM_EPOCHS_PER_DECAY = NAS_CONFIG['eva']['NUM_EPOCHS_PER_DECAY']  # Epochs after which learning rate decays
-        self.LEARNING_RATE_DECAY_FACTOR = NAS_CONFIG['eva']['LEARNING_RATE_DECAY_FACTOR']  # Learning rate decay factor.
-        self.MOVING_AVERAGE_DECAY = NAS_CONFIG['eva']['MOVING_AVERAGE_DECAY']
+        self.INITIAL_LEARNING_RATE = NAS_CONFIG['eva']['initial_learning_rate']  # Initial learning rate.
+        self.NUM_EPOCHS_PER_DECAY = NAS_CONFIG['eva']['num_epochs_per_decay']  # Epochs after which learning rate decays
+        self.LEARNING_RATE_DECAY_FACTOR = NAS_CONFIG['eva']['learning_rate_decay_factor']  # Learning rate decay factor.
+        self.MOVING_AVERAGE_DECAY = NAS_CONFIG['eva']['moving_average_decay']
         self.batch_size = NAS_CONFIG['eva']['batch_size']
-        self.epoch = NAS_CONFIG['eva']['epoch']
+        self.epoch = NAS_CONFIG['eva']['retrain_epoch'] if retrain else NAS_CONFIG['eva']['search_epoch']
         self.weight_decay = NAS_CONFIG['eva']['weight_decay']
         self.momentum_rate = NAS_CONFIG['eva']['momentum_rate']
         self.model_path = NAS_CONFIG['eva']['model_path']
