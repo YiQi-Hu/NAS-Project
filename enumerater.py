@@ -9,7 +9,10 @@ from info_str import NAS_CONFIG
 
 # from .base import NetworkUnit, NETWORK_POOL
 
-def read_pool(path):
+# TODO Please fix your variables and functions naming.
+# Ref: Google Code Style (Python) - Python 風格規範 “命名”
+
+def _read_pool(path):
     pool = None
     try:
         f = open(path, 'rb')
@@ -21,7 +24,7 @@ def read_pool(path):
         f.close()
     return pool
 
-def save_pool(path, pool):
+def _save_pool(path, pool):
     with open(path, 'wb') as f:
         pickle.dump(pool, f)
     print('Saved in %s' % path)
@@ -30,39 +33,44 @@ class Enumerater:
     """Summary of class here.
         Generate adjacency of network topology.
         Attributes:
-            depth: Maximum length of the network topology.
-            width: Number of branches in the network topology.
-            max_branch_depth: The maximum number of nodes in the number of branches of the network topology
+            parameters of enumerater module
+                are given by folder 'parameters'.
     """
 
-    def __init__(self, depth=6, width=1, max_branch_depth=6):
-        self.depth = depth
-        self.width = width
-        self.max_branch_depth = max_branch_depth
-        self.info_dict = {}
-        self.info_group = []
-        self.log = ""
-        self.pickle_name = 'pcache\\enum_%d-%d-%d.pickle' % (depth, width, max_branch_depth)
+    def __init__(self):
+        self.depth = NAS_CONFIG['depth']
+        self.width = NAS_CONFIG['width']
+        self.max_branch_depth = NAS_CONFIG['max_depth']
+        self.depth = 7
+        self.width = 2
+        self.max_branch_depth = 10
+        self._info_dict = {}
+        self._info_group = []
+        self._log = ""
+        self._pickle_name = 'pcache\\enum_%d-%d-%d.pickle' % (NAS_CONFIG['depth'], NAS_CONFIG['width'], NAS_CONFIG['max_depth'])
 
     def enumerate(self):
         """
         The main function of generating network topology.
+        No Args.
+        Retruns:
+            1. pool (1d Network list)
         """
-        pool = read_pool(self.pickle_name)
+        pool = _read_pool(self._pickle_name)
 
         if pool and NAS_CONFIG['enum_debug']:
             return pool  # for debug
 
-        self.filldict()  # Generate chain dictionary
+        self._filldict()  # Generate chain dictionary
 
-        self.fillgroup()  # Generate topology number
+        self._fillgroup()  # Generate topology number
 
-        pool = self.encode2adjaceny()  # Restore network topology
+        pool = self._encode2adjaceny()  # Restore network topology
 
-        save_pool(self.pickle_name, pool)
-        return pool  # return the list of NetworkUnit [Net,Net,...]
+        _save_pool(self._pickle_name, pool)
+        return pool  # return the list of Network [Net,Net,...]
 
-    def filldict(self):
+    def _filldict(self):
         """
         The starting node i, the ending node J, the number of chain nodes k,
         Judge legal and add to dictionary structure.
@@ -75,12 +83,12 @@ class Enumerater:
                 for k in range(j - i):
                     if k < self.max_branch_depth:
                         # print(i,j,k)
-                        self.info_dict[cnt] = [i, j, k]
+                        self._info_dict[cnt] = [i, j, k]
                         cnt += 1
         return
 
 
-    def fillgroup(self):
+    def _fillgroup(self):
         """
         Search for non-incrementing topology numbers by breadth-first search.
         """
@@ -89,13 +97,13 @@ class Enumerater:
         while not q.empty():
             t = q.get()
             #   print(t[0])
-            self.info_group.append(t[0])
+            self._info_group.append(t[0])
             if t[1] == self.width:
                 continue
             m = -1
             for i in t[0]:
                 m = max(m, i)
-            for i in range(len(self.info_dict)):
+            for i in range(len(self._info_dict)):
                 if i >= m:
                     tmp = copy.deepcopy(t)
                     tmp[0].append(i)
@@ -103,7 +111,7 @@ class Enumerater:
                     q.put(tmp)
         return
 
-    def encode2adjaceny(self):
+    def _encode2adjaceny(self):
         """
         Use the dictionary of the chain, the topology number
         to restore the network topology adjacency list.
@@ -117,10 +125,10 @@ class Enumerater:
             else:
                 tmp_init.append([])
 
-        for g in self.info_group:
+        for g in self._info_group:
             tmp = copy.deepcopy(tmp_init)
             for i in g:
-                info = self.info_dict[i]
+                info = self._info_dict[i]
                 s = info[0]
                 e = info[1]
                 l = info[2]
@@ -130,17 +138,14 @@ class Enumerater:
                     tmp[s].append(p)
                     s = p
                 tmp[s].append(e)
-            if self.judgemultiple(tmp) == 1:
-                # TODO(pjs) del
-                # tmp_net = NetworkUnit(tmp, [])
+            if self._judgemultiple(tmp) == 1:
                 tmp_net = Network(id_tmp, tmp)
                 id_tmp += 1
 
-                # print(tmp)
                 pool.append(tmp_net)
         return pool
 
-    def judgemultiple(self, adja):
+    def _judgemultiple(self, adja):
         """
         Judging the repetition when restore the network topology adjacency list.
         """
@@ -183,10 +188,7 @@ class Enumerater:
 if __name__ == '__main__':
     time1 = time.time()
 
-    D = 10
-    W = 2
-    W_number = 30
-    obj = Enumerater(D, W, W_number)
+    obj = Enumerater()
 
     res = obj.enumerate()
 
