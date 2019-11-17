@@ -9,6 +9,10 @@ from info_str import NAS_CONFIG
 # TODO different dataset
 
 
+# TODO PLEASE REDUCE THE NUMBER OF WORDS PER LINE UNDER 80 CHARACTERS !!!
+
+# TODO Please let each functions be less than 30 lines 
+# Evaluator._inference, evaluate
 
 class DataSet:
 

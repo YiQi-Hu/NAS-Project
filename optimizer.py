@@ -1113,8 +1113,8 @@ class Optimizer:
                 if (self.instance_in_list(ins, self.__pos_pop, self.__positive_num) is False) and (
                     self.instance_in_list(ins, self.__pop, self.__sample_size) is False):
                     break
-                if self.follow_constraint(ins.get_features()):
-                    break
+                # if self.follow_constraint(ins.get_features()):
+                #     break
         return ins.get_features()
 
     # x is a list, f_x is the evaluation value of x
