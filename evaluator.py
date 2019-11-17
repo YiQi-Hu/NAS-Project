@@ -7,11 +7,6 @@ import random
 from info_str import NAS_CONFIG
 from base import Cell
 
-
-# TODO new structure
-# TODO different dataset
-
-
 # TODO PLEASE REDUCE THE NUMBER OF WORDS PER LINE UNDER 80 CHARACTERS !!!
 
 # TODO Please let each functions be less than 30 lines
@@ -22,7 +17,7 @@ class DataSet:
         self.IMAGE_SIZE = 32
         self.NUM_CLASSES = NAS_CONFIG['eva']['num_classes']
         self.NUM_EXAMPLES_FOR_TRAIN = NAS_CONFIG['eva']['num_examples_for_train']
-        self.NUM_EXAMPLES_PER_EVAL = NAS_CONFIG['eva']['num_examples_per_epoch_for_eval']
+        self.NUM_EXAMPLES_FOR_EVAL = NAS_CONFIG['eva']['num_examples_per_epoch_for_eval']
         self.task = NAS_CONFIG['eva']['task_name']
         self.data_path = NAS_CONFIG['eva']['dataset_path']
         return
@@ -124,6 +119,7 @@ class Evaluator:
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
         # Global constants describing the CIFAR-10 data set.
         self.IMAGE_SIZE = 32
+        self.NUM_CLASSES = NAS_CONFIG['eva']['num_classes']
         self.NUM_EXAMPLES_FOR_TRAIN = NAS_CONFIG['eva']['num_examples_for_train']
         self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = NAS_CONFIG['eva']['num_examples_per_epoch_for_eval']
         # Constants describing the training process.
@@ -260,7 +256,7 @@ class Evaluator:
           Logits.'''
         # print('Evaluater:starting to reconstruct the network')
         # a pooling later for every block
-        if self.block_num == NAS_CONFIG['block_num']:
+        if self.block_num == NAS_CONFIG['nas_main']['block_num']:
             cell_list.append(Cell('pooling', 'global'))
         else:
             cell_list.append(Cell('pooling', 'max', 2))
@@ -461,24 +457,24 @@ if __name__ == '__main__':
     eval = Evaluator()
     eval.add_data(50000)
     # print(eval._toposort([[1, 4, 3], [2], [3], [], [3]]))
-    # graph_full = [[1], [2], [3], []]
-    # cell_list = [('conv', 64, 5, 'relu'), ('pooling', 'max', 3), ('conv', 64, 5, 'relu'), ('pooling', 'max', 3)]
+    graph_full = [[1], [2], [3], []]
+    cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3)]
     # cell_list = [cell_list]
     # e=eval.evaluate(graph_full,cell_list[-1])#,is_bestNN=True)
     # print(e)
     # cellist=[('conv', 128, 1, 'relu'), ('conv', 32, 1, 'relu'), ('conv', 256, 1, 'relu'), ('pooling', 'max', 2), ('pooling', 'global', 3), ('conv', 32, 1, 'relu')]
     # cellist=[('pooling', 'global', 2), ('pooling', 'max', 3), ('conv', 21, 32, 'leakyrelu'), ('conv', 16, 32, 'leakyrelu'), ('pooling', 'max', 3), ('conv', 16, 32, 'leakyrelu')]
 
-    graph_part = [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17], []]
-    cell_list = [('conv', 64, 3, 'relu'), ('conv', 64, 3, 'relu'), ('pooling', 'max', 2), ('conv', 128, 3, 'relu'),
-                 ('conv', 128, 3, 'relu'), ('pooling', 'max', 2), ('conv', 256, 3, 'relu'),
-                 ('conv', 256, 3, 'relu'), ('conv', 256, 3, 'relu'), ('pooling', 'max', 2),
-                 ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
-                 ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
-                 ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
+    # graph_part = [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17], []]
+    # cell_list = [('conv', 64, 3, 'relu'), ('conv', 64, 3, 'relu'), ('pooling', 'max', 2), ('conv', 128, 3, 'relu'),
+    #              ('conv', 128, 3, 'relu'), ('pooling', 'max', 2), ('conv', 256, 3, 'relu'),
+    #              ('conv', 256, 3, 'relu'), ('conv', 256, 3, 'relu'), ('pooling', 'max', 2),
+    #              ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
+    #              ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
+    #              ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
 
     cell_list = [cell_list]
     # pre_block=[graph_full, cell_list[-1]]
-    e = eval.evaluate(graph_part, cell_list[-1])  # , update_pre_weight=True)
+    e = eval.evaluate(graph_full, cell_list[-1])  # , update_pre_weight=True)
     # e=eval.train(network.graph_full,cellist)
     print(e)
