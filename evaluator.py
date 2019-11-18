@@ -5,29 +5,27 @@ import tensorflow as tf
 import pickle
 import random
 from info_str import NAS_CONFIG
-# TODO new structure
-# TODO different dataset
-
+from base import Cell
 
 # TODO PLEASE REDUCE THE NUMBER OF WORDS PER LINE UNDER 80 CHARACTERS !!!
 
-# TODO Please let each functions be less than 30 lines 
-# Evaluator._inference, evaluate
+# TODO Please let each functions be less than 30 lines
 
 class DataSet:
 
     def __init__(self):
         self.IMAGE_SIZE = 32
-        self.NUM_CLASSES = NAS_CONFIG['eva']['NUM_CLASSES']
-        self.NUM_EXAMPLES_FOR_TRAIN = NAS_CONFIG['eva']['NUM_EXAMPLES_FOR_TRAIN']
-        self.task=NAS_CONFIG['eva']['task']
-        self.data_path=NAS_CONFIG['eva']['data_path']
+        self.NUM_CLASSES = NAS_CONFIG['eva']['num_classes']
+        self.NUM_EXAMPLES_FOR_TRAIN = NAS_CONFIG['eva']['num_examples_for_train']
+        self.NUM_EXAMPLES_FOR_EVAL = NAS_CONFIG['eva']['num_examples_per_epoch_for_eval']
+        self.task = NAS_CONFIG['eva']['task_name']
+        self.data_path = NAS_CONFIG['eva']['dataset_path']
         return
 
     def inputs(self):
         print("======Loading data======")
-        if self.task=='cifar10':
-            test_files=['test_batch']
+        if self.task == 'cifar-10':
+            test_files = ['test_batch']
             train_files = ['data_batch_%d' % d for d in range(1, 6)]
         else:
             train_files = ['train']
@@ -38,20 +36,19 @@ class DataSet:
         print("======Data Process Done======")
         return train_data, train_label, valid_data, valid_label, test_data, test_label
 
-    def _load_one(self,file):
+    def _load_one(self, file):
         with open(file, 'rb') as fo:
             batch = pickle.load(fo, encoding='bytes')
         data = batch[b'data']
-        label = batch[b'labels'] if self.task=='cifar10' else batch[b'fine_labels']
-        return data,label
-
+        label = batch[b'labels'] if self.task == 'cifar-10' else batch[b'fine_labels']
+        return data, label
 
     def _load(self, files):
-        file_name='cifar-10-batches-py'if self.task=='cifar10' else 'cifar-100-python'
+        file_name = 'cifar-10-batches-py' if self.task == 'cifar-10' else 'cifar-100-python'
         data_dir = os.path.join(self.data_path, file_name)
-        data,label=self._load_one(os.path.join(data_dir, files[0]))
+        data, label = self._load_one(os.path.join(data_dir, files[0]))
         for f in files[1:]:
-            batch_data,batch_label=self._load_one(os.path.join(data_dir, f))
+            batch_data, batch_label = self._load_one(os.path.join(data_dir, f))
             data = np.append(data, batch_data, axis=0)
             label = np.append(label, batch_label, axis=0)
         label = np.array([[float(i == label) for i in range(self.NUM_CLASSES)] for label in label])
@@ -69,7 +66,7 @@ class DataSet:
         data = data[index]
         label = label[index]
         return data[:self.NUM_EXAMPLES_FOR_TRAIN], label[:self.NUM_EXAMPLES_FOR_TRAIN], \
-               data[self.NUM_EXAMPLES_FOR_TRAIN:], label[self.NUM_EXAMPLES_FOR_TRAIN:]
+               data[self.NUM_EXAMPLES_FOR_EVAL:], label[self.NUM_EXAMPLES_FOR_EVAL:]
 
     def _normalize(self, x_train):
         x_train = x_train.astype('float32')
@@ -122,14 +119,14 @@ class Evaluator:
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
         # Global constants describing the CIFAR-10 data set.
         self.IMAGE_SIZE = 32
-        self.NUM_CLASSES = NAS_CONFIG['eva']['NUM_CLASSES']
-        self.NUM_EXAMPLES_FOR_TRAIN = NAS_CONFIG['eva']['NUM_EXAMPLES_FOR_TRAIN']
-        self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 10000
+        self.NUM_CLASSES = NAS_CONFIG['eva']['num_classes']
+        self.NUM_EXAMPLES_FOR_TRAIN = NAS_CONFIG['eva']['num_examples_for_train']
+        self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = NAS_CONFIG['eva']['num_examples_per_epoch_for_eval']
         # Constants describing the training process.
-        self.INITIAL_LEARNING_RATE = NAS_CONFIG['eva']['INITIAL_LEARNING_RATE']  # Initial learning rate.
-        self.NUM_EPOCHS_PER_DECAY = NAS_CONFIG['eva']['NUM_EPOCHS_PER_DECAY']  # Epochs after which learning rate decays
-        self.LEARNING_RATE_DECAY_FACTOR = NAS_CONFIG['eva']['LEARNING_RATE_DECAY_FACTOR']  # Learning rate decay factor.
-        self.MOVING_AVERAGE_DECAY = NAS_CONFIG['eva']['MOVING_AVERAGE_DECAY']
+        self.INITIAL_LEARNING_RATE = NAS_CONFIG['eva']['initial_learning_rate']  # Initial learning rate.
+        self.NUM_EPOCHS_PER_DECAY = NAS_CONFIG['eva']['num_epochs_per_decay']  # Epochs after which learning rate decays
+        self.LEARNING_RATE_DECAY_FACTOR = NAS_CONFIG['eva']['learning_rate_decay_factor']  # Learning rate decay factor.
+        self.MOVING_AVERAGE_DECAY = NAS_CONFIG['eva']['moving_average_decay']
         self.batch_size = NAS_CONFIG['eva']['batch_size']
         self.epoch = NAS_CONFIG['eva']['epoch']
         self.weight_decay = NAS_CONFIG['eva']['weight_decay']
@@ -161,7 +158,7 @@ class Evaluator:
         return tf.contrib.layers.batch_norm(input, decay=0.9, center=True, scale=True, epsilon=1e-3,
                                             updates_collections=None, is_training=train_flag)
 
-    def _makeconv(self, inputs, hplist, node, train_flag,sep=False):
+    def _makeconv(self, inputs, hplist, node, train_flag, sep=False):
         """Generates a convolutional layer according to information in hplist
         Args:
         inputs: inputing data.
@@ -173,32 +170,33 @@ class Evaluator:
         # print('Evaluater:right now we are making conv layer, its node is %d, and the inputs is'%node,inputs,'and the node before it is ',cellist[node-1])
         with tf.variable_scope('conv' + str(node) + 'block' + str(self.block_num)) as scope:
             inputdim = inputs.shape[3]
-            assert type(hplist[2]) == type(1), 'Wrong type of filter size: %s.' % str(type(hplist[2]))
-            kernel = tf.get_variable('weights', shape=[hplist[2], hplist[2], inputdim, hplist[1]],
+            assert type(hplist.filter_size) == type(1), 'Wrong type of filter size: %s.' % str(type(hplist[2]))
+            kernel = tf.get_variable('weights',
+                                     shape=[hplist.kernel_size, hplist.kernel_size, inputdim, hplist.filter_size],
                                      initializer=tf.contrib.keras.initializers.he_normal())
             if sep:
-                kernel = tf.get_variable('weights', shape=[hplist[2], hplist[2], inputdim, 1],
+                kernel = tf.get_variable('weights', shape=[hplist.kernel_size, hplist.kernel_size, inputdim, 1],
                                          initializer=tf.contrib.keras.initializers.he_normal())
-                pfilter=tf.get_variable('pointwise_filter',[1,1,inputdim,hplist[1]])
-                conv=tf.nn.separable_conv2d(inputs,kernel,pfilter)
+                pfilter = tf.get_variable('pointwise_filter', [1, 1, inputdim, hplist.filter_size])
+                conv = tf.nn.separable_conv2d(inputs, kernel, pfilter)
             else:
                 conv = tf.nn.conv2d(inputs, kernel, [1, 1, 1, 1], padding='SAME')
-            biases = tf.get_variable('biases', hplist[1], initializer=tf.constant_initializer(0.0))
+            biases = tf.get_variable('biases', hplist.filter_size, initializer=tf.constant_initializer(0.0))
             bias = self._batch_norm(tf.nn.bias_add(conv, biases), train_flag)
-            if hplist[3] == 'relu':
+            if hplist.activation == 'relu':
                 conv1 = tf.nn.relu(bias, name=scope.name)
-            elif hplist[3] == 'relu6':
+            elif hplist.activation == 'relu6':
                 conv1 = tf.nn.relu6(bias, name=scope.name)
-            elif hplist[3] == 'tanh':
+            elif hplist.activation == 'tanh':
                 conv1 = tf.tanh(bias, name=scope.name)
-            elif hplist[3] == 'sigmoid':
+            elif hplist.activation == 'sigmoid':
                 conv1 = tf.sigmoid(bias, name=scope.name)
-            elif hplist[3] == 'identity':
+            elif hplist.activation == 'identity':
                 conv1 = tf.identity(bias, name=scope.name)
-            elif hplist[3] == 'leakyrelu':
+            elif hplist.activation == 'leakyrelu':
                 conv1 = tf.nn.leaky_relu(bias, name=scope.name)
             else:
-                print('Wrong! %s is not a legal activation function!' % hplist[3])
+                print('Wrong! %s is not a legal activation function!' % hplist.activation)
         return conv1
 
     def _makepool(self, inputs, hplist):
@@ -209,13 +207,13 @@ class Evaluator:
         Returns:
             tensor.
         """
-        if hplist[1] == 'avg':
-            return tf.nn.avg_pool(inputs, ksize=[1, hplist[2], hplist[2], 1],
-                                  strides=[1, hplist[2], hplist[2], 1], padding='SAME')
-        elif hplist[1] == 'max':
-            return tf.nn.max_pool(inputs, ksize=[1, hplist[2], hplist[2], 1],
-                                  strides=[1, hplist[2], hplist[2], 1], padding='SAME')
-        elif hplist[1] == 'global':
+        if hplist.ptype == 'avg':
+            return tf.nn.avg_pool(inputs, ksize=[1, hplist.kernel_size, hplist.kernel_size, 1],
+                                  strides=[1, hplist.kernel_size, hplist.kernel_size, 1], padding='SAME')
+        elif hplist.ptype == 'max':
+            return tf.nn.max_pool(inputs, ksize=[1, hplist.kernel_size, hplist.kernel_size, 1],
+                                  strides=[1, hplist.kernel_size, hplist.kernel_size, 1], padding='SAME')
+        elif hplist.ptype == 'global':
             return tf.reduce_mean(inputs, [1, 2], keep_dims=True)
 
     def _makedense(self, inputs, hplist, train_flag):
@@ -258,10 +256,10 @@ class Evaluator:
           Logits.'''
         # print('Evaluater:starting to reconstruct the network')
         # a pooling later for every block
-        if self.block_num==NAS_CONFIG['block_num']:
-            cell_list.append(('pooling','global'))
+        if self.block_num == NAS_CONFIG['nas_main']['block_num']:
+            cell_list.append(Cell('pooling', 'global'))
         else:
-            cell_list.append(('pooling','max',2))
+            cell_list.append(Cell('pooling', 'max', 2))
 
         nodelen = len(graph_part)
         inputs = [images for _ in range(nodelen)]  # input list for every cell in network
@@ -271,20 +269,17 @@ class Evaluator:
 
         for node in topo_order:
             # print('Evaluater:right now we are processing node %d'%node,', ',cellist[node])
-            if cellist[node][0] == 'conv':
+            if cellist[node].type == 'conv':
                 layer = self._makeconv(inputs[node], cellist[node], node, train_flag)
-            elif cellist[node][0] == 'pooling':
+            elif cellist[node].type == 'pooling':
                 layer = self._makepool(inputs[node], cellist[node])
-            elif cellist[node][0] == 'sep_conv':
-                layer = self._makeconv(inputs[node], cellist[node],node, train_flag,sep=True)
-            else:
-                print('WRONG!!!!! Notice that you got a layer type we cant process!', cellist[node][0])
-                layer = []
+            elif cellist[node].type == 'sep_conv':
+                layer = self._makeconv(inputs[node], cellist[node], node, train_flag, sep=True)
 
             # update inputs information of the cells below this cell
             for j in graph_part[node]:
                 if getinput[j]:  # if this cell already got inputs from other cells precedes it
-                    inputs[j]=self._pad(inputs[j],layer)
+                    inputs[j] = self._pad(inputs[j], layer)
                 else:
                     inputs[j] = layer
                     getinput[j] = True
@@ -293,7 +288,7 @@ class Evaluator:
         last_layer = tf.identity(layer, name="last_layer" + str(self.block_num))
         return last_layer
 
-    def _pad(self,inputs,layer):
+    def _pad(self, inputs, layer):
         # padding
         a = int(layer.shape[1])
         b = int(inputs.shape[1])
@@ -359,7 +354,7 @@ class Evaluator:
             Accuracy'''
         # TODO function is still too long, need to be splited
         assert self.train_num >= self.batch_size, "Wrong! The data added in train dataset is smaller than batch size!"
-        self.block_num = len(pre_block)
+        self.block_num = len(pre_block) * NAS_CONFIG['eva']['repeat_search']
 
         with tf.Session() as sess:
             global_step = tf.Variable(0, trainable=False)
@@ -385,6 +380,9 @@ class Evaluator:
                 input = x
 
             logits = self._inference(input, graph_full, cell_list, train_flag)
+            for i in range(NAS_CONFIG['eva']['repeat_search'] - 1):
+                self.block_num += 1
+                logits = self._inference(logits, graph_full, cell_list, train_flag)
             logits = tf.nn.dropout(logits, keep_prob=1.0)
             # softmax
             logits = self._makedense(logits, ('', [self.NUM_CLASSES], 'identity'), train_flag)
@@ -434,7 +432,8 @@ class Evaluator:
                         print('early stop at %d epoch' % ep)
                         break
 
-                print('%d epoch: precision = %.3f, cost time %.3f' % (ep, precision[ep], float(time.time() - start_time)))
+                print(
+                    '%d epoch: precision = %.3f, cost time %.3f' % (ep, precision[ep], float(time.time() - start_time)))
 
             if is_bestNN:  # save model
                 saver.save(sess, os.path.join(self.model_path, 'model'))
@@ -458,24 +457,24 @@ if __name__ == '__main__':
     eval = Evaluator()
     eval.add_data(50000)
     # print(eval._toposort([[1, 4, 3], [2], [3], [], [3]]))
-    # graph_full = [[1], [2], [3], []]
-    # cell_list = [('conv', 64, 5, 'relu'), ('pooling', 'max', 3), ('conv', 64, 5, 'relu'), ('pooling', 'max', 3)]
+    graph_full = [[1], [2], [3], []]
+    cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3)]
     # cell_list = [cell_list]
     # e=eval.evaluate(graph_full,cell_list[-1])#,is_bestNN=True)
     # print(e)
     # cellist=[('conv', 128, 1, 'relu'), ('conv', 32, 1, 'relu'), ('conv', 256, 1, 'relu'), ('pooling', 'max', 2), ('pooling', 'global', 3), ('conv', 32, 1, 'relu')]
     # cellist=[('pooling', 'global', 2), ('pooling', 'max', 3), ('conv', 21, 32, 'leakyrelu'), ('conv', 16, 32, 'leakyrelu'), ('pooling', 'max', 3), ('conv', 16, 32, 'leakyrelu')]
 
-    graph_part = [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17], []]
-    cell_list = [('conv', 64, 3, 'relu'), ('conv', 64, 3, 'relu'), ('pooling', 'max', 2), ('conv', 128, 3, 'relu'),
-                 ('conv', 128, 3, 'relu'), ('pooling', 'max', 2), ('conv', 256, 3, 'relu'),
-                 ('conv', 256, 3, 'relu'), ('conv', 256, 3, 'relu'), ('pooling', 'max', 2),
-                 ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
-                 ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
-                 ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
+    # graph_part = [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17], []]
+    # cell_list = [('conv', 64, 3, 'relu'), ('conv', 64, 3, 'relu'), ('pooling', 'max', 2), ('conv', 128, 3, 'relu'),
+    #              ('conv', 128, 3, 'relu'), ('pooling', 'max', 2), ('conv', 256, 3, 'relu'),
+    #              ('conv', 256, 3, 'relu'), ('conv', 256, 3, 'relu'), ('pooling', 'max', 2),
+    #              ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
+    #              ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
+    #              ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
 
     cell_list = [cell_list]
     # pre_block=[graph_full, cell_list[-1]]
-    e = eval.evaluate(graph_part, cell_list[-1])  # , update_pre_weight=True)
+    e = eval.evaluate(graph_full, cell_list[-1])  # , update_pre_weight=True)
     # e=eval.train(network.graph_full,cellist)
     print(e)
