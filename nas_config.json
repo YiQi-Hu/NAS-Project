@@ -40,7 +40,10 @@
       0.1,
       0.01,
       0.001
-    ]
+    ],
+    "task_name": "cifar-10",
+    "repeat_search": 1,
+    "dataset_path": "C:\\Users\\Jalynn\\PycharmProjects"
   },
   "spl":{
     "skip_max_dist":2,

@@ -88,6 +88,8 @@
 + num_gpu (int, >= 1)
 + finetune_threshold (int, ?) <!--TODO-->
 + spl_network_round (int, >= 1)
++ eliminate_policy (str, )
++ pattern (string, "Global" or "Block")
 
 ### Method
 
@@ -144,7 +146,10 @@
 + moving_average_decay (float, 1.0 ~ 1e-5)
 + regularaztion_rate (float, 1.0 ~ 1e-5)
 + batch_size (int, <= 200)
-+ epoch (int, any)
++ epoch (int, any) \[*deprecated*\]
++ retrain_epoch (int, any)
++ search_epoch (int, any)
++ retrain_switch (bool)
 + weight_decay (float, 0 ~ 1.0)
 + momentum_rate (float, 0 ~ 1.0)
 + boundaries (1d int list, values > 0)
@@ -250,3 +255,13 @@
     > 2. *cell_list*: (1d Cell list)
     > **Returns**: None
     >
+
+## Optimizer
+
+### Config
+
++ sample_size (int, )
++ budget (int, )
++ positive_num (int, )
++ rand_probability (float, )
++ uncertain_bit (int, )
