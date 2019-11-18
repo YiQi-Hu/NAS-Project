@@ -4,12 +4,10 @@ import numpy as np
 import tensorflow as tf
 import pickle
 import random
+import sys
 from info_str import NAS_CONFIG
-from base import Cell
-
-# TODO PLEASE REDUCE THE NUMBER OF WORDS PER LINE UNDER 80 CHARACTERS !!!
-
-# TODO Please let each functions be less than 30 lines
+from base import Cell, NetworkItem
+from utils import Logger as log
 
 class DataSet:
 
@@ -317,7 +315,7 @@ class Evaluator:
         loss = cross_entropy + l2 * self.weight_decay
         return loss, cross_entropy
 
-    def _train(self, global_step, loss):
+    def _train_op(self, global_step, loss):
         # Variables that affect learning rate.
         lr_type = NAS_CONFIG['eva']['learning_rate_type']
         num_batches_per_epoch = self.train_num / self.batch_size
@@ -334,15 +332,15 @@ class Evaluator:
                                             global_step,
                                             decay_steps,
                                             self.LEARNING_RATE_DECAY_FACTOR,
-                                            staircase=True)
+                                            staircase=True, )
 
         # Build a Graph that trains the model with one batch of examples and
         # updates the model parameters.
-        train_op = tf.train.MomentumOptimizer(lr, self.momentum_rate, use_nesterov=True). \
-            minimize(loss, global_step=global_step)
+        train_op = tf.train.MomentumOptimizer(lr, self.momentum_rate, name='Momentum' + str(self.block_num),
+                                              use_nesterov=True).minimize(loss, global_step=global_step)
         return train_op, lr
 
-    def evaluate(self, graph_full, cell_list, pre_block=[], is_bestNN=False, update_pre_weight=False):
+    def evaluate(self, network, pre_block=[], is_bestNN=False, update_pre_weight=False):
         '''Method for evaluate the given network.
         Args:
             graph_part: The topology structure of the network given by adjacency table
@@ -352,99 +350,103 @@ class Evaluator:
             update_pre_weight: Symbol for indicating whether to update previous blocks' weight, default by False.
         Returns:
             Accuracy'''
-        # TODO function is still too long, need to be splited
         assert self.train_num >= self.batch_size, "Wrong! The data added in train dataset is smaller than batch size!"
         self.block_num = len(pre_block) * NAS_CONFIG['eva']['repeat_search']
 
         with tf.Session() as sess:
-            global_step = tf.Variable(0, trainable=False)
-            train_flag = tf.placeholder(tf.bool)
+            global_step = tf.Variable(0, trainable=False, name='global_step' + str(self.block_num))
+            x, labels, input, train_flag = self._get_input(sess, update_pre_weight)
 
-            # if it got previous blocks
-            if self.block_num > 0:
-                # TODO check whether there is a model file exit
-                new_saver = tf.train.import_meta_graph(
-                    os.path.join(self.model_path, 'model_block' + str(self.block_num - 1) + '.meta'))
-                new_saver.restore(sess, tf.train.latest_checkpoint(self.model_path))
-                graph = tf.get_default_graph()
-                x = graph.get_tensor_by_name("input:0")
-                labels = graph.get_tensor_by_name("label:0")
-                input = graph.get_tensor_by_name("last_layer" + str(self.block_num - 1) + ":0")
-                # only when there's not so many network in the pool will we update the previous blocks' weight
-                if not update_pre_weight:
-                    input = tf.stop_gradient(input, name="stop_gradient")
-            # if it's the first block
-            else:
-                x = tf.placeholder(tf.float32, [self.batch_size, self.IMAGE_SIZE, self.IMAGE_SIZE, 3], name='input')
-                labels = tf.placeholder(tf.int32, [self.batch_size, self.NUM_CLASSES], name="label")
-                input = x
-
-            logits = self._inference(input, graph_full, cell_list, train_flag)
+            logits = self._inference(input, network.graph, network.cell_list, train_flag)
             for i in range(NAS_CONFIG['eva']['repeat_search'] - 1):
                 self.block_num += 1
-                logits = self._inference(logits, graph_full, cell_list, train_flag)
+                logits = self._inference(logits, network.graph, network.cell_list, train_flag)
+
             logits = tf.nn.dropout(logits, keep_prob=1.0)
             # softmax
             logits = self._makedense(logits, ('', [self.NUM_CLASSES], 'identity'), train_flag)
 
             correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(labels, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
             loss, cross_entropy = self._loss(labels, logits)
-            train_op, lr = self._train(global_step, loss)
+            train_op, lr = self._train_op(global_step, loss)
 
             # Create a saver.
             saver = tf.train.Saver(tf.global_variables())
             # Start running operations on the Graph.
             sess.run(tf.global_variables_initializer())
 
-            precision = np.zeros([self.epoch])
-            for ep in range(self.epoch):
-                # train step
-                for step in range(self.max_steps):
-                    start_time = time.time()
-                    batch_x = self.train_data[step * self.batch_size:(step + 1) * self.batch_size]
-                    batch_y = self.train_label[step * self.batch_size:(step + 1) * self.batch_size]
-                    batch_x = DataSet().process(batch_x)
-                    _, loss_value = sess.run([train_op, cross_entropy],
-                                             feed_dict={x: batch_x, labels: batch_y, train_flag: True})
-
-                    if np.isnan(loss_value): return -1
-                    if step % 100 == 0:
-                        format_str = ('step %d, loss = %.2f (%.3f sec)')
-                        print(format_str % (step, loss_value, float(time.time() - start_time) * 100))
-
-                # evaluation step
-                num_iter = self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL // self.batch_size
-                start_time = time.time()
-                for step in range(num_iter):
-                    batch_x = self.valid_data[step * self.batch_size:(step + 1) * self.batch_size]
-                    batch_y = self.valid_label[step * self.batch_size:(step + 1) * self.batch_size]
-                    l, acc_ = sess.run([cross_entropy, accuracy],
-                                       feed_dict={x: batch_x, labels: batch_y, train_flag: False})
-                    precision[ep] += acc_ / num_iter
-
-                if ep > 10:
-                    if precision[ep] < 0.15:
-                        return -1
-                    if 2 * precision[ep] - precision[ep - 10] - precision[ep - 1] < 0.001:
-                        precision = precision[:ep]
-                        print('early stop at %d epoch' % ep)
-                        break
-
-                print(
-                    '%d epoch: precision = %.3f, cost time %.3f' % (ep, precision[ep], float(time.time() - start_time)))
+            precision = self._eval(sess, train_op, cross_entropy, accuracy, x, labels, train_flag)
 
             if is_bestNN:  # save model
-                saver.save(sess, os.path.join(self.model_path, 'model'))
+                saver.save(sess, os.path.join(self.model_path, 'model' + str(network.id)))
 
         return precision[-1]
+
+    def _get_input(self, sess, update_pre_weight):
+        '''Get input for _inference'''
+        # if it got previous blocks
+        if self.block_num > 0:
+            # TODO check whether there is a model file exit
+            new_saver = tf.train.import_meta_graph(
+                os.path.join(self.model_path, 'model' + str(network.id) + '.meta'))
+            new_saver.restore(sess, os.path.join(self.model_path, 'model' + str(network.id)))
+            graph = tf.get_default_graph()
+            x = graph.get_tensor_by_name("input:0")
+            labels = graph.get_tensor_by_name("label:0")
+            train_flag = graph.get_tensor_by_name("train_flag:0")
+            input = graph.get_tensor_by_name("last_layer" + str(self.block_num - 1) + ":0")
+            # only when there's not so many network in the pool will we update the previous blocks' weight
+            if not update_pre_weight:
+                input = tf.stop_gradient(input, name="stop_gradient")
+        # if it's the first block
+        else:
+            x = tf.placeholder(tf.float32, [self.batch_size, self.IMAGE_SIZE, self.IMAGE_SIZE, 3], name='input')
+            labels = tf.placeholder(tf.int32, [self.batch_size, self.NUM_CLASSES], name="label")
+            train_flag = tf.placeholder(tf.bool, name='train_flag')
+            input = x
+        return x, labels, input, train_flag
+
+    def _eval(self, sess, train_op, cross_entropy, accuracy, x, labels, train_flag):
+        precision = np.zeros([self.epoch])
+        for ep in range(self.epoch):
+            # train step
+            for step in range(self.max_steps):
+                batch_x = self.train_data[step * self.batch_size:(step + 1) * self.batch_size]
+                batch_y = self.train_label[step * self.batch_size:(step + 1) * self.batch_size]
+                batch_x = DataSet().process(batch_x)
+                _, loss_value, acc = sess.run([train_op, cross_entropy, accuracy],
+                                              feed_dict={x: batch_x, labels: batch_y, train_flag: True})
+                if np.isnan(loss_value): return -1
+                sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" % (step, self.max_steps, loss_value, acc))
+
+            # evaluation step
+            num_iter = self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL // self.batch_size
+            start_time = time.time()
+            for step in range(num_iter):
+                batch_x = self.valid_data[step * self.batch_size:(step + 1) * self.batch_size]
+                batch_y = self.valid_label[step * self.batch_size:(step + 1) * self.batch_size]
+                l, acc_ = sess.run([cross_entropy, accuracy],
+                                   feed_dict={x: batch_x, labels: batch_y, train_flag: False})
+                precision[ep] += acc_ / num_iter
+                sys.stdout.write("\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
+
+            if ep > 10:
+                if precision[ep] < 0.15:
+                    return -1
+                if 2 * precision[ep] - precision[ep - 10] - precision[ep - 1] < 0.001:
+                    precision = precision[:ep]
+                    print('early stop at %d epoch' % ep)
+                    break
+            log() << ('precision = %.3f, cost time %.3f' % (precision[ep], float(time.time() - start_time)))
+
+        return precision
 
     def add_data(self, add_num=0):
         if self.train_num + add_num > self.NUM_EXAMPLES_FOR_TRAIN or add_num < 0:
             add_num = self.NUM_EXAMPLES_FOR_TRAIN - self.train_num
             self.train_num = self.NUM_EXAMPLES_FOR_TRAIN
-            print('Warning! Add number has been changed to ', add_num, ', all data is loaded.')
+            print('Warning! Add number has been changed to', add_num, ', all data is loaded.')
         else:
             self.train_num += add_num
         # print('************A NEW ROUND************')
@@ -458,7 +460,9 @@ if __name__ == '__main__':
     eval.add_data(50000)
     # print(eval._toposort([[1, 4, 3], [2], [3], [], [3]]))
     graph_full = [[1], [2], [3], []]
-    cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3)]
+    cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
+                 Cell('pooling', 'max', 3)]
+    network = NetworkItem(0, graph_full, cell_list, "")
     # cell_list = [cell_list]
     # e=eval.evaluate(graph_full,cell_list[-1])#,is_bestNN=True)
     # print(e)
@@ -472,9 +476,8 @@ if __name__ == '__main__':
     #              ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
     #              ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
     #              ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
-
-    cell_list = [cell_list]
-    # pre_block=[graph_full, cell_list[-1]]
-    e = eval.evaluate(graph_full, cell_list[-1])  # , update_pre_weight=True)
+    pre_block = [network]
+    # e = eval.evaluate(network,is_bestNN=True)
+    e = eval.evaluate(network, is_bestNN=True)
     # e=eval.train(network.graph_full,cellist)
     print(e)
