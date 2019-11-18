@@ -9,6 +9,7 @@ from info_str import NAS_CONFIG
 from base import Cell, NetworkItem
 from utils import Logger as log
 
+
 class DataSet:
 
     def __init__(self):
@@ -168,16 +169,15 @@ class Evaluator:
         # print('Evaluater:right now we are making conv layer, its node is %d, and the inputs is'%node,inputs,'and the node before it is ',cellist[node-1])
         with tf.variable_scope('conv' + str(node) + 'block' + str(self.block_num)) as scope:
             inputdim = inputs.shape[3]
-            assert type(hplist.filter_size) == type(1), 'Wrong type of filter size: %s.' % str(type(hplist[2]))
-            kernel = tf.get_variable('weights',
-                                     shape=[hplist.kernel_size, hplist.kernel_size, inputdim, hplist.filter_size],
-                                     initializer=tf.contrib.keras.initializers.he_normal())
             if sep:
                 kernel = tf.get_variable('weights', shape=[hplist.kernel_size, hplist.kernel_size, inputdim, 1],
                                          initializer=tf.contrib.keras.initializers.he_normal())
                 pfilter = tf.get_variable('pointwise_filter', [1, 1, inputdim, hplist.filter_size])
                 conv = tf.nn.separable_conv2d(inputs, kernel, pfilter)
             else:
+                kernel = tf.get_variable('weights',
+                                         shape=[hplist.kernel_size, hplist.kernel_size, inputdim, hplist.filter_size],
+                                         initializer=tf.contrib.keras.initializers.he_normal())
                 conv = tf.nn.conv2d(inputs, kernel, [1, 1, 1, 1], padding='SAME')
             biases = tf.get_variable('biases', hplist.filter_size, initializer=tf.constant_initializer(0.0))
             bias = self._batch_norm(tf.nn.bias_add(conv, biases), train_flag)
@@ -189,12 +189,11 @@ class Evaluator:
                 conv1 = tf.tanh(bias, name=scope.name)
             elif hplist.activation == 'sigmoid':
                 conv1 = tf.sigmoid(bias, name=scope.name)
-            elif hplist.activation == 'identity':
-                conv1 = tf.identity(bias, name=scope.name)
             elif hplist.activation == 'leakyrelu':
                 conv1 = tf.nn.leaky_relu(bias, name=scope.name)
             else:
-                print('Wrong! %s is not a legal activation function!' % hplist.activation)
+                conv1 = tf.identity(bias, name=scope.name)
+
         return conv1
 
     def _makepool(self, inputs, hplist):
@@ -238,13 +237,13 @@ class Evaluator:
                     local3 = tf.tanh(tf.matmul(inputs, weights) + biases, name=scope.name)
                 elif hplist[2] == 'sigmoid':
                     local3 = tf.sigmoid(tf.matmul(inputs, weights) + biases, name=scope.name)
-                elif hplist[2] == 'identity':
+                else:
                     local3 = tf.identity(tf.matmul(inputs, weights) + biases, name=scope.name)
             inputs = local3
             i += 1
         return inputs
 
-    def _inference(self, images, graph_part, cellist, train_flag):  # ,regularizer):
+    def _inference(self, images, graph_part, cellist, train_flag):
         '''Method for recovering the network model provided by graph_part and cellist.
         Args:
           images: Images returned from Dataset() or inputs().
@@ -343,13 +342,14 @@ class Evaluator:
     def evaluate(self, network, pre_block=[], is_bestNN=False, update_pre_weight=False):
         '''Method for evaluate the given network.
         Args:
-            graph_part: The topology structure of the network given by adjacency table
-            cell_list: The configuration of this network for each node in graph_part.
+            network: NetworkItem()
             pre_block: The pre-block structure, every block has two parts: graph_part and cell_list of this block.
             is_bestNN: Symbol for indicating whether the evaluating network is the best network of this round, default False.
             update_pre_weight: Symbol for indicating whether to update previous blocks' weight, default by False.
         Returns:
             Accuracy'''
+        print("-" * 20, network.id, "-" * 20)
+        print(network.graph, network.cell_list, pre_block)
         assert self.train_num >= self.batch_size, "Wrong! The data added in train dataset is smaller than batch size!"
         self.block_num = len(pre_block) * NAS_CONFIG['eva']['repeat_search']
 
@@ -410,6 +410,7 @@ class Evaluator:
     def _eval(self, sess, train_op, cross_entropy, accuracy, x, labels, train_flag):
         precision = np.zeros([self.epoch])
         for ep in range(self.epoch):
+            print("epoch", ep, ":")
             # train step
             for step in range(self.max_steps):
                 batch_x = self.train_data[step * self.batch_size:(step + 1) * self.batch_size]
@@ -419,7 +420,7 @@ class Evaluator:
                                               feed_dict={x: batch_x, labels: batch_y, train_flag: True})
                 if np.isnan(loss_value): return -1
                 sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" % (step, self.max_steps, loss_value, acc))
-
+            sys.stdout.write("\n")
             # evaluation step
             num_iter = self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL // self.batch_size
             start_time = time.time()
@@ -430,7 +431,7 @@ class Evaluator:
                                    feed_dict={x: batch_x, labels: batch_y, train_flag: False})
                 precision[ep] += acc_ / num_iter
                 sys.stdout.write("\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
-
+            # early stop
             if ep > 10:
                 if precision[ep] < 0.15:
                     return -1
@@ -438,7 +439,8 @@ class Evaluator:
                     precision = precision[:ep]
                     print('early stop at %d epoch' % ep)
                     break
-            log() << ('precision = %.3f, cost time %.3f' % (precision[ep], float(time.time() - start_time)))
+            sys.stdout.write("\n")
+            print('precision = %.3f, cost time %.3f' % (precision[ep], float(time.time() - start_time)))
 
         return precision
 
@@ -451,7 +453,7 @@ class Evaluator:
             self.train_num += add_num
         # print('************A NEW ROUND************')
         self.max_steps = self.train_num // self.batch_size - 1
-        return 0
+        return
 
 
 if __name__ == '__main__':
