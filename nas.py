@@ -20,6 +20,7 @@ from utils import NAS_LOG
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
+
 def _subproc_eva(params, eva, gpuq):
     ngpu = gpuq.get()
     start_time = time.time()
@@ -232,7 +233,7 @@ def _eliminate(net_pool=None, round=0):
 
 def _rm_other_model(best_index):
     models = [os.listdir(NAS_CONFIG['eva']['model_path'])]
-    models = [model for model in models if not re.match(str(best_index), model)]
+    models = [model for model in models if not re.search(str(best_index), model)]
     for model in models:
         os.remove(os.path.join(NAS_CONFIG['eva']['model_path'], model))
 
