@@ -5,16 +5,18 @@ from enumerater import Enumerater
 from base import Cell
 from evaluator import Evaluator
 from base import NetworkItem
-
+import copy
+from info_str import NAS_CONFIG
+from ddt import data, ddt
 
 def _random_get_cell(_num):
     _dic = dict()
-    _dic['conv'] = NAS_CONFIG['spl']['conv_space']
+    _dic['conv'] = copy.deepcopy(NAS_CONFIG['spl']['conv_space'])
     tmp = []
     for i in NAS_CONFIG['spl']['conv_space']['filter_size']:
         tmp.extend(i)
     _dic['conv']['filter_size'] = tmp
-    _dic['pooling'] = NAS_CONFIG['spl']['pool_space']
+    _dic['pooling'] = copy.deepcopy(NAS_CONFIG['spl']['pool_space'])
     res = []
     for _ in range(_num):
         _type = random.randint(0, 1)
@@ -34,40 +36,45 @@ def _random_get_cell(_num):
             # res.append(tmp)
     return res
 
-
+@ddt
 class Test_eva(unittest.TestCase):
-    def setUp(self):
-        self._depth = random.randint(0, 25)
-        self._width = random.randint(0, 1)
-        self._max_depth = random.randint(0, self._depth)
+    global test_info
+    test_info = []
+    for i in range(10):
+        _depth = random.randint(0, 25)
+        _width = random.randint(0, 1)
+        _max_depth = random.randint(0, _depth)
         # print('##', self._depth, self._width, self._max_depth)
-        NAS_CONFIG['enum']['depth'] = self._depth
-        NAS_CONFIG['enum']['width'] = self._width
-        NAS_CONFIG['enum']['max_depth'] = self._max_depth
+        NAS_CONFIG['enum']['depth'] = _depth
+        NAS_CONFIG['enum']['width'] = _width
+        NAS_CONFIG['enum']['max_depth'] = _max_depth
         enum = Enumerater()
-        self._network_list = enum.enumerate()
-        ind = random.randint(0, len(self._network_list))
-        self._graph_part = self._network_list[ind].graph_template
+        _network_list = enum.enumerate()
+        ind = random.randint(0, len(_network_list))
+        _graph_part = _network_list[ind].graph_template
         # for i in self._network_list[ind].graph_template:
         #     if i:
         #         self._graph_part.append(i)
         #     else:
         #         self._graph_part.append([len(self._network_list[ind].graph_template)])
         # print(self._graph_part)
-        self._cell_list = _random_get_cell(len(self._graph_part))
+        _cell_list = _random_get_cell(len(_graph_part))
+        test_info.append((_graph_part, _cell_list))
 
-
-    def _run_module(self):
+    def _run_module(self, _graph_part, _cell_list):
         eva = Evaluator()
         eva.add_data(500)
-        tmp = NetworkItem(0, self._graph_part, self._cell_list, "")
+        tmp = NetworkItem(0, _graph_part, _cell_list, "")
         return eva.evaluate(tmp, is_bestNN=True)
 
     def _judge_score(self, score):
         self.assertEqual(float, type(score))
 
-    def test_res(self):
-        score = self._run_module()
+    @data(*test_info)
+    def test_res(self, para):
+        print(para[0])
+        print(para[1])
+        score = self._run_module(para[0], para[1])
         self._judge_score(score)
 
 

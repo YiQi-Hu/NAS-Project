@@ -3,9 +3,19 @@ from info_str import NAS_CONFIG
 import random
 from enumerater import Enumerater
 from base import Network
+from ddt import data, ddt
 
 
+@ddt
 class Test_enum(unittest.TestCase):
+    global test_info
+    test_info = []
+    for i in range(10):
+        _depth = random.randint(0, 25)
+        _width = random.randint(0, 1)
+        _max_depth = random.randint(0, _depth)
+        test_info.append((_depth, _width, _max_depth))
+
     def setUp(self):
         self._depth = random.randint(0, 25)
         self._width = random.randint(0, 1)
@@ -13,9 +23,6 @@ class Test_enum(unittest.TestCase):
         # print('##', self._depth, self._width, self._max_depth)
 
     def _run_module(self):
-        NAS_CONFIG['enum']['depth'] = self._depth
-        NAS_CONFIG['enum']['width'] = self._width
-        NAS_CONFIG['enum']['max_depth'] = self._max_depth
         enum = Enumerater()
         return enum.enumerate()
 
@@ -28,12 +35,19 @@ class Test_enum(unittest.TestCase):
                 for i in _graph:
                     self.assertEqual(int, type(i))
 
-    def test_res(self):
+    @data(*test_info)
+    def test_res(self, para):
+        NAS_CONFIG['enum']['depth'] = para[0]
+        NAS_CONFIG['enum']['width'] = para[1]
+        NAS_CONFIG['enum']['max_depth'] = para[2]
+        print(para[0], para[1], para[2])
         self._judge_res(self._run_module())
 
 
 if __name__ == "__main__":
-    unittest.main()
+    for i in range(100):
+        print('################')
+        unittest.main()
 
 
 

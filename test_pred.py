@@ -3,11 +3,16 @@ from enumerater import Enumerater
 import random
 from predictor import Predictor
 import os
-class Test_pred(unittest.TestCase):
+from ddt import ddt, data
+import copy
+from info_str import NAS_CONFIG
 
-    def setUp(self):
-        pwd = os.path.abspath(os.path.dirname(os.getcwd()))
-        os.chdir(pwd)
+@ddt
+class Test_pred(unittest.TestCase):
+    global test_info
+    test_info = []
+    for i in range(10):
+        test_info.append(i)
 
     def _data_sample(self, network_pool):
         block_n = random.randint(0,3)
@@ -19,8 +24,16 @@ class Test_pred(unittest.TestCase):
         graph = network_pool[graph_id].graph_template
         return blocks, graph
 
-    def test_predictor(self):
+    @data(*test_info)
+    def test_predictor(self, para):
         pred = Predictor()
+        _depth = random.randint(0, 25)
+        _width = random.randint(0, 1)
+        _max_depth = random.randint(0, _depth)
+        # print('##', self._depth, self._width, self._max_depth)
+        NAS_CONFIG['enum']['depth'] = _depth
+        NAS_CONFIG['enum']['width'] = _width
+        NAS_CONFIG['enum']['max_depth'] = _max_depth
         enum = Enumerater()
         network_pool = enum.enumerate()
         blocks, graph = self._data_sample(network_pool)
@@ -36,4 +49,5 @@ class Test_pred(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    for i in range(1):
+        unittest.main()
