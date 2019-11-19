@@ -10,7 +10,8 @@
     "eliminate_policy": "best_score",
     "subp_debug": 0,
     "eva_debug": 0,
-    "ops_debug": 0
+    "ops_debug": 0,
+    "pattern": "Block"
   },
   "enum":{
     "debug": 0,
@@ -46,7 +47,17 @@
       0.1,
       0.01,
       0.001
-    ]
+    ],
+    "task_name": "cifar-10",
+    "repeat_search": 1,
+    "dataset_path": "C:\\Users\\Jalynn\\PycharmProjects"
+  },
+  "opt": {
+      "sample_size": 3,
+      "budget": 20000,
+      "positive_num": 2,
+      "rand_probability": 0.99,
+      "uncertain_bit": 3
   },
   "spl":{
     "pool_switch": 0,
