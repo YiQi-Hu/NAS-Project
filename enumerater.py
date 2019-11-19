@@ -1,7 +1,7 @@
 import copy
 from queue import Queue
 import time
-import networkx as nx
+
 import pickle
 from base import Network
 import matplotlib.pyplot as plt
@@ -38,16 +38,13 @@ class Enumerater:
     """
 
     def __init__(self):
-        self.depth = NAS_CONFIG['depth']
-        self.width = NAS_CONFIG['width']
-        self.max_branch_depth = NAS_CONFIG['max_depth']
-        self.depth = 7
-        self.width = 2
-        self.max_branch_depth = 10
+        self.depth = NAS_CONFIG['enum']['depth']
+        self.width = NAS_CONFIG['enum']['width']
+        self.max_branch_depth = NAS_CONFIG['enum']['max_depth']
         self._info_dict = {}
         self._info_group = []
         self._log = ""
-        self._pickle_name = 'pcache\\enum_%d-%d-%d.pickle' % (NAS_CONFIG['depth'], NAS_CONFIG['width'], NAS_CONFIG['max_depth'])
+        self._pickle_name = 'pcache\\enum_%d-%d-%d.pickle' % (self.depth, self.width, self.max_branch_depth)
 
     def enumerate(self):
         """
@@ -159,21 +156,22 @@ class Enumerater:
                         return 0
         return 1
 
-    def adjaceny2visualzation(self, adja):
-        """
-        Enter a network adjacency table to display its topology by pyplot.
-        """
-        nodelist = []
-        edgelist = []
-        for i in range(len(adja)):
-            nodelist.append(i)
-            for j in adja[i]:
-                edgelist.append((i, j))
-        G = nx.DiGraph()
-        G.add_nodes_from(nodelist)
-        G.add_edges_from(edgelist)
-        nx.draw(G, pos=None, with_labels=True)
-        plt.show()
+    # def adjaceny2visualzation(self, adja):
+    #     """
+    #     Enter a network adjacency table to display its topology by pyplot.
+    #     """
+    #     import networkx as nx
+    #     nodelist = []
+    #     edgelist = []
+    #     for i in range(len(adja)):
+    #         nodelist.append(i)
+    #         for j in adja[i]:
+    #             edgelist.append((i, j))
+    #     G = nx.DiGraph()
+    #     G.add_nodes_from(nodelist)
+    #     G.add_edges_from(edgelist)
+    #     nx.draw(G, pos=None, with_labels=True)
+    #     plt.show()
 
     def save_adj_log(self, POOL, PATH, date):
         for i, j in enumerate(POOL):
