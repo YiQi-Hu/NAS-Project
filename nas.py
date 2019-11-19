@@ -18,6 +18,8 @@ from info_str import NAS_CONFIG
 import info_str as ifs
 from utils import NAS_LOG
 
+
+MAIN_CONFIG = NAS_CONFIG['nas_main']
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 
@@ -26,7 +28,7 @@ def _subproc_eva(params, eva, gpuq):
     start_time = time.time()
 
     # return score and pos
-    if NAS_CONFIG['eva_debug']:
+    if MAIN_CONFIG['eva_debug']:
         score = random.uniform(0, 0.1)
     else:
         item, nn_pb, rd, nn_id, pl_len, spl_id, bt_nm, blk_wnr, ft_sign = params
@@ -46,7 +48,7 @@ def _do_task(pool, cmnct, eva):
             task_params = cmnct.task.get(timeout=1)
         except:
             break
-        if NAS_CONFIG['subp_debug']:
+        if MAIN_CONFIG['subp_debug']:
             result = _subproc_eva(task_params, eva, cmnct.idle_gpuq)
         else:
             result = pool.apply_async(
@@ -69,12 +71,12 @@ def _datasize_ctrl(eva=None, in_game=False):
     Increase the dataset's size in different way
     """
     if in_game:
-        eva.add_data(NAS_CONFIG['add_data_every_round'])
+        eva.add_data(MAIN_CONFIG['add_data_per_round'])
     else:
-        eva.add_data(NAS_CONFIG['add_data_for_winner'])
+        eva.add_data(MAIN_CONFIG['add_data_for_winner'])
 
 
-def _init_ops_dup_chk(network, pred, task_num=NAS_CONFIG['spl_round_net']):
+def _init_ops_dup_chk(network, pred, task_num=MAIN_CONFIG['spl_network_round']):
     """init ops with duplicate check
 
     :return:
@@ -95,7 +97,7 @@ def _init_ops_dup_chk(network, pred, task_num=NAS_CONFIG['spl_round_net']):
         del network.item_list[-task_num:]
 
 
-def _spl_dup_chk(network, task_num=NAS_CONFIG['spl_round_net']):
+def _spl_dup_chk(network, task_num=MAIN_CONFIG['spl_network_round']):
     """sample with duplicate check
 
     :param network:
@@ -121,7 +123,7 @@ def _spl_dup_chk(network, task_num=NAS_CONFIG['spl_round_net']):
     return cells, graphs, tables
 
 
-def _gpu_batch_update_model(nn, batch_num=NAS_CONFIG['spl_round_net']):
+def _gpu_batch_update_model(nn, batch_num=MAIN_CONFIG['spl_network_round']):
     """
 
     :param nn:
@@ -132,7 +134,7 @@ def _gpu_batch_update_model(nn, batch_num=NAS_CONFIG['spl_round_net']):
         nn.spl.update_opt_model(nn.item_list[-spl_id].code, nn.score_list[-spl_id].score)
 
 
-def _gpu_batch_spl(nn, batch_num=NAS_CONFIG['spl_round_net']):
+def _gpu_batch_spl(nn, batch_num=MAIN_CONFIG['spl_network_round']):
     """
 
     :param nn:
@@ -144,7 +146,7 @@ def _gpu_batch_spl(nn, batch_num=NAS_CONFIG['spl_round_net']):
         nn.item_list.append(NetworkItem(spl_id, graph, cell, table))
 
 
-def _gpu_batch_init_ops(nn, pred, batch_num=NAS_CONFIG['spl_round_net']):
+def _gpu_batch_init_ops(nn, pred, batch_num=MAIN_CONFIG['spl_network_round']):
     """
 
     :param nn:
@@ -177,10 +179,10 @@ def _gpu_batch_task_inqueue(para):
         com.task.put(task_param)
 
 
-def _assign_task(net_pool, com, round, batch_num=NAS_CONFIG['spl_round_net'], block_winner=False):
+def _assign_task(net_pool, com, round, batch_num=MAIN_CONFIG['spl_network_round'], block_winner=False):
     pool_len = len(net_pool)
-    finetune_sign = True if NAS_CONFIG['pattern'] == "Global" else \
-        (pool_len < NAS_CONFIG['finetune_threshold'])
+    finetune_sign = True if MAIN_CONFIG['pattern'] == "Global" else \
+        (pool_len < MAIN_CONFIG['finetune_threshold'])
     for nn, nn_id in zip(net_pool, range(1, pool_len+1)):
         if round > 1:
             _gpu_batch_update_model(nn, batch_num)
@@ -201,11 +203,11 @@ def _eliminate(net_pool=None, round=0):
     """
     Eliminates the worst 50% networks in net_pool depending on scores.
     """
-    if NAS_CONFIG['eliminate_policy'] == "best_score":
+    if MAIN_CONFIG['eliminate_policy'] == "best":
         policy = max
-    elif NAS_CONFIG['eliminate_policy'] == "average_score":
+    elif MAIN_CONFIG['eliminate_policy'] == "over_average":
         policy = np.mean
-    scores = [policy([x.score for x in net_pool[nn_id].item_list[-NAS_CONFIG['spl_round_net']:]])
+    scores = [policy([x.score for x in net_pool[nn_id].item_list[-MAIN_CONFIG['spl_network_round']:]])
               for nn_id in range(len(net_pool))]
     scores_cpy = scores.copy()
     scores_cpy.sort()
@@ -252,22 +254,22 @@ def _train_winner(net_pl, com, pro_pl, round):
     eva_winner = Evaluator()
     _datasize_ctrl(eva_winner)
 
-    for i in range(NAS_CONFIG['opt_best_k'] // NAS_CONFIG['num_gpu'] + 1):
-        if (i + 1) * NAS_CONFIG['num_gpu'] > NAS_CONFIG['opt_best_k']:
-            task_num = NAS_CONFIG['opt_best_k'] - NAS_CONFIG['num_gpu'] * i
+    for i in range(MAIN_CONFIG['num_opt_best'] // MAIN_CONFIG['num_gpu'] + 1):
+        if (i + 1) * MAIN_CONFIG['num_gpu'] > MAIN_CONFIG['num_opt_best']:
+            task_num = MAIN_CONFIG['num_opt_best'] - MAIN_CONFIG['num_gpu'] * i
         else:
-            task_num = NAS_CONFIG['num_gpu']
+            task_num = MAIN_CONFIG['num_gpu']
         if task_num:
-            if NAS_CONFIG['pattern'] == "Global":
+            if MAIN_CONFIG['pattern'] == "Global":
                 round = i + 1
                 block_winner = False
-            elif NAS_CONFIG['pattern'] == "Block":
+            elif MAIN_CONFIG['pattern'] == "Block":
                 block_winner = True
             _assign_task(net_pl, com, round, task_num, block_winner=block_winner)
             _do_task(pro_pl, com, eva_winner)
             _arrange_result(com, net_pl)
     best_nn = net_pl[0]
-    scores = [x.score for x in best_nn.item_list[-NAS_CONFIG['opt_best_k']:]]
+    scores = [x.score for x in best_nn.item_list[-MAIN_CONFIG['num_opt_best']:]]
     best_index = scores.index(max(scores))
     best_item_index = best_index - len(scores)
     _rm_other_model(best_index)
@@ -309,7 +311,7 @@ def _init_ops(net_pool, process_pool):
         scores (list of score, and its length equals to that of net_pool)
     """
     # for debug
-    if NAS_CONFIG['ops_debug']:
+    if MAIN_CONFIG['ops_debug']:
         try:
             return _get_ops_copy()
         except:
@@ -318,7 +320,7 @@ def _init_ops(net_pool, process_pool):
     process_pool.apply(_subproc_init_ops, (net_pool,))
 
     # for debug
-    if NAS_CONFIG['ops_debug']:
+    if MAIN_CONFIG['ops_debug']:
         _save_ops_copy(net_pool)
 
 
@@ -377,8 +379,8 @@ class Nas:
         NAS_LOG << 'enuming'
         network_pool_tem = self.enu.enumerate()
         start_search = time.time()
-        for i in range(NAS_CONFIG["block_num"]):
-            NAS_LOG << ('search_blk', (i+1) / NAS_CONFIG["block_num"])
+        for i in range(MAIN_CONFIG["block_num"]):
+            NAS_LOG << ('search_blk', (i+1) / MAIN_CONFIG["block_num"])
             start_block = time.time()
             block, best_index = algo(i, self.eva, self.com, network_pool_tem, self.pool)
             Network.pre_block.append([
@@ -394,6 +396,6 @@ class Nas:
 
 
 if __name__ == '__main__':
-    pool = Pool(processes=NAS_CONFIG["num_gpu"])
+    pool = Pool(processes=MAIN_CONFIG["num_gpu"])
     nas = Nas(pool)
     nas.run()
