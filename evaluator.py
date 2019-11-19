@@ -114,7 +114,7 @@ class DataSet:
 
 
 class Evaluator:
-    def __init__(self, retrain=False):
+    def __init__(self):
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
         # Global constants describing the CIFAR-10 data set.
         self.IMAGE_SIZE = 32
@@ -127,7 +127,7 @@ class Evaluator:
         self.LEARNING_RATE_DECAY_FACTOR = NAS_CONFIG['eva']['learning_rate_decay_factor']  # Learning rate decay factor.
         self.MOVING_AVERAGE_DECAY = NAS_CONFIG['eva']['moving_average_decay']
         self.batch_size = NAS_CONFIG['eva']['batch_size']
-        self.epoch = NAS_CONFIG['eva']['retrain_epoch'] if retrain else NAS_CONFIG['eva']['search_epoch']
+        self.epoch = NAS_CONFIG['eva']['epoch']
         self.weight_decay = NAS_CONFIG['eva']['weight_decay']
         self.momentum_rate = NAS_CONFIG['eva']['momentum_rate']
         self.model_path = NAS_CONFIG['eva']['model_path']
