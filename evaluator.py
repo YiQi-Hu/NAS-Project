@@ -254,9 +254,9 @@ class Evaluator:
         # print('Evaluater:starting to reconstruct the network')
         # a pooling later for every block
         if self.block_num == NAS_CONFIG['nas_main']['block_num']:
-            cell_list.append(Cell('pooling', 'global'))
+            cellist.append(Cell('pooling', 'global'))
         else:
-            cell_list.append(Cell('pooling', 'max', 2))
+            cellist.append(Cell('pooling', 'max', 2))
 
         nodelen = len(graph_part)
         inputs = [images for _ in range(nodelen)]  # input list for every cell in network
