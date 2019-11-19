@@ -1,15 +1,17 @@
 {
-  "pattern": "Block",
-  "num_gpu": 2,
-  "block_num": 3,
-  "num_opt_best":2,
-  "opt_best_k": 2,
-  "finetune_threshold": 5,
-  "spl_round_net": 6,
-  "eliminate_policy": "best_score",
-  "subp_debug": 0,
-  "eva_debug": 0,
-  "ops_debug": 0,
+  "nas_main": {
+    "pattern": "Block",
+    "num_gpu": 2,
+    "block_num": 3,
+    "num_opt_best":2,
+    "opt_best_k": 2,
+    "finetune_threshold": 5,
+    "spl_round_net": 6,
+    "eliminate_policy": "best_score",
+    "subp_debug": 0,
+    "eva_debug": 0,
+    "ops_debug": 0
+  },
   "enum":{
     "debug": 0,
     "depth": 3,
