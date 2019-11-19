@@ -32,6 +32,7 @@
     "learning_rate_decay_factor": 0.1,
     "moving_average_decay": 0.98,
     "batch_size": 250,
+    "epoch": 167,
     "search_epoch": 167,
     "retrain_epoch": 640,
     "weight_decay": 0.0003,
