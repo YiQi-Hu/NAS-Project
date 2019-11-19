@@ -81,9 +81,9 @@ class Cell(tuple):
     def _check_vaild(args):
         cell_type = args[0]
         type_args = args[1:]
-        if cell_type is 'conv':
+        if cell_type == 'conv':
             Cell._conv_vaild(type_args)
-        elif cell_type is 'pooling':
+        elif cell_type == 'pooling':
             Cell._pool_valid(type_args)
         else:
             raise CellInitError('type error')
@@ -106,7 +106,7 @@ class Cell(tuple):
         # '_rv' -> 'range valid'
         fs_rv = (fs in range(1, 1025))
         ks_rv = (ks % 2 == 1) and (ks in range(1, 10))
-        at_rv = (at in ['relu', 'tanh', 'sigmoid', 'identity', 'leakrelu'])
+        at_rv = (at in ['relu', 'tanh', 'sigmoid', 'identity', 'leakyrelu'])
 
         Cell._check_condition(fs_rv, ks_rv, at_rv, err_msg % 'arg type invalid') 
         return
