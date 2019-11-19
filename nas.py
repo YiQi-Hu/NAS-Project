@@ -213,20 +213,17 @@ def _eliminate(net_pool=None, round=0):
     original_num = len(scores)
     mid_index = original_num // 2
     mid_val = scores_cpy[mid_index]
-    # record the number of the removed network in the pool
-    original_index = [i for i in range(len(scores))]
 
     i = 0
     while i < len(net_pool):
         if scores[i] < mid_val:
             list_swap(net_pool, i, len(net_pool) - 1)
             list_swap(scores, i, len(scores) - 1)
-            list_swap(original_index, i, len(original_index) - 1)
             net = net_pool.pop()
-            orig_id = original_index.pop()
-            NAS_LOG << ("elim_net_info", len(net.pre_block+1), round, orig_id+1, original_num,
-                        len(net.score_list))
             scores.pop()
+            NAS_LOG << ("elim_net_info", len(net.pre_block+1), round, len(net_pool),
+                        net.id, len(net.item_list))
+            # TODO record the info of the network removed
         else:
             i += 1
     print(ifs.eliinfo_tem.format(original_num - len(scores), len(scores)))
@@ -237,6 +234,19 @@ def _rm_other_model(best_index):
     models = [model for model in models if not re.search(str(best_index), model)]
     for model in models:
         os.remove(os.path.join(NAS_CONFIG['eva']['model_path'], model))
+
+
+def _global_train(net_pl, com, pro_pl, eva_winner):
+    for i in range(MAIN_CONFIG['num_opt_best'] // MAIN_CONFIG['num_gpu'] + 1):
+        if (i + 1) * MAIN_CONFIG['num_gpu'] > MAIN_CONFIG['num_opt_best']:
+            task_num = MAIN_CONFIG['num_opt_best'] - MAIN_CONFIG['num_gpu'] * i
+        else:
+            task_num = MAIN_CONFIG['num_gpu']
+        if task_num:
+            round = i + 1
+            _assign_task(net_pl, com, round, task_num)
+            _do_task(pro_pl, com, eva_winner)
+            _arrange_result(com, net_pl)
 
 
 def _train_winner(net_pl, com, pro_pl, round):
@@ -252,26 +262,20 @@ def _train_winner(net_pl, com, pro_pl, round):
     start_train_winner = time.time()
     eva_winner = Evaluator()
     _datasize_ctrl(eva_winner)
-
-    for i in range(MAIN_CONFIG['num_opt_best'] // MAIN_CONFIG['num_gpu'] + 1):
-        if (i + 1) * MAIN_CONFIG['num_gpu'] > MAIN_CONFIG['num_opt_best']:
-            task_num = MAIN_CONFIG['num_opt_best'] - MAIN_CONFIG['num_gpu'] * i
-        else:
-            task_num = MAIN_CONFIG['num_gpu']
-        if task_num:
-            if MAIN_CONFIG['pattern'] == "Global":
-                round = i + 1
-                block_winner = False
-            elif MAIN_CONFIG['pattern'] == "Block":
-                block_winner = True
-            _assign_task(net_pl, com, round, task_num, block_winner=block_winner)
-            _do_task(pro_pl, com, eva_winner)
-            _arrange_result(com, net_pl)
+    
+    if MAIN_CONFIG['pattern'] == "Block":
+        _assign_task(net_pl, com, round, batch_num=MAIN_CONFIG['num_opt_best'], block_winner=True)
+        _do_task(pro_pl, com, eva_winner)
+        _arrange_result(com, net_pl)
+    elif MAIN_CONFIG['pattern'] == "Global":
+        _global_train(net_pl, com, pro_pl, eva_winner)
     best_nn = net_pl[0]
+    # TODO record the info of winner
     scores = [x.score for x in best_nn.item_list[-MAIN_CONFIG['num_opt_best']:]]
     best_index = scores.index(max(scores))
     best_item_index = best_index - len(scores)
-    _rm_other_model(best_index)
+    if MAIN_CONFIG['pattern'] == "Block":
+        _rm_other_model(best_index)
     print(ifs.train_winner_tem.format(time.time() - start_train_winner))
     return best_nn, best_item_index
 
@@ -359,10 +363,10 @@ def algo(block_num, eva, com, npool_tem, process_pool):
     return best_nn, best_index
 
 
-def _retrain(pre_block):
+def _retrain():
     retrain_eva = Evaluator(retrain=True)
     _datasize_ctrl(retrain_eva)
-    score = retrain_eva.evaluate([], [], pre_block, is_bestNN=True, update_pre_weight=True)
+    score = retrain_eva.evaluate([], is_bestNN=True, update_pre_weight=True)
     return score
 
 
