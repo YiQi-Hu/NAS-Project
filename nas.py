@@ -31,9 +31,9 @@ def _subproc_eva(params, eva, gpuq):
     if MAIN_CONFIG['eva_debug']:
         score = random.uniform(0, 0.1)
     else:
-        item, nn_pb, rd, nn_id, pl_len, spl_id, bt_nm, blk_wnr, ft_sign = params
+        item, rd, nn_id, pl_len, spl_id, bt_nm, blk_wnr, ft_sign = params
         os.environ['CUDA_VISIBLE_DEVICES'] = str(ngpu)
-        score = eva.evaluate(item, nn_pb, is_bestNN=blk_wnr,
+        score = eva.evaluate(item, is_bestNN=blk_wnr,
                                  update_pre_weight=ft_sign)
     gpuq.put(ngpu)
     time_cost = time.time() - start_time
@@ -173,8 +173,7 @@ def _gpu_batch_task_inqueue(para):
     for spl_id in range(1, batch_num + 1):
         item = nn.item_list[-spl_id]
         task_param = [
-            item, nn.pre_block, round, nn_id,
-            pool_len, spl_id, batch_num, block_winner, finetune_sign
+            item, round, nn_id, pool_len, spl_id, batch_num, block_winner, finetune_sign
         ]
         com.task.put(task_param)
 

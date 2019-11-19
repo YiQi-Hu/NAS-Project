@@ -24,7 +24,7 @@
     "task_name": "cifar-10",
     "image_size": 32,
     "num_classes": 10,
-    "num_examples_per_epoch_for_train": 40000,
+    "num_examples_for_train": 40000,
     "num_examples_per_epoch_for_eval": 10000,
     "regularaztion_rate": 0.001,
     "initial_learning_rate": 0.1,

@@ -4,7 +4,7 @@ import time
 
 import pickle
 from base import Network
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from info_str import NAS_CONFIG
 
 # from .base import NetworkUnit, NETWORK_POOL
