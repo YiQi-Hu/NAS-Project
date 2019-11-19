@@ -6,7 +6,7 @@ import pickle
 import random
 import sys
 from info_str import NAS_CONFIG
-from base import Cell, NetworkItem
+from base import Cell, NetworkItem, Network
 from utils import Logger as log
 
 
@@ -339,7 +339,7 @@ class Evaluator:
                                               use_nesterov=True).minimize(loss, global_step=global_step)
         return train_op, lr
 
-    def evaluate(self, network, pre_block=[], is_bestNN=False, update_pre_weight=False):
+    def evaluate(self, network, is_bestNN=False, update_pre_weight=False):
         '''Method for evaluate the given network.
         Args:
             network: NetworkItem()
@@ -349,9 +349,9 @@ class Evaluator:
         Returns:
             Accuracy'''
         print("-" * 20, network.id, "-" * 20)
-        print(network.graph, network.cell_list, pre_block)
+        print(network.graph, network.cell_list, Network.pre_block)
         assert self.train_num >= self.batch_size, "Wrong! The data added in train dataset is smaller than batch size!"
-        self.block_num = len(pre_block) * NAS_CONFIG['eva']['repeat_search']
+        self.block_num = len(Network.pre_block) * NAS_CONFIG['eva']['repeat_search']
 
         with tf.Session() as sess:
             global_step = tf.Variable(0, trainable=False, name='global_step' + str(self.block_num))
@@ -381,7 +381,7 @@ class Evaluator:
             if is_bestNN:  # save model
                 saver.save(sess, os.path.join(self.model_path, 'model' + str(network.id)))
 
-        return precision[-1]
+        return float(precision[-1])
 
     def _get_input(self, sess, update_pre_weight):
         '''Get input for _inference'''
@@ -478,7 +478,7 @@ if __name__ == '__main__':
     #              ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
     #              ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
     #              ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
-    pre_block = [network]
+    # pre_block = [network]
     # e = eval.evaluate(network,is_bestNN=True)
     e = eval.evaluate(network, is_bestNN=True)
     # e=eval.train(network.graph_full,cellist)
