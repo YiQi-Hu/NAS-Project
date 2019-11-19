@@ -1,26 +1,10 @@
-import random
 from optimizer import Dimension
-import pickle
 from optimizer import Optimizer
-from optimizer import RacosOptimization
-import numpy as np
-from multiprocessing import Process,Pool
-import multiprocessing
-# from .base import NetworkUnit
-import time
 import pickle
 import copy
 from queue import Queue
-import json
-import os
-
+from base import Cell
 from info_str import NAS_CONFIG
-
-SPL_CONFIG = NAS_CONFIG['spl']
-SPACE_CONFIG = NAS_CONFIG['space']
-
-# TODO Please let each functions be less than 30 lines 
-# Sampler.__init__, convert, opt2table
 
 class Sampler:
 
@@ -39,14 +23,15 @@ class Sampler:
         self._p_table = []  # initializing the table value in Sampler.
         self._graph_part = graph_part
         self._node_number = len(self._graph_part)
-        self._pattern = SPL_CONFIG['pattern']  #  Parameter setting based on search method
-        self._crosslayer_dis = SPACE_CONFIG['skipping_max_dist'] + 1  # dis control
-        self._cross_node_number = SPACE_CONFIG['skipping_max_num']
+        self._pattern = NAS_CONFIG['nas_main']['pattern']  #  Parameter setting based on search method
+        self._crosslayer_dis = NAS_CONFIG['spl']['skip_max_dist'] + 1  # dis control
+        self._cross_node_number = NAS_CONFIG['spl']['skip_max_num']
         self._graph_part_invisible_node = self.graph_part_add_invisible_node()
-        print(self._graph_part_invisible_node)
         self._crosslayer = self._get_crosslayer()
         # Read parameter table to get operation dictionary in stage(block_id)
-        self._setting = copy.deepcopy(SPACE_CONFIG['ops'])
+        self._setting = dict()
+        self._setting['conv'] = copy.deepcopy(NAS_CONFIG['spl']['conv_space'])
+        self._setting['pooling'] = copy.deepcopy(NAS_CONFIG['spl']['pool_space'])
         if self._pattern == "Block":
             self._setting['conv']['filter_size'] = \
                 self._setting['conv']['filter_size'][block_id]
@@ -58,7 +43,7 @@ class Sampler:
         self.__dim.set_regions(self.__region, self.__type)
         self.__parameters_subscript = []  #
         self.opt = Optimizer(self.__dim, self.__parameters_subscript)
-        opt_para = SPL_CONFIG["opt_para"]
+        opt_para = copy.deepcopy(NAS_CONFIG["opt"])
         __sample_size = opt_para["sample_size"]  # the instance number of sampling in an iteration
         __budget = opt_para["budget"]  # budget in online style
         __positive_num = opt_para["positive_num"]  # the set size of PosPop
@@ -191,9 +176,7 @@ class Sampler:
             l = r
             r = l + len(self._dic_index) + self._cross_node_number
             p_node = self._p_table[l:r]  # Take the search space of a node
-            print(p_node)
             node_cross_tmp = list(set(copy.deepcopy(p_node[len(self._dic_index):])))
-            print(p_node[len(self._dic_index):])
             for i in node_cross_tmp:
                 if i != 0:
                     graph_part_sample[num].append(self._crosslayer[num][i - 1])
@@ -208,10 +191,12 @@ class Sampler:
                 tmp = tmp + ('conv',)
                 for key in self._setting['conv']:
                     tmp = tmp + (self._setting['conv'][key][p_node[self._dic_index['conv ' + key][-1]]],)
+                tmp = Cell(tmp[0], tmp[1], tmp[2], tmp[3])
             else:  # Search operation under pooling
                 tmp = tmp + ('pooling',)
                 for key in self._setting['pooling']:
                     tmp = tmp + (self._setting['pooling'][key][p_node[self._dic_index['pooling ' + key][-1]]],)
+                tmp = Cell(tmp[0], tmp[1], tmp[2])
             res.append(tmp)
         return res, graph_part_sample
 
@@ -276,15 +261,15 @@ class Sampler:
 
 if __name__ == '__main__':
     # os.chdir("../")
-    # graph_part = [[1], [2], [3, 7, 9], [4], [5], [6], [], [8], [5], [10], [11], [6]]
-    graph_part = [[1], [2], [3], [4], [5], [6], []]
+    graph_part = [[1], [2], [3, 7, 9], [4], [5], [6], [], [8], [5], [10], [11], [6]]
+    # graph_part = [[1], [2], [3], [4], [5], [6], []]
 
     # network.init_sample(self.__pattern, block_num, self.spl_setting, self.skipping_max_dist, self.ops_space)
 
     spl = Sampler(graph_part, 0)
 
     res, graph_part_sample, table_present = spl.sample()
-    print('skipping_max_dist:', SPACE_CONFIG['skipping_max_dist'])
+    print('skip_max_dist:', NAS_CONFIG['spl']['skip_max_dist'])
     print(spl._crosslayer)
 
     region, type = spl._opt_parameters()
