@@ -226,6 +226,7 @@
 + ops2table
     > **Args**
     > 1. *ops*
+    >
     > **Retruns**
     > 1. *table*: (1d int list, depending on dimension)
     >
