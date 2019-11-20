@@ -80,9 +80,9 @@ class Cell(tuple):
     def _check_vaild(args):
         cell_type = args[0]
         type_args = args[1:]
-        if cell_type is 'conv':
+        if cell_type == 'conv':
             Cell._conv_vaild(type_args)
-        elif cell_type is 'pooling':
+        elif cell_type == 'pooling':
             Cell._pool_valid(type_args)
         else:
             raise CellInitError('type error')

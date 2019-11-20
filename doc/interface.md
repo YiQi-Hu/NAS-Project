@@ -140,7 +140,7 @@
 
 + image_size (int, unknown)
 + num_classes (int, unknown)
-+ num_examples_per_epoch_for_train (int, unknown)
++ num_examples_for_train (int, unknown)
 + num_examples_per_epoch_for_eval (int, unknown)
 + initial_learning_rate (float, 1.0 ~ 1e-5)
 + moving_average_decay (float, 1.0 ~ 1e-5)
@@ -155,7 +155,7 @@
 + boundaries (1d int list, values > 0)
 + learning_rate_type (string, 'const' or 'cos' or 'exp_decay')
 + learning_rate (1d float list, value 0 ~ 1, len is same as boundaries)
-+ eva_log_path (string, file path)
++ eva_path (string, file path)
 + model_save_path (string, file path)
 + dataset_path (string, file path)
 + task_name (string, value:)
@@ -227,7 +227,7 @@
     > **Args**
     > 1. *ops*
     >
-    > **Retruns**
+    > **Retruns**:
     > 1. *table*: (1d int list, depending on dimension)
     >
 + convert
