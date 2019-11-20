@@ -42,6 +42,7 @@ class Logger(object):
 
     def __del__(self):
         self._eva_log.close()
+        self._sub_proc_log.close()
         self._network_log.close()
         self._nas_log.close()
         
