@@ -65,7 +65,8 @@ class DataSet:
         data = data[index]
         label = label[index]
         return data[:self.NUM_EXAMPLES_FOR_TRAIN], label[:self.NUM_EXAMPLES_FOR_TRAIN], \
-               data[self.NUM_EXAMPLES_FOR_EVAL:], label[self.NUM_EXAMPLES_FOR_EVAL:]
+               data[self.NUM_EXAMPLES_FOR_TRAIN:self.NUM_EXAMPLES_FOR_TRAIN + self.NUM_EXAMPLES_FOR_EVAL], \
+               label[self.NUM_EXAMPLES_FOR_TRAIN:self.NUM_EXAMPLES_FOR_TRAIN + self.NUM_EXAMPLES_FOR_EVAL]
 
     def _normalize(self, x_train):
         x_train = x_train.astype('float32')
