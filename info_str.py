@@ -14,9 +14,10 @@ NAS_CONFIG = json.load(open(_nas_config_path, encoding='utf-8'))
 if not os.path.exists("memory"):
     os.mkdir("memory")
 log_dir = os.path.join(_cur_ver_dir, 'memory')
-evalog_path = os.path.join(log_dir, 'evaluating_log.txt')
+evalog_path = os.path.join(log_dir, 'evaluator_log.txt')
+subproc_log_path = os.path.join(log_dir, 'subproc_log.txt')
 network_info_path = os.path.join(log_dir, 'network_info.txt')
-winner_log_path = os.path.join(log_dir, 'train_winner_log.txt')
+naslog_path = os.path.join(log_dir, 'nas_log.txt')
 
 # Log content
 # log_evainfo_tem = 'block_num:{} round:{} network_index:{}/{}\n'
