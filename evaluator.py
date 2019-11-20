@@ -64,8 +64,10 @@ class DataSet:
         random.shuffle(index)
         data = data[index]
         label = label[index]
+        print(len(data[:self.NUM_EXAMPLES_FOR_TRAIN]),len(data[self.NUM_EXAMPLES_FOR_TRAIN:self.NUM_EXAMPLES_FOR_TRAIN+self.NUM_EXAMPLES_FOR_EVAL]))
         return data[:self.NUM_EXAMPLES_FOR_TRAIN], label[:self.NUM_EXAMPLES_FOR_TRAIN], \
-               data[self.NUM_EXAMPLES_FOR_EVAL:], label[self.NUM_EXAMPLES_FOR_EVAL:]
+               data[self.NUM_EXAMPLES_FOR_TRAIN:self.NUM_EXAMPLES_FOR_TRAIN+self.NUM_EXAMPLES_FOR_EVAL],\
+               label[self.NUM_EXAMPLES_FOR_TRAIN:self.NUM_EXAMPLES_FOR_TRAIN+self.NUM_EXAMPLES_FOR_EVAL]
 
     def _normalize(self, x_train):
         x_train = x_train.astype('float32')
@@ -253,10 +255,11 @@ class Evaluator:
           Logits.'''
         # print('Evaluater:starting to reconstruct the network')
         # a pooling later for every block
-        if self.block_num == NAS_CONFIG['nas_main']['block_num']:
-            cellist.append(Cell('pooling', 'global'))
-        else:
-            cellist.append(Cell('pooling', 'max', 2))
+        # if self.block_num == NAS_CONFIG['nas_main']['block_num']:
+        #     cellist.append(Cell('pooling', 'global'))
+        # else:
+        #     k=1
+        #     #cellist.append(Cell('pooling', 'max', 2))
 
         nodelen = len(graph_part)
         inputs = [images for _ in range(nodelen)]  # input list for every cell in network
@@ -348,6 +351,7 @@ class Evaluator:
             update_pre_weight: Symbol for indicating whether to update previous blocks' weight, default by False.
         Returns:
             Accuracy'''
+        tf.reset_default_graph()
         print("-" * 20, network.id, "-" * 20)
         print(network.graph, network.cell_list, pre_block)
         assert self.train_num >= self.batch_size, "Wrong! The data added in train dataset is smaller than batch size!"
@@ -419,7 +423,8 @@ class Evaluator:
                 _, loss_value, acc = sess.run([train_op, cross_entropy, accuracy],
                                               feed_dict={x: batch_x, labels: batch_y, train_flag: True})
                 if np.isnan(loss_value): return -1
-                sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" % (step, self.max_steps, loss_value, acc))
+            sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" % (step, self.max_steps, loss_value, acc))
+            sys.stdout.flush()
             sys.stdout.write("\n")
             # evaluation step
             num_iter = self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL // self.batch_size
@@ -430,7 +435,8 @@ class Evaluator:
                 l, acc_ = sess.run([cross_entropy, accuracy],
                                    feed_dict={x: batch_x, labels: batch_y, train_flag: False})
                 precision[ep] += acc_ / num_iter
-                sys.stdout.write("\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
+            sys.stdout.write("\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
+            sys.stdout.flush()
             # early stop
             if ep > 10:
                 if precision[ep] < 0.15:

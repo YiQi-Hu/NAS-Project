@@ -4,6 +4,7 @@ PLEASE DO NOT USE 'from .base import *' !!!
 """
 
 
+from multiprocessing import Pool
 class Network(object):
     pre_block = []
 
@@ -11,22 +12,15 @@ class Network(object):
         self.id = _id
         self.graph_template = graph_tmp
         self.item_list = []
-        self.pre_block = []
         self.spl = None
 
-        return
-
-
 class NetworkItem(object):
-    def __init__(self, _id, graph, cell_list, code):
+    def __init__(self, _id=0, graph=[], cell_list=[], code=[]):
         self.id = _id
         self.graph = graph
         self.cell_list = cell_list
         self.code = code
         self.score = 0
-
-        return
-
 
 class Cell(tuple):
     """class Cell inheirt from tuple
@@ -54,11 +48,22 @@ class Cell(tuple):
 
     def __init__(self, *args):
         tuple.__init__(self)
-    
+
     def __new__(self, *args):
+        if len(args) == 1 and isinstance(args[0], tuple):
+            args = args[0]
         Cell._check_vaild(args)
         return tuple.__new__(self, args)
+
+    def __getnewargs__(self):
+        return tuple.__getnewargs__(self)[0]
+
+    def __getstate__(self):
+        return [i for i in self]
     
+    def __setstate__(self, state):
+        self = Cell(*state)
+
     def __getattr__(self, key):
         """Get items though meaningful name
         if key is 'type':
@@ -81,14 +86,14 @@ class Cell(tuple):
     def _check_vaild(args):
         cell_type = args[0]
         type_args = args[1:]
-        if cell_type is 'conv':
+        if cell_type == 'conv':
             Cell._conv_vaild(type_args)
-        elif cell_type is 'pooling':
+        elif cell_type == 'pooling':
             Cell._pool_valid(type_args)
         else:
             raise CellInitError('type error')
         return
-    
+
     @staticmethod
     def _conv_vaild(args):
         err_msg = 'cell type \'conv\' %s.'
@@ -102,22 +107,22 @@ class Cell(tuple):
         ks_tv = isinstance(ks, int)
         at_tv = isinstance(at, str)
 
-        Cell._check_condition(fs_tv, ks_tv, at_tv, err_msg % 'arg type invalid') 
+        Cell._check_condition(fs_tv, ks_tv, at_tv, err_msg % 'arg type invalid')
         # '_rv' -> 'range valid'
         fs_rv = (fs in range(1, 1025))
         ks_rv = (ks % 2 == 1) and (ks in range(1, 10))
         at_rv = (at in ['relu', 'tanh', 'sigmoid', 'identity', 'leakrelu'])
 
-        Cell._check_condition(fs_rv, ks_rv, at_rv, err_msg % 'arg type invalid') 
+        Cell._check_condition(fs_rv, ks_rv, at_rv, err_msg % 'arg type invalid')
         return
-    
+
     @staticmethod
     def _pool_valid(args):
         err_msg = 'cell type \'pooling\' %s'
         if (len(args) > 2):
             return CellInitError(err_msg % 'args num > 2')
         # ptype, kernel_size
-        pt, ks = args 
+        pt, ks = args
         # '_tv' -> 'type valid'
         pt_tv = isinstance(pt, str)
         ks_tv = isinstance(ks, int)
@@ -142,12 +147,35 @@ class CellInitError(Exception):
     def __init__(self, msg):
         Exception.__init__(self, msg)
 
+def test_cell(item):
+    print("子进程", item.cell_list, item.graph,type(item.cell_list[0]))
+
 
 if __name__ == "__main__":
-    cc = Cell('conv', 1024, 7, 'relu') # conv cell
-    pc = Cell('pooling', 'avg', 10) # pooling cell
+    from base import Network, NetworkItem, Cell
+    #初始化一个Network
+    Net = Network(0, [[1], [2], [3], []])
 
-    print(cc.kernel_size)
-    print(pc.type)
-    print(cc)
-    print(pc)
+
+    cellist = [('conv', 512, 5, 'relu'), ('pooling',
+                                        'max', 3), ('pooling', 'max', 2), ]
+    cell_list = []
+    for x in cellist:
+        if len(x) == 4:
+            cell_list.append(Cell(x[0], x[1], x[2], x[3]))
+        else:
+            cell_list.append(Cell(x[0], x[1], x[2]))
+    #初始化一个NetworkItem
+    item = NetworkItem(0, [[1], [2], [3], []], cell_list, "")
+    print(type(cell_list))
+    Net.item_list.append(item)
+
+    print(Net.item_list[0])
+    print("主进程", Net.item_list[0].cell_list)
+    #测试子进程的cell_list
+
+
+    pool = Pool(2)
+    result = pool.apply_async(test_cell, args=(Net.item_list[0],))
+    pool.close()
+    pool.join()
