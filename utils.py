@@ -19,7 +19,7 @@ class Communication:
         self.task = queue.Queue()
         self.result = queue.Queue()
         self.idle_gpuq = multiprocessing.Queue()
-        for gpu in range(NAS_CONFIG['num_gpu']):
+        for gpu in range(NAS_CONFIG['nas_main']['num_gpu']):
             self.idle_gpuq.put(gpu)
 
 class Logger(object):

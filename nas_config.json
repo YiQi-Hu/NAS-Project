@@ -37,7 +37,8 @@
     "retrain_epoch": 640,
     "weight_decay": 0.0003,
     "momentum_rate": 0.9,
-    "model_save_path": "model",
+    "repeat_search": 1,
+    "model_path": "model",
     "dataset_path": "data",
     "eva_log_path": "",
     "learning_rate_type": "",
@@ -51,9 +52,7 @@
       0.1,
       0.01,
       0.001
-    ],
-    "repeat_search": 1,
-    "dataset_path": "C:\\Users\\Jalynn\\PycharmProjects"
+    ]
   },
   "opt": {
       "sample_size": 3,
