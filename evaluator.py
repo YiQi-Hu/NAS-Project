@@ -150,8 +150,7 @@ class Evaluator:
         self.train_data, self.train_label, self.valid_data, self.valid_label, \
             self.test_data, self.test_label = DataSet().inputs()
 
-    def _toposort(self, graph):
-        graph.append([])
+    def _toposort(self, graph):       
         node_len = len(graph)
         in_degrees = dict((u, 0) for u in range(node_len))
         for u in range(node_len):
@@ -276,19 +275,13 @@ class Evaluator:
         Returns:
           Logits.'''
         # print('Evaluater:starting to reconstruct the network')
-        # a pooling later for every block
-        if self.block_num == NAS_CONFIG['nas_main']['block_num']:
-            cellist.append(Cell('pooling', 'global'))
-        else:
-            cellist.append(Cell('pooling', 'max', 2))
-
+        topo_order = self._toposort(graph_part)
         nodelen = len(graph_part)
         # input list for every cell in network
         inputs = [images for _ in range(nodelen)]
         # bool list for whether this cell has already got input or not
         getinput = [False for _ in range(nodelen)]
-        getinput[0] = True
-        topo_order = self._toposort(graph_part)
+        getinput[0] = True        
 
         for node in topo_order:
             # print('Evaluater:right now we are processing node %d'%node,', ',cellist[node])
@@ -383,6 +376,13 @@ class Evaluator:
         tf.reset_default_graph()
         print("-" * 20, network.id, "-" * 20)
         print(network.graph, network.cell_list, Network.pre_block)
+        network.graph.append([])
+        # a pooling later for every block
+        if self.block_num == NAS_CONFIG['nas_main']['block_num']:
+            network.cell_list.append(Cell('pooling', 'global'))
+        else:
+            network.cell_list.append(Cell('pooling', 'max', 2))
+
         assert self.train_num >= self.batch_size, "Wrong! The data added in train dataset is smaller than batch size!"
         self.block_num = len(Network.pre_block) * \
             NAS_CONFIG['eva']['repeat_search']
@@ -423,6 +423,8 @@ class Evaluator:
                 saver.save(sess, os.path.join(
                     self.model_path, 'model' + str(network.id)))
 
+        network.graph.pop()
+        network.cell_list.pop()
         return float(precision[-1])
 
     def _get_input(self, sess, update_pre_weight):
@@ -497,8 +499,8 @@ class Evaluator:
                     print('early stop at %d epoch' % ep)
                     break
             sys.stdout.write("\n")
-            self.log += 'network %d epoch %d: precision = %.3f, cost time %.3f\n' % (
-                network.id, ep, precision[ep], float(time.time() - start_time))
+            self.log += 'epoch %d: precision = %.3f, cost time %.3f\n' % (
+                ep, precision[ep], float(time.time() - start_time))
             print('precision = %.3f, cost time %.3f' %
                   (precision[ep], float(time.time() - start_time)))
             log() << ('eva', self.log)
@@ -521,10 +523,11 @@ class Evaluator:
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
-    eval.add_data(5000)
-    print(eval._toposort([[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
-          4, 5, 6, 8], [5, 7], [6, 7, 9, 10], [7, 9], [8], [9, 10], [10]]))
-    graph_full = [[1], [2], [3], []]
+    eval.add_data(500)
+    # g=[[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
+    #       4, 5, 6, 8], [5, 7], [6, 7, 9, 10], [7, 9], [8], [9, 10], [10]]
+    # print(eval._toposort(g))
+    graph_full = [[1], [2], [3], [4]]
     cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
                  Cell('pooling', 'max', 3)]
     network = NetworkItem(0, graph_full, cell_list, "")
@@ -542,7 +545,6 @@ if __name__ == '__main__':
     #              ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
     #              ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
     # pre_block = [network]
-    # e = eval.evaluate(network,is_bestNN=True)
-    # e = eval.evaluate(network, is_bestNN=True)
+    e = eval.evaluate(network, is_bestNN=True)
     # e=eval.train(network.graph_full,cellist)
     # print(e)
