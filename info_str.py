@@ -44,6 +44,7 @@ search_tem = "NAS: Search finished and cost time: %d"
 blk_search_tem = "NAS: Search current block finished and cost time: %d"
 train_winner_tem = "NAS: Train winner finished and cost time: {}"
 round_over = "NAS: The round is over, cost time: {}"
+eva = "%s"
 
 # moudle X function X ACTION -> logger template string
 MF_TEMP = {
@@ -56,7 +57,9 @@ MF_TEMP = {
         }
     },
     'evaluator': {
-        '': ''
+        '_eval': {
+            'eva': "%s"
+        }
     },
     'enumerater': {
         '': ''

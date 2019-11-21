@@ -19,19 +19,19 @@
   },
   "eva": {
     "image_size": 32,
-    "num_classes": 10,
+    "num_classes": 100,
     "num_examples_for_train": 40000,
     "num_examples_per_epoch_for_eval": 10000,
-    "initial_learning_rate": 0.1,
+    "initial_learning_rate": 0.025,
     "num_epochs_per_decay": 80.0,
     "learning_rate_decay_factor": 0.1,
     "moving_average_decay": 0.98,
-    "batch_size": 250,
-    "epoch": 167,
+    "batch_size": 50,
+    "epoch": 1,
     "weight_decay": 0.0003,
     "momentum_rate": 0.9,
     "model_path": "model",
-    "learning_rate_type": "",
+    "learning_rate_type": "cos",
     "boundaries": [
       0,
       80,
@@ -42,9 +42,9 @@
       0.01,
       0.001
     ],
-    "task_name": "cifar-10",
+    "task_name": "cifar-100",
     "repeat_search": 1,
-    "dataset_path": "C:\\Users\\Jalynn\\PycharmProjects"
+    "dataset_path": "/home/amax/Desktop"
   },
   "opt": {
       "sample_size": 3,
