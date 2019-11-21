@@ -27,11 +27,11 @@ def _subproc_eva(params, eva, gpuq):
     ngpu = gpuq.get()
     start_time = time.time()
 
+    item, rd, nn_id, pl_len, spl_id, bt_nm, blk_wnr, ft_sign = params
     # return score and pos
     if MAIN_CONFIG['eva_debug']:
         score = random.uniform(0, 0.1)
     else:
-        item, rd, nn_id, pl_len, spl_id, bt_nm, blk_wnr, ft_sign = params
         item.graph.append([])
         os.environ['CUDA_VISIBLE_DEVICES'] = str(ngpu)
         score = eva.evaluate(item, is_bestNN=blk_wnr,
@@ -39,8 +39,19 @@ def _subproc_eva(params, eva, gpuq):
     gpuq.put(ngpu)
     time_cost = time.time() - start_time
 
-    NAS_LOG << ('eva_result', nn_id, score, time_cost)
+    NAS_LOG << ('eva_ing', len(Network.pre_block)+1, rd, nn_id,
+                pl_len, spl_id, bt_nm, score, time_cost, os.getpid())
     return score, time_cost, nn_id, spl_id
+
+
+def _save_net_info(net, *args):
+    net_info_temp = "elim_net_info"
+    sche_info_temp = "scheme_info"
+    blk_num, rd, net_lft, net_id, sche_num = args
+    NAS_LOG << (net_info_temp, blk_num, rd, net_lft, net_id, sche_num, net.graph_template)
+    for scheme in net.item_list:
+        NAS_LOG << (sche_info_temp, str(scheme.graph), str(scheme.cell_list), str(scheme.code),
+                    str(scheme.score))
 
 
 def _do_task(pool, cmnct, eva):
@@ -65,7 +76,7 @@ def _arrange_result(cmnct, net_pl):
             score, time_cost, nn_id, spl_id = r_
         else:
             score, time_cost, nn_id, spl_id = r_.get()
-        print(ifs.eva_result_tem.format(nn_id, spl_id, score, time_cost))
+        NAS_LOG << ('eva_result', nn_id, spl_id, score, time_cost)
         # mark down the score
         net_pl[nn_id - 1].item_list[-spl_id].score = score
 
@@ -175,7 +186,11 @@ def _pred_ops(nn, pred, graph, table):
     :param spl_id:
     :return:
     """
-    pre_block = [elem[-1].graph for elem in Network.pre_block]
+    pre_block = Network.pre_block.copy()
+    pre_block = [elem[-1].graph for elem in pre_block]
+    for block in pre_block:
+        if block[-1]:
+            block.append([])
     graph.append([])  # add the virtual node
     pred_ops = pred.predictor(pre_block, graph)
     pred_ops = pred_ops[:-1]  # remove the ops of virtual node
@@ -242,17 +257,19 @@ def _eliminate(net_pool=None, round=0):
             list_swap(scores, i, len(scores) - 1)
             net = net_pool.pop()
             scores.pop()
-            # NAS_LOG << ("elim_net_info", len(net.pre_block+1), round, len(net_pool),
-                        # net.id, len(net.item_list))
+            NAS_LOG << ("elim_net", len(Network.pre_block)+1, round, len(net_pool),
+                        net.id, len(net.item_list))
             # TODO record the info of the network removed
+            _save_net_info(net, len(Network.pre_block)+1,
+                           round, len(net_pool), net.id, len(net.item_list))
         else:
             i += 1
-    print(ifs.eliinfo_tem.format(original_num - len(scores), len(scores)))
+    NAS_LOG << ('eliinfo_tem', original_num - len(scores), len(scores))
 
 
 def _rm_other_model(best_index):
-    models = [os.listdir(NAS_CONFIG['eva']['model_path'])]
-    models = [model for model in models if not re.search(str(best_index), model)]
+    models = os.listdir(NAS_CONFIG['eva']['model_path'])
+    models = [model for model in models if not re.search("model"+str(best_index), model)]
     for model in models:
         os.remove(os.path.join(NAS_CONFIG['eva']['model_path'], model))
 
@@ -279,7 +296,7 @@ def _train_winner(net_pl, com, pro_pl, round):
     Returns:
         best_nn: object of Class NetworkUnit
     """
-    print(ifs.config_ops_ing)
+    NAS_LOG << "config_ops_ing"
     start_train_winner = time.time()
     eva_winner = Evaluator()
     _datasize_ctrl(eva_winner)
@@ -291,13 +308,14 @@ def _train_winner(net_pl, com, pro_pl, round):
     elif MAIN_CONFIG['pattern'] == "Global":
         _global_train(net_pl, com, pro_pl, eva_winner)
     best_nn = net_pl[0]
-    # TODO record the info of winner
+    _save_net_info(best_nn, len(Network.pre_block) + 1,
+                   round, len(net_pl), best_nn.id, len(best_nn.item_list))
     scores = [x.score for x in best_nn.item_list[-MAIN_CONFIG['num_opt_best']:]]
     best_index = scores.index(max(scores))
     best_item_index = best_index - len(scores)
     if MAIN_CONFIG['pattern'] == "Block":
         _rm_other_model(best_index)
-    print(ifs.train_winner_tem.format(time.time() - start_train_winner))
+    NAS_LOG << ("train_winner_tem", time.time()-start_train_winner)
     return best_nn, best_item_index
 
 # Debug function
@@ -369,10 +387,10 @@ def algo(block_num, eva, com, npool_tem, process_pool):
     :return:
     """
     net_pool = copy.deepcopy(npool_tem)
-    print(ifs.start_game_tem.format(len(net_pool)))
+    NAS_LOG << ('start_game', len(net_pool))
     _init_npool_sampler(net_pool, block_num)
 
-    print(ifs.config_ing)
+    NAS_LOG << 'config_ing'
     net_pool = _init_ops(net_pool, process_pool)
     round = 0
     start_game = time.time()
@@ -381,15 +399,15 @@ def algo(block_num, eva, com, npool_tem, process_pool):
         round += 1
         _game(eva, net_pool, com, round, process_pool)
         _eliminate(net_pool, round)
-        print(ifs.round_over.format(time.time() - start_round))
-    print(ifs.get_winner.format(time.time() - start_game))
+        NAS_LOG << ('round_over', time.time()-start_round)
+    NAS_LOG << ('get_winner', time.time()-start_game)
     best_nn, best_index = _train_winner(net_pool, com, process_pool, round+1)
 
     return best_nn, best_index
 
 
 def _retrain():
-    retrain_eva = Evaluator(retrain=True)
+    retrain_eva = Evaluator()
     _datasize_ctrl(retrain_eva)
     score = retrain_eva.evaluate([], is_bestNN=True, update_pre_weight=True)
     return score
@@ -397,7 +415,7 @@ def _retrain():
 
 class Nas:
     def __init__(self, pool):
-        print(ifs.init_ing)
+        NAS_LOG << "init_ing"
         self.enu = Enumerater()
         self.eva = Evaluator()
         self.com = Communication()
@@ -408,7 +426,7 @@ class Nas:
         network_pool_tem = self.enu.enumerate()
         start_search = time.time()
         for i in range(MAIN_CONFIG["block_num"]):
-            NAS_LOG << ('search_blk', (i+1) / MAIN_CONFIG["block_num"])
+            NAS_LOG << ('search_blk', i+1, MAIN_CONFIG["block_num"])
             start_block = time.time()
             block, best_index = algo(i, self.eva, self.com, network_pool_tem, self.pool)
             Network.pre_block.append([
@@ -418,8 +436,9 @@ class Nas:
             NAS_LOG << ('search_blk_end', time.time() - start_block)
         NAS_LOG << ('nas_end', time.time() - start_search)
         start_retrain = time.time()
-        retrain_score = _retrain(Network.pre_block)
-        NAS_LOG << ('retrain_end', time.time() - start_retrain)
+        retrain_score = random.random()
+        # retrain_score = _retrain()
+        NAS_LOG << ('retrain_end', retrain_score, time.time() - start_retrain)
         return Network.pre_block, retrain_score
 
 

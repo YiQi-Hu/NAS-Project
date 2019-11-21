@@ -549,7 +549,7 @@ if __name__ == '__main__':
     #              ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
     #              ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
     # pre_block = [network]
-    # e = eval.evaluate(network,is_bestNN=True)
+    e = eval.evaluate(network,is_bestNN=True)
     # e = eval.evaluate(network, is_bestNN=True)
     # e=eval.train(network.graph_full,cellist)
     # print(e)

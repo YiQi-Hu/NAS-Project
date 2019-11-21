@@ -26,28 +26,34 @@ naslog_path = os.path.join(log_dir, 'nas_log.txt')
 
 # System information
 evafail = 'NAS: evaluating failed and we will try again...'
-eva_result_tem = 'network_index:{} score:{} time_cost:{} '
-eliinfo_tem = 'NAS: eliminating {}, remaining {}...'
+eva_result_tem = "network_index:{0[0]} spl_index:{0[1]} score:{0[2]} time_cost:{0[3]}"
+eva_ing = 'block_num:{0[0]} round:{0[1]} network_index:{0[2]}/{0[3]} spl_index:{0[4]}/{0[5]}' \
+          ' score:{0[6]} time_cost:{0[7]} eva_pid:{0[8]} finished...'
+eliinfo_tem = 'NAS: eliminating {0[0]}, remaining {0[1]}...'
 init_ing = 'NAS: Initializing...'
 i_am_ps = 'NAS: I am ps.'
 i_am_worker = 'NAS: I am worker.'
 enum_ing = 'NAS: Enumerating all possible networks!'
-search_block_tem = 'NAS: Searching for block %f...'
+search_block_tem = 'NAS: Searching for block {0[0]}/{0[1]}...'
 worker_done = 'NAS: all of the blocks have been evaluated, please go to the ps manager to view the result...'
 wait_for_task = 'NAS: waiting for assignment of next round...'
 config_ing = 'NAS: Configuring the networks in the first round...'
-get_winner = 'NAS: We got a WINNER!'
-best_and_score_tem = 'NAS: We have got the best network and its score is {}'
-start_game_tem = 'NAS: Now we have {} networks. Start game!'
+get_winner = 'NAS: We got a WINNER and cost time: {0[0]}'
+best_and_score_tem = 'NAS: We have got the best network and its score is {0[0]}'
+start_game_tem = 'NAS: Now we have {0[0]} networks. Start game!'
 config_ops_ing = "NAS: Configuring ops and skipping for the best structure and training them..."
-search_tem = "NAS: Search finished and cost time: %d"
-blk_search_tem = "NAS: Search current block finished and cost time: %d"
-train_winner_tem = "NAS: Train winner finished and cost time: {}"
-round_over = "NAS: The round is over, cost time: {}"
-retrain_end = "NAS: We retrain the final network, socre {}  cost time {}"
-no_dim_spl = "There maybe no dim for sample, {} table sampled !!!"
+search_tem = "NAS: Search finished and cost time: {0[0]}"
+blk_search_tem = "NAS: Search current block finished and cost time: {0[0]}"
+train_winner_tem = "NAS: Train winner finished and cost time: {0[0]}"
+round_over = "NAS: The round is over, cost time: {0[0]}"
+retrain_end = "NAS: We retrain the final network, score {0[0]}  cost time {0[1]}"
+no_dim_spl = "There maybe no dim for sample, {0[0]} table sampled !!!"
 no_dim_ini = "There maybe no dim for first sample !!!"
-elim_net_info = "\nblock_num: {} round: {} network_left: {} network_id: {} number of scheme: {}\n"
+elim_net = "Network info of net removed\nblock_num: {0[0]} round: {0[1]} network_left: {0[2]} " \
+                "network_id: {0[3]} number of scheme: {0[4]}\n"
+elim_net_info = "block_num: {0[0]} round: {0[1]} network_left: {0[2]} " \
+                "network_id: {0[3]} number of scheme: {0[4]}\ngraph_part:{0[5]}\n"
+scheme_info = "    graph_full:{0[0]}\n    cell_list:{0[1]}\n    code:{0[2]}\n    score:{0[3]}\n"
 
 eva = "%s"
 
@@ -61,8 +67,34 @@ MF_TEMP = {
             'nas_end': search_tem,
             'retrain_end': retrain_end,
             'no_dim_spl': no_dim_spl,
-            'no_dim_ini': no_dim_ini,
-            'elim_net_info': elim_net_info
+            'no_dim_ini': no_dim_ini
+        },
+        '_arrange_result': {
+            'eva_result': eva_result_tem
+        },
+        '_subproc_eva': {
+            'eva_ing': eva_ing
+        },
+        'algo': {
+            'start_game': start_game_tem,
+            'config_ing': config_ing,
+            'round_over': round_over,
+            'get_winner': get_winner
+        },
+        '_eliminate': {
+            'eliinfo_tem': eliinfo_tem,
+            'elim_net': elim_net
+        },
+        '_save_net_info': {
+            'elim_net_info': elim_net_info,
+            'scheme_info': scheme_info
+        },
+        '_train_winner': {
+            'config_ops_ing': config_ops_ing,
+            'train_winner_tem': train_winner_tem
+        },
+        '__init__': {
+            'init_ing': init_ing
         }
     },
     'evaluator': {

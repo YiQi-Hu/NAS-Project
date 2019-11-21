@@ -9,8 +9,8 @@
     "eliminate_policy": "best",
     "add_data_per_round": 1600,
     "add_data_for_winner": -1,
-    "subp_debug": 1,
-    "eva_debug": 0,
+    "subp_debug": 0,
+    "eva_debug": 1,
     "ops_debug": 0
   },
   "enum":{
@@ -41,7 +41,6 @@
     "model_path": "model",
     "dataset_path": "data",
     "eva_log_path": "",
-    "learning_rate_type": "",
     "retrain_switch": 0,
     "learning_rate_type": "cos",
     "boundaries": [
@@ -53,7 +52,7 @@
       0.1,
       0.01,
       0.001
-    ],
+    ]
   },
   "opt": {
       "sample_size": 3,
