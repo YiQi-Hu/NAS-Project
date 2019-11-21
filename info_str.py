@@ -49,6 +49,7 @@ no_dim_spl = "There maybe no dim for sample, {} table sampled !!!"
 no_dim_ini = "There maybe no dim for first sample !!!"
 elim_net_info = "\nblock_num: {} round: {} network_left: {} network_id: {} number of scheme: {}\n"
 
+eva = "%s"
 
 # moudle X function X ACTION -> logger template string
 MF_TEMP = {
@@ -65,7 +66,9 @@ MF_TEMP = {
         }
     },
     'evaluator': {
-        '': ''
+        '_eval': {
+            'eva': "%s"
+        }
     },
     'enumerater': {
         '': ''

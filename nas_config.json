@@ -23,11 +23,11 @@
   "eva": {
     "task_name": "cifar-10",
     "image_size": 32,
-    "num_classes": 10,
+    "num_classes": 100,
     "num_examples_for_train": 40000,
     "num_examples_per_epoch_for_eval": 10000,
     "regularaztion_rate": 0.001,
-    "initial_learning_rate": 0.1,
+    "initial_learning_rate": 0.025,
     "num_epochs_per_decay": 80.0,
     "learning_rate_decay_factor": 0.1,
     "moving_average_decay": 0.98,
@@ -43,6 +43,7 @@
     "eva_log_path": "",
     "learning_rate_type": "",
     "retrain_switch": 0,
+    "learning_rate_type": "cos",
     "boundaries": [
       0,
       80,
@@ -52,7 +53,7 @@
       0.1,
       0.01,
       0.001
-    ]
+    ],
   },
   "opt": {
       "sample_size": 3,

@@ -184,6 +184,7 @@ class Sampler:
                 for key in space_conv:
                 # for key in self._setting['conv']:
                     tmp = tmp + (self._setting['conv'][key][p_node[self._dic_index['conv ' + key][-1]]],)
+                print('##########', tmp[0], tmp[1], tmp[2], tmp[3])
                 tmp = Cell(tmp[0], tmp[1], tmp[2], tmp[3])
             else:  # Search operation under pooling
                 tmp = tmp + ('pooling',)

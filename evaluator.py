@@ -1,12 +1,14 @@
-import time
 import os
-import numpy as np
-import tensorflow as tf
 import pickle
 import random
 import sys
+import time
+
+import numpy as np
+import tensorflow as tf
+
+from base import Cell, Network, NetworkItem
 from info_str import NAS_CONFIG
-from base import Cell, NetworkItem, Network
 from utils import Logger as log
 
 
@@ -30,7 +32,8 @@ class DataSet:
             train_files = ['train']
             test_files = ['test']
         train_data, train_label = self._load(train_files)
-        train_data, train_label, valid_data, valid_label = self._split(train_data, train_label)
+        train_data, train_label, valid_data, valid_label = self._split(
+            train_data, train_label)
         test_data, test_label = self._load(test_files)
         print("======Data Process Done======")
         return train_data, train_label, valid_data, valid_label, test_data, test_label
@@ -50,7 +53,8 @@ class DataSet:
             batch_data, batch_label = self._load_one(os.path.join(data_dir, f))
             data = np.append(data, batch_data, axis=0)
             label = np.append(label, batch_label, axis=0)
-        label = np.array([[float(i == label) for i in range(self.NUM_CLASSES)] for label in label])
+        label = np.array([[float(i == label)
+                           for i in range(self.NUM_CLASSES)] for label in label])
         data = data.reshape([-1, 3, self.IMAGE_SIZE, self.IMAGE_SIZE])
         data = data.transpose([0, 2, 3, 1])
         # pre-process
@@ -65,14 +69,19 @@ class DataSet:
         data = data[index]
         label = label[index]
         return data[:self.NUM_EXAMPLES_FOR_TRAIN], label[:self.NUM_EXAMPLES_FOR_TRAIN], \
-               data[self.NUM_EXAMPLES_FOR_EVAL:], label[self.NUM_EXAMPLES_FOR_EVAL:]
+            data[self.NUM_EXAMPLES_FOR_TRAIN:self.NUM_EXAMPLES_FOR_TRAIN + self.NUM_EXAMPLES_FOR_EVAL], \
+            label[self.NUM_EXAMPLES_FOR_TRAIN:self.NUM_EXAMPLES_FOR_TRAIN +
+                  self.NUM_EXAMPLES_FOR_EVAL]
 
     def _normalize(self, x_train):
         x_train = x_train.astype('float32')
 
-        x_train[:, :, :, 0] = (x_train[:, :, :, 0] - np.mean(x_train[:, :, :, 0])) / np.std(x_train[:, :, :, 0])
-        x_train[:, :, :, 1] = (x_train[:, :, :, 1] - np.mean(x_train[:, :, :, 1])) / np.std(x_train[:, :, :, 1])
-        x_train[:, :, :, 2] = (x_train[:, :, :, 2] - np.mean(x_train[:, :, :, 2])) / np.std(x_train[:, :, :, 2])
+        x_train[:, :, :, 0] = (
+            x_train[:, :, :, 0] - np.mean(x_train[:, :, :, 0])) / np.std(x_train[:, :, :, 0])
+        x_train[:, :, :, 1] = (
+            x_train[:, :, :, 1] - np.mean(x_train[:, :, :, 1])) / np.std(x_train[:, :, :, 1])
+        x_train[:, :, :, 2] = (
+            x_train[:, :, :, 2] - np.mean(x_train[:, :, :, 2])) / np.std(x_train[:, :, :, 2])
 
         return x_train
 
@@ -96,7 +105,7 @@ class DataSet:
             nh = random.randint(0, oshape[0] - crop_shape[0])
             nw = random.randint(0, oshape[1] - crop_shape[1])
             new_batch[i] = new_batch[i][nh:nh + crop_shape[0],
-                           nw:nw + crop_shape[1]]
+                                        nw:nw + crop_shape[1]]
         return np.array(new_batch)
 
     def _random_flip_leftright(self, batch):
@@ -122,9 +131,12 @@ class Evaluator:
         self.NUM_EXAMPLES_FOR_TRAIN = NAS_CONFIG['eva']['num_examples_for_train']
         self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = NAS_CONFIG['eva']['num_examples_per_epoch_for_eval']
         # Constants describing the training process.
-        self.INITIAL_LEARNING_RATE = NAS_CONFIG['eva']['initial_learning_rate']  # Initial learning rate.
-        self.NUM_EPOCHS_PER_DECAY = NAS_CONFIG['eva']['num_epochs_per_decay']  # Epochs after which learning rate decays
-        self.LEARNING_RATE_DECAY_FACTOR = NAS_CONFIG['eva']['learning_rate_decay_factor']  # Learning rate decay factor.
+        # Initial learning rate.
+        self.INITIAL_LEARNING_RATE = NAS_CONFIG['eva']['initial_learning_rate']
+        # Epochs after which learning rate decays
+        self.NUM_EPOCHS_PER_DECAY = NAS_CONFIG['eva']['num_epochs_per_decay']
+        # Learning rate decay factor.
+        self.LEARNING_RATE_DECAY_FACTOR = NAS_CONFIG['eva']['learning_rate_decay_factor']
         self.MOVING_AVERAGE_DECAY = NAS_CONFIG['eva']['moving_average_decay']
         self.batch_size = NAS_CONFIG['eva']['batch_size']
         self.epoch = NAS_CONFIG['eva']['epoch']
@@ -134,15 +146,18 @@ class Evaluator:
         self.train_num = 0
         self.max_steps = 0
         self.block_num = 0
+        self.log = ''
         self.train_data, self.train_label, self.valid_data, self.valid_label, \
-        self.test_data, self.test_label = DataSet().inputs()
+            self.test_data, self.test_label = DataSet().inputs()
 
     def _toposort(self, graph):
-        in_degrees = dict((u, 0) for u in range(len(graph)))
-        for u in range(len(graph)):
+        graph.append([])
+        node_len = len(graph)
+        in_degrees = dict((u, 0) for u in range(node_len))
+        for u in range(node_len):
             for v in graph[u]:
                 in_degrees[v] += 1
-        queue = [u for u in range(len(graph)) if in_degrees[u] == 0]
+        queue = [u for u in range(node_len) if in_degrees[u] == 0]
         result = []
         while queue:
             u = queue.pop()
@@ -172,14 +187,19 @@ class Evaluator:
             if sep:
                 kernel = tf.get_variable('weights', shape=[hplist.kernel_size, hplist.kernel_size, inputdim, 1],
                                          initializer=tf.contrib.keras.initializers.he_normal())
-                pfilter = tf.get_variable('pointwise_filter', [1, 1, inputdim, hplist.filter_size])
-                conv = tf.nn.separable_conv2d(inputs, kernel, pfilter)
+                pfilter = tf.get_variable(
+                    'pointwise_filter', [1, 1, inputdim, hplist.filter_size])
+                conv = tf.nn.separable_conv2d(inputs, kernel, pfilter, strides=[
+                                              1, 1, 1, 1], padding='SAME')
             else:
                 kernel = tf.get_variable('weights',
-                                         shape=[hplist.kernel_size, hplist.kernel_size, inputdim, hplist.filter_size],
+                                         shape=[
+                                             hplist.kernel_size, hplist.kernel_size, inputdim, hplist.filter_size],
                                          initializer=tf.contrib.keras.initializers.he_normal())
-                conv = tf.nn.conv2d(inputs, kernel, [1, 1, 1, 1], padding='SAME')
-            biases = tf.get_variable('biases', hplist.filter_size, initializer=tf.constant_initializer(0.0))
+                conv = tf.nn.conv2d(
+                    inputs, kernel, [1, 1, 1, 1], padding='SAME')
+            biases = tf.get_variable(
+                'biases', hplist.filter_size, initializer=tf.constant_initializer(0.0))
             bias = self._batch_norm(tf.nn.bias_add(conv, biases), train_flag)
             if hplist.activation == 'relu':
                 conv1 = tf.nn.relu(bias, name=scope.name)
@@ -229,16 +249,20 @@ class Evaluator:
             with tf.variable_scope('dense' + str(i)) as scope:
                 weights = tf.get_variable('weights', shape=[inputs.shape[-1], neural_num],
                                           initializer=tf.contrib.keras.initializers.he_normal())
-                biases = tf.get_variable('biases', [neural_num], initializer=tf.constant_initializer(0.0))
+                biases = tf.get_variable(
+                    'biases', [neural_num], initializer=tf.constant_initializer(0.0))
                 if hplist[2] == 'relu':
                     local3 = tf.nn.relu(self._batch_norm(tf.matmul(inputs, weights) + biases, train_flag),
                                         name=scope.name)
                 elif hplist[2] == 'tanh':
-                    local3 = tf.tanh(tf.matmul(inputs, weights) + biases, name=scope.name)
+                    local3 = tf.tanh(
+                        tf.matmul(inputs, weights) + biases, name=scope.name)
                 elif hplist[2] == 'sigmoid':
-                    local3 = tf.sigmoid(tf.matmul(inputs, weights) + biases, name=scope.name)
+                    local3 = tf.sigmoid(
+                        tf.matmul(inputs, weights) + biases, name=scope.name)
                 else:
-                    local3 = tf.identity(tf.matmul(inputs, weights) + biases, name=scope.name)
+                    local3 = tf.identity(
+                        tf.matmul(inputs, weights) + biases, name=scope.name)
             inputs = local3
             i += 1
         return inputs
@@ -259,19 +283,23 @@ class Evaluator:
             cellist.append(Cell('pooling', 'max', 2))
 
         nodelen = len(graph_part)
-        inputs = [images for _ in range(nodelen)]  # input list for every cell in network
-        getinput = [False for _ in range(nodelen)]  # bool list for whether this cell has already got input or not
+        # input list for every cell in network
+        inputs = [images for _ in range(nodelen)]
+        # bool list for whether this cell has already got input or not
+        getinput = [False for _ in range(nodelen)]
         getinput[0] = True
         topo_order = self._toposort(graph_part)
 
         for node in topo_order:
             # print('Evaluater:right now we are processing node %d'%node,', ',cellist[node])
             if cellist[node].type == 'conv':
-                layer = self._makeconv(inputs[node], cellist[node], node, train_flag)
+                layer = self._makeconv(
+                    inputs[node], cellist[node], node, train_flag)
             elif cellist[node].type == 'pooling':
                 layer = self._makepool(inputs[node], cellist[node])
             elif cellist[node].type == 'sep_conv':
-                layer = self._makeconv(inputs[node], cellist[node], node, train_flag, sep=True)
+                layer = self._makeconv(
+                    inputs[node], cellist[node], node, train_flag, sep=True)
 
             # update inputs information of the cells below this cell
             for j in graph_part[node]:
@@ -282,7 +310,8 @@ class Evaluator:
                     getinput[j] = True
 
         # give last layer a name
-        last_layer = tf.identity(layer, name="last_layer" + str(self.block_num))
+        last_layer = tf.identity(
+            layer, name="last_layer" + str(self.block_num))
         return last_layer
 
     def _pad(self, inputs, layer):
@@ -309,7 +338,8 @@ class Evaluator:
           Returns:
             Loss tensor of type float.
           """
-        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
+        cross_entropy = tf.reduce_mean(
+            tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
         l2 = tf.add_n([tf.nn.l2_loss(var) for var in tf.trainable_variables()])
         loss = cross_entropy + l2 * self.weight_decay
         return loss, cross_entropy
@@ -324,7 +354,8 @@ class Evaluator:
             lr = tf.train.piecewise_constant(global_step, boundaries=NAS_CONFIG['eva']['boundaries'],
                                              values=NAS_CONFIG['eva']['learing_rate'])
         elif lr_type == 'cos':
-            lr = tf.train.cosine_decay(self.INITIAL_LEARNING_RATE, global_step, decay_steps)
+            lr = tf.train.cosine_decay(
+                self.INITIAL_LEARNING_RATE, global_step, decay_steps)
         else:
             # Decay the learning rate exponentially based on the number of steps.
             lr = tf.train.exponential_decay(self.INITIAL_LEARNING_RATE,
@@ -348,26 +379,34 @@ class Evaluator:
             update_pre_weight: Symbol for indicating whether to update previous blocks' weight, default by False.
         Returns:
             Accuracy'''
+        self.log = ''
         tf.reset_default_graph()
         print("-" * 20, network.id, "-" * 20)
         print(network.graph, network.cell_list, Network.pre_block)
         assert self.train_num >= self.batch_size, "Wrong! The data added in train dataset is smaller than batch size!"
-        self.block_num = len(Network.pre_block) * NAS_CONFIG['eva']['repeat_search']
+        self.block_num = len(Network.pre_block) * \
+            NAS_CONFIG['eva']['repeat_search']
 
         with tf.Session() as sess:
-            global_step = tf.Variable(0, trainable=False, name='global_step' + str(self.block_num))
-            x, labels, input, train_flag = self._get_input(sess, update_pre_weight)
+            global_step = tf.Variable(
+                0, trainable=False, name='global_step' + str(self.block_num))
+            x, labels, input, train_flag = self._get_input(
+                sess, update_pre_weight)
 
-            logits = self._inference(input, network.graph, network.cell_list, train_flag)
-            for i in range(NAS_CONFIG['eva']['repeat_search'] - 1):
+            logits = self._inference(
+                input, network.graph, network.cell_list, train_flag)
+            for _ in range(NAS_CONFIG['eva']['repeat_search'] - 1):
                 self.block_num += 1
-                logits = self._inference(logits, network.graph, network.cell_list, train_flag)
+                logits = self._inference(
+                    logits, network.graph, network.cell_list, train_flag)
 
             logits = tf.nn.dropout(logits, keep_prob=1.0)
             # softmax
-            logits = self._makedense(logits, ('', [self.NUM_CLASSES], 'identity'), train_flag)
+            logits = self._makedense(
+                logits, ('', [self.NUM_CLASSES], 'identity'), train_flag)
 
-            correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(labels, 1))
+            correct_prediction = tf.equal(
+                tf.argmax(logits, 1), tf.argmax(labels, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
             loss, cross_entropy = self._loss(labels, logits)
             train_op, lr = self._train_op(global_step, loss)
@@ -376,10 +415,13 @@ class Evaluator:
             # Start running operations on the Graph.
             sess.run(tf.global_variables_initializer())
 
-            precision = self._eval(sess, train_op, cross_entropy, accuracy, x, labels, train_flag)
+            precision = self._eval(
+                sess, train_op, cross_entropy, accuracy, x, labels, train_flag)
 
             if is_bestNN:  # save model
-                saver.save(sess, os.path.join(self.model_path, 'model' + str(network.id)))
+                saver.save(sess, os.path.join(
+                    self.model_path, 'model' + str(network.id)))
+
         return float(precision[-1])
 
     def _get_input(self, sess, update_pre_weight):
@@ -389,57 +431,76 @@ class Evaluator:
             # TODO check whether there is a model file exit
             new_saver = tf.train.import_meta_graph(
                 os.path.join(self.model_path, 'model' + str(network.id) + '.meta'))
-            new_saver.restore(sess, os.path.join(self.model_path, 'model' + str(network.id)))
+            new_saver.restore(sess, os.path.join(
+                self.model_path, 'model' + str(network.id)))
             graph = tf.get_default_graph()
             x = graph.get_tensor_by_name("input:0")
             labels = graph.get_tensor_by_name("label:0")
             train_flag = graph.get_tensor_by_name("train_flag:0")
-            input = graph.get_tensor_by_name("last_layer" + str(self.block_num - 1) + ":0")
+            input = graph.get_tensor_by_name(
+                "last_layer" + str(self.block_num - 1) + ":0")
             # only when there's not so many network in the pool will we update the previous blocks' weight
             if not update_pre_weight:
                 input = tf.stop_gradient(input, name="stop_gradient")
         # if it's the first block
         else:
-            x = tf.placeholder(tf.float32, [self.batch_size, self.IMAGE_SIZE, self.IMAGE_SIZE, 3], name='input')
-            labels = tf.placeholder(tf.int32, [self.batch_size, self.NUM_CLASSES], name="label")
+            x = tf.placeholder(
+                tf.float32, [self.batch_size, self.IMAGE_SIZE, self.IMAGE_SIZE, 3], name='input')
+            labels = tf.placeholder(
+                tf.int32, [self.batch_size, self.NUM_CLASSES], name="label")
             train_flag = tf.placeholder(tf.bool, name='train_flag')
             input = x
         return x, labels, input, train_flag
 
     def _eval(self, sess, train_op, cross_entropy, accuracy, x, labels, train_flag):
+        self.log = self.log+"-" * 20 + str(network.id) + "-" * 20+'\n'
+        self.log = self.log + \
+            str(network.graph) + str(network.cell_list) + \
+            str(Network.pre_block)+'\n'
         precision = np.zeros([self.epoch])
+        start_time = time.time()
         for ep in range(self.epoch):
             print("epoch", ep, ":")
             # train step
             for step in range(self.max_steps):
-                batch_x = self.train_data[step * self.batch_size:(step + 1) * self.batch_size]
-                batch_y = self.train_label[step * self.batch_size:(step + 1) * self.batch_size]
+                batch_x = self.train_data[step *
+                                          self.batch_size:(step + 1) * self.batch_size]
+                batch_y = self.train_label[step *
+                                           self.batch_size:(step + 1) * self.batch_size]
                 batch_x = DataSet().process(batch_x)
                 _, loss_value, acc = sess.run([train_op, cross_entropy, accuracy],
                                               feed_dict={x: batch_x, labels: batch_y, train_flag: True})
-                if np.isnan(loss_value): return -1
-                sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" % (step, self.max_steps, loss_value, acc))
+                if np.isnan(loss_value):
+                    return [-1]
+                sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" %
+                                 (step, self.max_steps, loss_value, acc))
             sys.stdout.write("\n")
             # evaluation step
             num_iter = self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL // self.batch_size
-            start_time = time.time()
             for step in range(num_iter):
-                batch_x = self.valid_data[step * self.batch_size:(step + 1) * self.batch_size]
-                batch_y = self.valid_label[step * self.batch_size:(step + 1) * self.batch_size]
+                batch_x = self.valid_data[step *
+                                          self.batch_size:(step + 1) * self.batch_size]
+                batch_y = self.valid_label[step *
+                                           self.batch_size:(step + 1) * self.batch_size]
                 l, acc_ = sess.run([cross_entropy, accuracy],
                                    feed_dict={x: batch_x, labels: batch_y, train_flag: False})
                 precision[ep] += acc_ / num_iter
-                sys.stdout.write("\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
+                sys.stdout.write(
+                    "\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
             # early stop
             if ep > 10:
                 if precision[ep] < 0.15:
-                    return -1
+                    return [-1]
                 if 2 * precision[ep] - precision[ep - 10] - precision[ep - 1] < 0.001:
                     precision = precision[:ep]
                     print('early stop at %d epoch' % ep)
                     break
             sys.stdout.write("\n")
-            print('precision = %.3f, cost time %.3f' % (precision[ep], float(time.time() - start_time)))
+            self.log += 'network %d epoch %d: precision = %.3f, cost time %.3f\n' % (
+                network.id, ep, precision[ep], float(time.time() - start_time))
+            print('precision = %.3f, cost time %.3f' %
+                  (precision[ep], float(time.time() - start_time)))
+            log() << ('eva', self.log)
 
         return precision
 
@@ -447,7 +508,8 @@ class Evaluator:
         if self.train_num + add_num > self.NUM_EXAMPLES_FOR_TRAIN or add_num < 0:
             add_num = self.NUM_EXAMPLES_FOR_TRAIN - self.train_num
             self.train_num = self.NUM_EXAMPLES_FOR_TRAIN
-            print('Warning! Add number has been changed to', add_num, ', all data is loaded.')
+            print('Warning! Add number has been changed to',
+                  add_num, ', all data is loaded.')
         else:
             self.train_num += add_num
         # print('************A NEW ROUND************')
@@ -466,6 +528,12 @@ if __name__ == '__main__':
     # network = NetworkItem(0, graph_full, cell_list, "")
     graph_full = [[1, 2, 3], [2], [3], []]
     cell_list = [Cell('conv', 64, 3, 'relu'), Cell('conv', 64, 5, 'leakyrelu'), Cell('conv', 64, 3, 'relu6')]
+    # eval.add_data(5000)
+    # print(eval._toposort([[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
+    #       4, 5, 6, 8], [5, 7], [6, 7, 9, 10], [7, 9], [8], [9, 10], [10]]))
+    # graph_full = [[1], [2], [3], []]
+    # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
+    #              Cell('pooling', 'max', 3)]
     network = NetworkItem(0, graph_full, cell_list, "")
     # cell_list = [cell_list]
     # e=eval.evaluate(graph_full,cell_list[-1])#,is_bestNN=True)
@@ -482,6 +550,6 @@ if __name__ == '__main__':
     #              ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
     # pre_block = [network]
     # e = eval.evaluate(network,is_bestNN=True)
-    e = eval.evaluate(network, is_bestNN=True)
+    # e = eval.evaluate(network, is_bestNN=True)
     # e=eval.train(network.graph_full,cellist)
-    print(e)
+    # print(e)
