@@ -376,16 +376,18 @@ class Evaluator:
         tf.reset_default_graph()
         print("-" * 20, network.id, "-" * 20)
         print(network.graph, network.cell_list, Network.pre_block)
+        self.log = self.log+"-" * 20 + str(network.id) + "-" * 20+'\n'
+        for block in Network.pre_block:
+            self.log = self.log + str(block.graph) + str(block.cell_list)
+        self.log = self.log + str(network.graph) + str(network.cell_list) + '\n'
         network.graph.append([])
+        assert self.train_num >= self.batch_size, "Wrong! The data added in train dataset is smaller than batch size!"
+        self.block_num = len(Network.pre_block) * NAS_CONFIG['eva']['repeat_search']
         # a pooling later for every block
         if self.block_num == NAS_CONFIG['nas_main']['block_num']:
             network.cell_list.append(Cell('pooling', 'global'))
         else:
             network.cell_list.append(Cell('pooling', 'max', 2))
-
-        assert self.train_num >= self.batch_size, "Wrong! The data added in train dataset is smaller than batch size!"
-        self.block_num = len(Network.pre_block) * \
-            NAS_CONFIG['eva']['repeat_search']
 
         with tf.Session() as sess:
             global_step = tf.Variable(
@@ -433,9 +435,9 @@ class Evaluator:
         if self.block_num > 0:
             # TODO check whether there is a model file exit
             new_saver = tf.train.import_meta_graph(
-                os.path.join(self.model_path, 'model' + str(network.id) + '.meta'))
+                os.path.join(self.model_path, 'model' + str(Network.pre_block[-1].id) + '.meta'))
             new_saver.restore(sess, os.path.join(
-                self.model_path, 'model' + str(network.id)))
+                self.model_path, 'model' + str(Network.pre_block[-1].id)))
             graph = tf.get_default_graph()
             x = graph.get_tensor_by_name("input:0")
             labels = graph.get_tensor_by_name("label:0")
@@ -455,14 +457,10 @@ class Evaluator:
             input = x
         return x, labels, input, train_flag
 
-    def _eval(self, sess, train_op, cross_entropy, accuracy, x, labels, train_flag):
-        self.log = self.log+"-" * 20 + str(network.id) + "-" * 20+'\n'
-        self.log = self.log + \
-            str(network.graph) + str(network.cell_list) + \
-            str(Network.pre_block)+'\n'
-        precision = np.zeros([self.epoch])
-        start_time = time.time()
+    def _eval(self, sess, train_op, cross_entropy, accuracy, x, labels, train_flag):      
+        precision = np.zeros([self.epoch])       
         for ep in range(self.epoch):
+            start_time = time.time()
             print("epoch", ep, ":")
             # train step
             for step in range(self.max_steps):
@@ -497,13 +495,14 @@ class Evaluator:
                 if 2 * precision[ep] - precision[ep - 10] - precision[ep - 1] < 0.001:
                     precision = precision[:ep]
                     print('early stop at %d epoch' % ep)
+                    self.log += 'early stop at %d epoch\n' % ep
                     break
             sys.stdout.write("\n")
             self.log += 'epoch %d: precision = %.3f, cost time %.3f\n' % (
                 ep, precision[ep], float(time.time() - start_time))
             print('precision = %.3f, cost time %.3f' %
                   (precision[ep], float(time.time() - start_time)))
-            log() << ('eva', self.log)
+        log() << ('eva', self.log)
 
         return precision
 
@@ -530,7 +529,7 @@ if __name__ == '__main__':
     graph_full = [[1], [2], [3], [4]]
     cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
                  Cell('pooling', 'max', 3)]
-    network = NetworkItem(0, graph_full, cell_list, "")
+    network1 = NetworkItem(0, graph_full, cell_list, "")
     # cell_list = [cell_list]
     # e=eval.evaluate(graph_full,cell_list[-1])#,is_bestNN=True)
     # print(e)
@@ -545,6 +544,9 @@ if __name__ == '__main__':
     #              ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
     #              ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
     # pre_block = [network]
-    e = eval.evaluate(network, is_bestNN=True)
+    e = eval.evaluate(network1, is_bestNN=True)
+    Network.pre_block.append(network1)
+    network2 = NetworkItem(1, graph_full, cell_list, "")
+    e = eval.evaluate(network2, is_bestNN=True)
     # e=eval.train(network.graph_full,cellist)
     # print(e)
