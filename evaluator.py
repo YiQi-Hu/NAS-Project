@@ -1,12 +1,14 @@
-import time
 import os
-import numpy as np
-import tensorflow as tf
 import pickle
 import random
 import sys
+import time
+
+import numpy as np
+import tensorflow as tf
+
+from base import Cell, Network, NetworkItem
 from info_str import NAS_CONFIG
-from base import Cell, NetworkItem, Network
 from utils import Logger as log
 
 
@@ -135,6 +137,7 @@ class Evaluator:
         self.train_num = 0
         self.max_steps = 0
         self.block_num = 0
+        self.log=[]
         self.train_data, self.train_label, self.valid_data, self.valid_label, \
         self.test_data, self.test_label = DataSet().inputs()
 
@@ -174,7 +177,7 @@ class Evaluator:
                 kernel = tf.get_variable('weights', shape=[hplist.kernel_size, hplist.kernel_size, inputdim, 1],
                                          initializer=tf.contrib.keras.initializers.he_normal())
                 pfilter = tf.get_variable('pointwise_filter', [1, 1, inputdim, hplist.filter_size])
-                conv = tf.nn.separable_conv2d(inputs, kernel, pfilter)
+                conv = tf.nn.separable_conv2d(inputs, kernel, pfilter,strides=[1,1,1,1],padding='SAME')
             else:
                 kernel = tf.get_variable('weights',
                                          shape=[hplist.kernel_size, hplist.kernel_size, inputdim, hplist.filter_size],
@@ -349,6 +352,7 @@ class Evaluator:
             update_pre_weight: Symbol for indicating whether to update previous blocks' weight, default by False.
         Returns:
             Accuracy'''
+        self.log=[]
         print("-" * 20, network.id, "-" * 20)
         print(network.graph, network.cell_list, Network.pre_block)
         assert self.train_num >= self.batch_size, "Wrong! The data added in train dataset is smaller than batch size!"
@@ -409,7 +413,10 @@ class Evaluator:
         return x, labels, input, train_flag
 
     def _eval(self, sess, train_op, cross_entropy, accuracy, x, labels, train_flag):
+        self.log.append("-" * 20 + str(network.id) + "-" * 20+'\n')
+        self.log.append(str(network.graph) + str(network.cell_list) + str(Network.pre_block)+'\n')
         precision = np.zeros([self.epoch])
+        start_time = time.time()
         for ep in range(self.epoch):
             print("epoch", ep, ":")
             # train step
@@ -424,7 +431,6 @@ class Evaluator:
             sys.stdout.write("\n")
             # evaluation step
             num_iter = self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL // self.batch_size
-            start_time = time.time()
             for step in range(num_iter):
                 batch_x = self.valid_data[step * self.batch_size:(step + 1) * self.batch_size]
                 batch_y = self.valid_label[step * self.batch_size:(step + 1) * self.batch_size]
@@ -441,7 +447,10 @@ class Evaluator:
                     print('early stop at %d epoch' % ep)
                     break
             sys.stdout.write("\n")
+            self.log.append('network %d epoch %d: precision = %.3f, cost time %.3f\n' % (
+            network.id, ep, precision[ep], float(time.time() - start_time)))
             print('precision = %.3f, cost time %.3f' % (precision[ep], float(time.time() - start_time)))
+            log()<<('eva',self.log)
 
         return precision
 
@@ -460,8 +469,8 @@ class Evaluator:
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
-    eval.add_data(50000)
-    # print(eval._toposort([[1, 4, 3], [2], [3], [], [3]]))
+    eval.add_data(5000)
+    print(eval._toposort([[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [4, 5, 6, 8], [5, 7], [6, 7, 9, 10], [7, 9], [8], [9, 10], [10]] ))
     graph_full = [[1], [2], [3], []]
     cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
                  Cell('pooling', 'max', 3)]
@@ -481,6 +490,6 @@ if __name__ == '__main__':
     #              ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
     # pre_block = [network]
     # e = eval.evaluate(network,is_bestNN=True)
-    e = eval.evaluate(network, is_bestNN=True)
+    # e = eval.evaluate(network, is_bestNN=True)
     # e=eval.train(network.graph_full,cellist)
-    print(e)
+    # print(e)
