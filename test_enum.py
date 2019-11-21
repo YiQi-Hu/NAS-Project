@@ -10,17 +10,19 @@ from ddt import data, ddt
 class Test_enum(unittest.TestCase):
     global test_info
     test_info = []
-    for i in range(10):
+    for i in range(100):
         _depth = random.randint(0, 25)
         _width = random.randint(0, 1)
         _max_depth = random.randint(0, _depth)
         test_info.append((_depth, _width, _max_depth))
 
-    def setUp(self):
-        self._depth = random.randint(0, 25)
-        self._width = random.randint(0, 1)
-        self._max_depth = random.randint(0, self._depth)
-        # print('##', self._depth, self._width, self._max_depth)
+    with open('./test/test_enum.txt', 'w') as op:
+        for i in test_info:
+            op.writelines('depth:' + str(i[0]) + '\n')
+            op.writelines('width:' + str(i[1]) + '\n')
+            op.writelines('max_depth:' + str(i[2]) + '\n')
+            op.writelines('###'*20 + '\n')
+
 
     def _run_module(self):
         enum = Enumerater()
@@ -45,9 +47,8 @@ class Test_enum(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    for i in range(100):
-        print('################')
-        unittest.main()
+    unittest.main()
+
 
 
 

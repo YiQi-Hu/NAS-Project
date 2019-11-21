@@ -189,12 +189,17 @@ class Sampler:
                 first = 0
             if first == 0:  # Search operation under conv
                 tmp = tmp + ('conv',)
-                for key in self._setting['conv']:
+                space_conv = ['filter_size', 'kernel_size', 'activation']
+                for key in space_conv:
+                # for key in self._setting['conv']:
                     tmp = tmp + (self._setting['conv'][key][p_node[self._dic_index['conv ' + key][-1]]],)
+                print('##########', tmp[0], tmp[1], tmp[2], tmp[3])
                 tmp = Cell(tmp[0], tmp[1], tmp[2], tmp[3])
             else:  # Search operation under pooling
                 tmp = tmp + ('pooling',)
-                for key in self._setting['pooling']:
+                space_pool = ['pooling_type', 'kernel_size']
+                for key in space_pool:
+                # for key in self._setting['pooling']:
                     tmp = tmp + (self._setting['pooling'][key][p_node[self._dic_index['pooling ' + key][-1]]],)
                 tmp = Cell(tmp[0], tmp[1], tmp[2])
             res.append(tmp)
