@@ -68,13 +68,14 @@ class Logger(object):
         return
 
     def _log_output(self, module, func, context):
+        output = None
         try:
             output = self._log_map[module][func]
         except:
             # if can't find func's log, search module default log
             # and print context.
             default_log = '_%s_log' % module
-            if default_log in dir(self):
+            if hasattr(self, default_log):
                 output = self.__getattribute__(default_log)
             print(context)
         if output:
