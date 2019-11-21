@@ -25,7 +25,7 @@ class Test_pred(unittest.TestCase):
         return blocks, graph
 
     @data(*test_info)
-    def test_predictor(self, para):
+    def test_predictor(self):
         pred = Predictor()
         _depth = random.randint(0, 25)
         _width = random.randint(0, 1)

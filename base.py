@@ -4,6 +4,7 @@ PLEASE DO NOT USE 'from .base import *' !!!
 """
 
 
+from multiprocessing import Pool
 class Network(object):
     pre_block = []
 
@@ -14,19 +15,13 @@ class Network(object):
         self.pre_block = []
         self.spl = None
 
-        return
-
-
 class NetworkItem(object):
-    def __init__(self, _id, graph, cell_list, code):
+    def __init__(self, _id=0, graph=[], cell_list=[], code=[]):
         self.id = _id
         self.graph = graph
         self.cell_list = cell_list
         self.code = code
         self.score = 0
-
-        return
-
 
 class Cell(tuple):
     """class Cell inheirt from tuple
@@ -54,11 +49,22 @@ class Cell(tuple):
 
     def __init__(self, *args):
         tuple.__init__(self)
-    
+
     def __new__(self, *args):
+        if len(args) == 1 and isinstance(args[0], tuple):
+            args = args[0]
         Cell._check_vaild(args)
         return tuple.__new__(self, args)
+
+    def __getnewargs__(self):
+        return tuple.__getnewargs__(self)[0]
+
+    def __getstate__(self):
+        return [i for i in self]
     
+    def __setstate__(self, state):
+        self = Cell(*state)
+
     def __getattr__(self, key):
         """Get items though meaningful name
         if key is 'type':
@@ -88,7 +94,7 @@ class Cell(tuple):
         else:
             raise CellInitError('type error')
         return
-    
+
     @staticmethod
     def _conv_vaild(args):
         err_msg = 'cell type \'conv\' %s.'
@@ -102,22 +108,22 @@ class Cell(tuple):
         ks_tv = isinstance(ks, int)
         at_tv = isinstance(at, str)
 
-        Cell._check_condition(fs_tv, ks_tv, at_tv, err_msg % 'arg type invalid') 
+        Cell._check_condition(fs_tv, ks_tv, at_tv, err_msg % 'arg type invalid')
         # '_rv' -> 'range valid'
         fs_rv = (fs in range(1, 1025))
         ks_rv = (ks % 2 == 1) and (ks in range(1, 10))
         at_rv = (at in ['relu', 'tanh', 'sigmoid', 'identity', 'leakyrelu'])
 
-        Cell._check_condition(fs_rv, ks_rv, at_rv, err_msg % 'arg type invalid') 
+        Cell._check_condition(fs_rv, ks_rv, at_rv, err_msg % 'arg type invalid')
         return
-    
+
     @staticmethod
     def _pool_valid(args):
         err_msg = 'cell type \'pooling\' %s'
         if (len(args) > 2):
             return CellInitError(err_msg % 'args num > 2')
         # ptype, kernel_size
-        pt, ks = args 
+        pt, ks = args
         # '_tv' -> 'type valid'
         pt_tv = isinstance(pt, str)
         ks_tv = isinstance(ks, int)
