@@ -3,7 +3,6 @@ import time
 import random
 import os
 from multiprocessing import Queue, Pool
-# from tensorflow import set_random_seed
 import re
 import copy
 from multiprocessing import Pool
@@ -32,15 +31,14 @@ def _subproc_eva(params, eva, gpuq):
     if MAIN_CONFIG['eva_debug']:
         score = random.uniform(0, 0.1)
     else:
-        item.graph.append([])
         os.environ['CUDA_VISIBLE_DEVICES'] = str(ngpu)
         score = eva.evaluate(item, is_bestNN=blk_wnr,
                                  update_pre_weight=ft_sign)
     gpuq.put(ngpu)
     time_cost = time.time() - start_time
 
-    NAS_LOG << ('eva_ing', len(Network.pre_block)+1, rd, nn_id,
-                pl_len, spl_id, bt_nm, score, time_cost, os.getpid())
+    # NAS_LOG << ('eva_ing', len(Network.pre_block)+1, rd, nn_id,
+    #             pl_len, spl_id, bt_nm, score, time_cost, os.getpid())
     return score, time_cost, nn_id, spl_id
 
 
@@ -55,28 +53,34 @@ def _save_net_info(net, *args):
 
 
 def _do_task(pool, cmnct, eva):
+    # pool = Pool(MAIN_CONFIG['num_gpu'])
     while not cmnct.task.empty():
         try:
             task_params = cmnct.task.get(timeout=1)
+            item, rd, nn_id, pl_len, spl_id, bt_nm, blk_wnr, ft_sign = task_params
+            NAS_LOG << ('eva_pre', len(Network.pre_block) + 1, rd, nn_id,
+                        pl_len, spl_id, bt_nm)
         except:
             break
-        if MAIN_CONFIG['subp_debug']:
+        if MAIN_CONFIG['subp_eva_debug']:
             result = _subproc_eva(task_params, eva, cmnct.idle_gpuq)
         else:
             result = pool.apply_async(
                 _subproc_eva,
                 (task_params, eva, cmnct.idle_gpuq))
         cmnct.result.put(result)
+    # pool.close()
+    # pool.join()
 
 
 def _arrange_result(cmnct, net_pl):
     while not cmnct.result.empty():
         r_ = cmnct.result.get()
-        if MAIN_CONFIG['subp_debug']:
+        if MAIN_CONFIG['subp_eva_debug']:
             score, time_cost, nn_id, spl_id = r_
         else:
             score, time_cost, nn_id, spl_id = r_.get()
-        NAS_LOG << ('eva_result', nn_id, spl_id, score, time_cost)
+        # NAS_LOG << ('eva_result', nn_id, spl_id, score, time_cost)
         # mark down the score
         net_pl[nn_id - 1].item_list[-spl_id].score = score
 
@@ -174,8 +178,10 @@ def _gpu_batch_spl(nn, batch_num=MAIN_CONFIG['spl_network_round']):
     :return:
     """
     cells, graphs, tables = _spl_dup_chk(nn, batch_num)
-    for cell, graph, table, spl_id in zip(cells, graphs, tables, range(1, batch_num + 1)):
-        nn.item_list.append(NetworkItem(spl_id, graph, cell, table))
+    item_start_id = len(nn.item_list) + 1
+    for cell, graph, table, item_id in zip(cells, graphs, tables,
+                                           range(item_start_id, batch_num + item_start_id)):
+        nn.item_list.append(NetworkItem(item_id, graph, cell, table))
 
 
 def _pred_ops(nn, pred, graph, table):
@@ -187,7 +193,7 @@ def _pred_ops(nn, pred, graph, table):
     :return:
     """
     pre_block = Network.pre_block.copy()
-    pre_block = [elem[-1].graph for elem in pre_block]
+    pre_block = [elem.graph for elem in pre_block]
     for block in pre_block:
         if block[-1]:
             block.append([])
@@ -267,9 +273,11 @@ def _eliminate(net_pool=None, round=0):
     NAS_LOG << ('eliinfo_tem', original_num - len(scores), len(scores))
 
 
-def _rm_other_model(best_index):
+def _rm_other_model(best_nn, best_index):
     models = os.listdir(NAS_CONFIG['eva']['model_path'])
-    models = [model for model in models if not re.search("model"+str(best_index), model)]
+    NAS_LOG << ("model_save", str(len(best_nn.item_list)+1+best_index))
+    models = [model for model in models
+              if not re.search("model"+str(len(best_nn.item_list)+1+best_index), model)]
     for model in models:
         os.remove(os.path.join(NAS_CONFIG['eva']['model_path'], model))
 
@@ -311,12 +319,11 @@ def _train_winner(net_pl, com, pro_pl, round):
     _save_net_info(best_nn, len(Network.pre_block) + 1,
                    round, len(net_pl), best_nn.id, len(best_nn.item_list))
     scores = [x.score for x in best_nn.item_list[-MAIN_CONFIG['num_opt_best']:]]
-    best_index = scores.index(max(scores))
-    best_item_index = best_index - len(scores)
+    best_index = scores.index(max(scores)) - len(scores)
     if MAIN_CONFIG['pattern'] == "Block":
-        _rm_other_model(best_index)
+        _rm_other_model(best_nn, best_index)
     NAS_LOG << ("train_winner_tem", time.time()-start_train_winner)
-    return best_nn, best_item_index
+    return best_nn, best_index
 
 # Debug function
 import pickle
@@ -336,16 +343,20 @@ def _save_ops_copy(pool):
     return
 
 
-def _subproc_init_ops(net_pool, task_num):
-    os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+def _subproc_init_ops(net_pool, task_num, gpuq):
+    ngpu = gpuq.get()
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(ngpu)
+    import keras
+    keras.backend.clear_session()
     from predictor import Predictor
     pred = Predictor()
     for nn in net_pool:
         _gpu_batch_init(nn, pred, task_num)
+    gpuq.put(ngpu)
     return net_pool
 
 
-def _init_ops(net_pool, process_pool):
+def _init_ops(net_pool, process_pool, com):
     """Generates ops and skipping for every Network,
 
     Args:
@@ -360,10 +371,11 @@ def _init_ops(net_pool, process_pool):
             return _get_ops_copy()
         except:
             print('Nas: _get_ops_copy failed')
-    with Pool(1) as p:
-        net_pool = p.apply(_subproc_init_ops, args=(net_pool, MAIN_CONFIG['spl_network_round']))
-    # net_pool = process_pool.apply_async(_subproc_init_ops, args=(net_pool, MAIN_CONFIG['spl_network_round']))
-    # net_pool = net_pool.get()
+    if MAIN_CONFIG['subp_pred_debug']:
+        net_pool = _subproc_init_ops(net_pool, MAIN_CONFIG['spl_network_round'], com.idle_gpuq)
+    else:
+        net_pool = process_pool.apply(_subproc_init_ops,
+                                      args=(net_pool, MAIN_CONFIG['spl_network_round'], com.idle_gpuq))
     # for debug
     if MAIN_CONFIG['ops_debug']:
         _save_ops_copy(net_pool)
@@ -391,7 +403,7 @@ def algo(block_num, eva, com, npool_tem, process_pool):
     _init_npool_sampler(net_pool, block_num)
 
     NAS_LOG << 'config_ing'
-    net_pool = _init_ops(net_pool, process_pool)
+    net_pool = _init_ops(net_pool, process_pool, com)
     round = 0
     start_game = time.time()
     while len(net_pool) > 1:
@@ -429,15 +441,13 @@ class Nas:
             NAS_LOG << ('search_blk', i+1, MAIN_CONFIG["block_num"])
             start_block = time.time()
             block, best_index = algo(i, self.eva, self.com, network_pool_tem, self.pool)
-            Network.pre_block.append([
-                block.graph_template,
-                block.item_list[best_index]
-            ])
+            Network.pre_block.append(block.item_list[best_index])
             NAS_LOG << ('search_blk_end', time.time() - start_block)
         NAS_LOG << ('nas_end', time.time() - start_search)
+        for block in Network.pre_block:
+            NAS_LOG << ('pre_block', str(block.graph), str(block.cell_list))
         start_retrain = time.time()
-        retrain_score = random.random()
-        # retrain_score = _retrain()
+        retrain_score = _retrain()
         NAS_LOG << ('retrain_end', retrain_score, time.time() - start_retrain)
         return Network.pre_block, retrain_score
 

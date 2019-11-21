@@ -52,7 +52,7 @@ class Cell(tuple):
     def __new__(self, *args):
         if len(args) == 1 and isinstance(args[0], tuple):
             args = args[0]
-        # Cell._check_vaild(args)
+        Cell._check_vaild(args)
         return tuple.__new__(self, args)
 
     def __getnewargs__(self):
@@ -111,7 +111,7 @@ class Cell(tuple):
         # '_rv' -> 'range valid'
         fs_rv = (fs in range(1, 1025))
         ks_rv = (ks % 2 == 1) and (ks in range(1, 10))
-        at_rv = (at in ['relu', 'tanh', 'sigmoid', 'identity', 'leakrelu', 'relu6'])
+        at_rv = (at in ['relu', 'tanh', 'sigmoid', 'identity', 'leakyrelu', 'relu6'])
 
         Cell._check_condition(fs_rv, ks_rv, at_rv, err_msg % 'arg type invalid')
         return

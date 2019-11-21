@@ -26,6 +26,7 @@ naslog_path = os.path.join(log_dir, 'nas_log.txt')
 
 # System information
 evafail = 'NAS: evaluating failed and we will try again...'
+eva_pre = 'block_num:{0[0]} round:{0[1]} network_index:{0[2]}/{0[3]} spl_index:{0[4]}/{0[5]}'
 eva_result_tem = "network_index:{0[0]} spl_index:{0[1]} score:{0[2]} time_cost:{0[3]}"
 eva_ing = 'block_num:{0[0]} round:{0[1]} network_index:{0[2]}/{0[3]} spl_index:{0[4]}/{0[5]}' \
           ' score:{0[6]} time_cost:{0[7]} eva_pid:{0[8]} finished...'
@@ -42,11 +43,13 @@ get_winner = 'NAS: We got a WINNER and cost time: {0[0]}'
 best_and_score_tem = 'NAS: We have got the best network and its score is {0[0]}'
 start_game_tem = 'NAS: Now we have {0[0]} networks. Start game!'
 config_ops_ing = "NAS: Configuring ops and skipping for the best structure and training them..."
-search_tem = "NAS: Search finished and cost time: {0[0]}"
+search_fin_tem = "NAS: Search finished, cost time: {0[0]} search result:"
+pre_block = "[{0[0]}, {0[1]}],"
 blk_search_tem = "NAS: Search current block finished and cost time: {0[0]}"
 train_winner_tem = "NAS: Train winner finished and cost time: {0[0]}"
 round_over = "NAS: The round is over, cost time: {0[0]}"
 retrain_end = "NAS: We retrain the final network, score {0[0]}  cost time {0[1]}"
+model_save = "model{0[0]} saved..."
 no_dim_spl = "There maybe no dim for sample, {0[0]} table sampled !!!"
 no_dim_ini = "There maybe no dim for first sample !!!"
 elim_net = "Network info of net removed\nblock_num: {0[0]} round: {0[1]} network_left: {0[2]} " \
@@ -64,10 +67,11 @@ MF_TEMP = {
             'enuming': enum_ing,
             'search_blk': search_block_tem,
             'search_blk_end': blk_search_tem,
-            'nas_end': search_tem,
+            'nas_end': search_fin_tem,
             'retrain_end': retrain_end,
             'no_dim_spl': no_dim_spl,
-            'no_dim_ini': no_dim_ini
+            'no_dim_ini': no_dim_ini,
+            'pre_block': pre_block
         },
         '_arrange_result': {
             'eva_result': eva_result_tem
@@ -95,6 +99,12 @@ MF_TEMP = {
         },
         '__init__': {
             'init_ing': init_ing
+        },
+        '_do_task': {
+            'eva_pre': eva_pre
+        },
+        '_rm_other_model': {
+            'model_save': model_save
         }
     },
     'evaluator': {

@@ -7,10 +7,11 @@
     "finetune_threshold": 5,
     "spl_network_round": 2,
     "eliminate_policy": "best",
-    "add_data_per_round": 1600,
-    "add_data_for_winner": -1,
-    "subp_debug": 0,
-    "eva_debug": 1,
+    "add_data_per_round": 50,
+    "add_data_for_winner": 50,
+    "subp_eva_debug": 0,
+    "subp_pred_debug": 0,
+    "eva_debug": 0,
     "ops_debug": 0
   },
   "enum":{
@@ -21,7 +22,7 @@
     "enum_log_path": ""
   },
   "eva": {
-    "task_name": "cifar-10",
+    "task_name": "cifar-100",
     "image_size": 32,
     "num_classes": 100,
     "num_examples_for_train": 40000,
