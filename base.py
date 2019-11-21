@@ -106,7 +106,7 @@ class Cell(tuple):
         # '_rv' -> 'range valid'
         fs_rv = (fs in range(1, 1025))
         ks_rv = (ks % 2 == 1) and (ks in range(1, 10))
-        at_rv = (at in ['relu', 'tanh', 'sigmoid', 'identity', 'leakrelu'])
+        at_rv = (at in ['relu', 'tanh', 'sigmoid', 'identity', 'leakyrelu'])
 
         Cell._check_condition(fs_rv, ks_rv, at_rv, err_msg % 'arg type invalid') 
         return
