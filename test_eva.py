@@ -41,7 +41,7 @@ class Test_eva(unittest.TestCase):
     global test_info
     test_info = []
     for i in range(10):
-        _depth = random.randint(0, 25)
+        _depth = random.randint(3, 25)
         _width = random.randint(0, 1)
         _max_depth = random.randint(0, _depth)
         # print('##', self._depth, self._width, self._max_depth)
@@ -50,7 +50,7 @@ class Test_eva(unittest.TestCase):
         NAS_CONFIG['enum']['max_depth'] = _max_depth
         enum = Enumerater()
         _network_list = enum.enumerate()
-        ind = random.randint(0, len(_network_list))
+        ind = random.randint(0, len(_network_list)-1)
         _graph_part = _network_list[ind].graph_template
         # for i in self._network_list[ind].graph_template:
         #     if i:
@@ -60,6 +60,12 @@ class Test_eva(unittest.TestCase):
         # print(self._graph_part)
         _cell_list = _random_get_cell(len(_graph_part))
         test_info.append((_graph_part, _cell_list))
+
+    with open('./test/test_eva.txt', 'w') as op:
+        for i in test_info:
+            op.writelines('graph:' + str(i[0]) + '\n')
+            op.writelines('cell_list:' + str(i[1]) + '\n')
+            op.writelines('###'*20 + '\n')
 
     def _run_module(self, _graph_part, _cell_list):
         eva = Evaluator()
