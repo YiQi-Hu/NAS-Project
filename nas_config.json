@@ -5,11 +5,11 @@
     "block_num": 3,
     "num_opt_best":2,
     "finetune_threshold": 5,
-    "spl_network_round": 6,
+    "spl_network_round": 2,
     "eliminate_policy": "best",
     "add_data_per_round": 1600,
     "add_data_for_winner": -1,
-    "subp_debug": 0,
+    "subp_debug": 1,
     "eva_debug": 0,
     "ops_debug": 0
   },
@@ -17,7 +17,7 @@
     "depth": 3,
     "width": 1,
     "max_depth": 2,
-    "enum_debug": 1,
+    "enum_debug": 0,
     "enum_log_path": ""
   },
   "eva": {
@@ -31,10 +31,10 @@
     "num_epochs_per_decay": 80.0,
     "learning_rate_decay_factor": 0.1,
     "moving_average_decay": 0.98,
-    "batch_size": 250,
-    "epoch": 167,
-    "search_epoch": 167,
-    "retrain_epoch": 640,
+    "batch_size": 50,
+    "epoch": 2,
+    "search_epoch": 2,
+    "retrain_epoch": 2,
     "weight_decay": 0.0003,
     "momentum_rate": 0.9,
     "repeat_search": 1,
@@ -68,13 +68,10 @@
     "skip_max_num": 3,
     "conv_space": {
       "filter_size": [
-        32,
-        48,
-        64,
-        128,
-        192,
-        256,
-        512
+        [32,48,64],
+        [48,64,128],
+        [64,128,192],
+        [128,192,256]
       ],
       "kernel_size": [
         1,

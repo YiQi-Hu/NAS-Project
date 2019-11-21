@@ -348,6 +348,7 @@ class Evaluator:
             update_pre_weight: Symbol for indicating whether to update previous blocks' weight, default by False.
         Returns:
             Accuracy'''
+        tf.reset_default_graph()
         print("-" * 20, network.id, "-" * 20)
         print(network.graph, network.cell_list, Network.pre_block)
         assert self.train_num >= self.batch_size, "Wrong! The data added in train dataset is smaller than batch size!"
@@ -370,7 +371,6 @@ class Evaluator:
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
             loss, cross_entropy = self._loss(labels, logits)
             train_op, lr = self._train_op(global_step, loss)
-
             # Create a saver.
             saver = tf.train.Saver(tf.global_variables())
             # Start running operations on the Graph.
@@ -380,7 +380,6 @@ class Evaluator:
 
             if is_bestNN:  # save model
                 saver.save(sess, os.path.join(self.model_path, 'model' + str(network.id)))
-
         return float(precision[-1])
 
     def _get_input(self, sess, update_pre_weight):
@@ -461,9 +460,12 @@ if __name__ == '__main__':
     eval = Evaluator()
     eval.add_data(50000)
     # print(eval._toposort([[1, 4, 3], [2], [3], [], [3]]))
-    graph_full = [[1], [2], [3], []]
-    cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
-                 Cell('pooling', 'max', 3)]
+    # graph_full = [[1], [2], [3], []]
+    # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
+    #              Cell('pooling', 'max', 3)]
+    # network = NetworkItem(0, graph_full, cell_list, "")
+    graph_full = [[1, 2, 3], [2], [3], []]
+    cell_list = [Cell('conv', 64, 3, 'relu'), Cell('conv', 64, 5, 'leakyrelu'), Cell('conv', 64, 3, 'relu6')]
     network = NetworkItem(0, graph_full, cell_list, "")
     # cell_list = [cell_list]
     # e=eval.evaluate(graph_full,cell_list[-1])#,is_bestNN=True)

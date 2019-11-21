@@ -18,7 +18,7 @@ class Communication:
     def __init__(self):
         self.task = queue.Queue()
         self.result = queue.Queue()
-        self.idle_gpuq = multiprocessing.Queue()
+        self.idle_gpuq = multiprocessing.Manager().Queue()
         for gpu in range(NAS_CONFIG['nas_main']['num_gpu']):
             self.idle_gpuq.put(gpu)
 

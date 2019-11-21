@@ -32,6 +32,7 @@ def _subproc_eva(params, eva, gpuq):
         score = random.uniform(0, 0.1)
     else:
         item, rd, nn_id, pl_len, spl_id, bt_nm, blk_wnr, ft_sign = params
+        item.graph.append([])
         os.environ['CUDA_VISIBLE_DEVICES'] = str(ngpu)
         score = eva.evaluate(item, is_bestNN=blk_wnr,
                                  update_pre_weight=ft_sign)
@@ -60,7 +61,10 @@ def _do_task(pool, cmnct, eva):
 def _arrange_result(cmnct, net_pl):
     while not cmnct.result.empty():
         r_ = cmnct.result.get()
-        score, time_cost, nn_id, spl_id = r_.get()
+        if MAIN_CONFIG['subp_debug']:
+            score, time_cost, nn_id, spl_id = r_
+        else:
+            score, time_cost, nn_id, spl_id = r_.get()
         print(ifs.eva_result_tem.format(nn_id, spl_id, score, time_cost))
         # mark down the score
         net_pl[nn_id - 1].item_list[-spl_id].score = score
@@ -81,20 +85,24 @@ def _init_ops_dup_chk(network, pred, task_num=MAIN_CONFIG['spl_network_round']):
 
     :return:
     """
+    tables = []
+    cells = []
+    graphs = []
+    spl_index = 0
     cnt = 0
-    while True:
+    while spl_index < task_num:
         cnt += 1
         if cnt > 500:
-            NAS_LOG << 'no_dim_ini'
+            NAS_LOG << ('no_dim_ini', spl_index)
             raise ValueError("sample error")
-        _gpu_batch_spl(network)
-        _gpu_batch_init_ops(network, pred)
-        tables = []
-        for spl_id in range(1, task_num + 1):
-            tables.append(network.item_list[-spl_id].code)
-        if len(set(tables)) == task_num:
-            break
-        del network.item_list[-task_num:]
+        cell, graph, table = network.spl.sample()
+        graph, cell, table = _pred_ops(network, pred, graph, table)
+        if table not in tables:
+            tables.append(table)
+            cells.append(cell)
+            graphs.append(graph)
+            spl_index += 1
+    return cells, graphs, tables
 
 
 def _spl_dup_chk(network, task_num=MAIN_CONFIG['spl_network_round']):
@@ -114,9 +122,9 @@ def _spl_dup_chk(network, task_num=MAIN_CONFIG['spl_network_round']):
         if cnt > 500:
             NAS_LOG << ('no_dim_spl', spl_index)
             raise ValueError("sample error")
-        cell, graph = network.spl.sample()
-        if network.spl.p not in tables:
-            tables.append(network.spl.p)
+        cell, graph, table = network.spl.sample()
+        if table not in tables:
+            tables.append(table)
             cells.append(cell)
             graphs.append(graph)
             spl_index += 1
@@ -131,7 +139,20 @@ def _gpu_batch_update_model(nn, batch_num=MAIN_CONFIG['spl_network_round']):
     :return:
     """
     for spl_id in range(1, batch_num + 1):
-        nn.spl.update_opt_model(nn.item_list[-spl_id].code, nn.score_list[-spl_id].score)
+        nn.spl.update_opt_model(nn.item_list[-spl_id].code, nn.item_list[-spl_id].score)
+
+
+def _gpu_batch_init(nn, pred, batch_num=MAIN_CONFIG['spl_network_round']):
+    """
+
+    :param nn:
+    :param batch_num:
+    :return:
+    """
+    cells, graphs, tables = _init_ops_dup_chk(nn, pred, batch_num)
+    # cells, graphs, tables = _spl_dup_chk(nn, batch_num)
+    for cell, graph, table, spl_id in zip(cells, graphs, tables, range(1, batch_num + 1)):
+        nn.item_list.append(NetworkItem(spl_id, graph, cell, table))
 
 
 def _gpu_batch_spl(nn, batch_num=MAIN_CONFIG['spl_network_round']):
@@ -146,21 +167,21 @@ def _gpu_batch_spl(nn, batch_num=MAIN_CONFIG['spl_network_round']):
         nn.item_list.append(NetworkItem(spl_id, graph, cell, table))
 
 
-def _gpu_batch_init_ops(nn, pred, batch_num=MAIN_CONFIG['spl_network_round']):
+def _pred_ops(nn, pred, graph, table):
     """
 
     :param nn:
-    :param batch_num:
+    :param pred:
+    :param spl_id:
     :return:
     """
-    pre_block = [item[-1] for item in nn.pre_block]
-    for spl_id in range(1, batch_num + 1):
-        pred_ops = pred.predictor(pre_block, nn.item_list[-spl_id].graph)
-        table = nn.spl.ops2table(pred_ops, nn.item_list[-spl_id].code)
-        cell, graph = nn.spl.convert(table)
-        nn.item_list[-spl_id].graph = graph
-        nn.item_list[-spl_id].cell_list = cell
-        nn.item_list[-spl_id].code = table
+    pre_block = [elem[-1].graph for elem in Network.pre_block]
+    graph.append([])  # add the virtual node
+    pred_ops = pred.predictor(pre_block, graph)
+    pred_ops = pred_ops[:-1]  # remove the ops of virtual node
+    table = nn.spl.ops2table(pred_ops, table)
+    cell, graph = nn.spl.convert(table)
+    return graph, cell, table
 
 
 def _gpu_batch_task_inqueue(para):
@@ -221,8 +242,8 @@ def _eliminate(net_pool=None, round=0):
             list_swap(scores, i, len(scores) - 1)
             net = net_pool.pop()
             scores.pop()
-            NAS_LOG << ("elim_net_info", len(net.pre_block+1), round, len(net_pool),
-                        net.id, len(net.item_list))
+            # NAS_LOG << ("elim_net_info", len(net.pre_block+1), round, len(net_pool),
+                        # net.id, len(net.item_list))
             # TODO record the info of the network removed
         else:
             i += 1
@@ -297,11 +318,13 @@ def _save_ops_copy(pool):
     return
 
 
-def _subproc_init_ops(net_pool):
+def _subproc_init_ops(net_pool, task_num):
+    os.environ['CUDA_VISIBLE_DEVICES'] = "0"
     from predictor import Predictor
     pred = Predictor()
     for nn in net_pool:
-        _init_ops_dup_chk(nn, pred)
+        _gpu_batch_init(nn, pred, task_num)
+    return net_pool
 
 
 def _init_ops(net_pool, process_pool):
@@ -319,12 +342,14 @@ def _init_ops(net_pool, process_pool):
             return _get_ops_copy()
         except:
             print('Nas: _get_ops_copy failed')
-
-    process_pool.apply(_subproc_init_ops, (net_pool,))
-
+    with Pool(1) as p:
+        net_pool = p.apply(_subproc_init_ops, args=(net_pool, MAIN_CONFIG['spl_network_round']))
+    # net_pool = process_pool.apply_async(_subproc_init_ops, args=(net_pool, MAIN_CONFIG['spl_network_round']))
+    # net_pool = net_pool.get()
     # for debug
     if MAIN_CONFIG['ops_debug']:
         _save_ops_copy(net_pool)
+    return net_pool
 
 
 def _init_npool_sampler(netpool, block_num):
@@ -348,7 +373,7 @@ def algo(block_num, eva, com, npool_tem, process_pool):
     _init_npool_sampler(net_pool, block_num)
 
     print(ifs.config_ing)
-    _init_ops(net_pool, process_pool)
+    net_pool = _init_ops(net_pool, process_pool)
     round = 0
     start_game = time.time()
     while len(net_pool) > 1:

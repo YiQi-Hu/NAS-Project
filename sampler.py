@@ -77,16 +77,7 @@ class Sampler:
             2. score（float, 0 ~ 1.0)
         No returns.
         """
-        # TODO optimier.update_model returns NOTHING ???????????? What is 'result' ?
-        result = self.opt.update_model(table, score)  # here "-" represent that we minimize the loss
-        if result:
-            pos, neg = result
-            print("###################pos  set#######################")
-            for sam in pos:
-                print(self.convert(sam))
-            print("###################neg  set#######################")
-            for sam in neg:
-                print(self.convert(sam))
+        self.opt.update_model(table, score)
 
     def graph_part_add_invisible_node(self):
         graph_part_tmp = []
@@ -189,12 +180,16 @@ class Sampler:
                 first = 0
             if first == 0:  # Search operation under conv
                 tmp = tmp + ('conv',)
-                for key in self._setting['conv']:
+                space_conv = ['filter_size', 'kernel_size', 'activation']
+                for key in space_conv:
+                # for key in self._setting['conv']:
                     tmp = tmp + (self._setting['conv'][key][p_node[self._dic_index['conv ' + key][-1]]],)
                 tmp = Cell(tmp[0], tmp[1], tmp[2], tmp[3])
             else:  # Search operation under pooling
                 tmp = tmp + ('pooling',)
-                for key in self._setting['pooling']:
+                space_pool = ['pooling_type', 'kernel_size']
+                for key in space_pool:
+                # for key in self._setting['pooling']:
                     tmp = tmp + (self._setting['pooling'][key][p_node[self._dic_index['pooling ' + key][-1]]],)
                 tmp = Cell(tmp[0], tmp[1], tmp[2])
             res.append(tmp)

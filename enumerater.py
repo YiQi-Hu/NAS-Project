@@ -55,7 +55,7 @@ class Enumerater:
         """
         pool = _read_pool(self._pickle_name)
 
-        if pool and NAS_CONFIG['enum_debug']:
+        if pool and NAS_CONFIG['enum']['enum_debug']:
             return pool  # for debug
 
         self._filldict()  # Generate chain dictionary
