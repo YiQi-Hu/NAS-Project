@@ -2,22 +2,22 @@
   "nas_main": {
     "pattern": "Block",
     "num_gpu": 2,
-    "block_num": 3,
+    "block_num": 2,
     "num_opt_best":2,
     "finetune_threshold": 5,
     "spl_network_round": 2,
     "eliminate_policy": "best",
     "add_data_per_round": 50,
-    "add_data_for_winner": 50,
+    "add_data_for_winner": -1,
     "subp_eva_debug": 0,
     "subp_pred_debug": 0,
     "eva_debug": 0,
     "ops_debug": 0
   },
   "enum":{
-    "depth": 3,
-    "width": 1,
-    "max_depth": 2,
+    "depth": 4,
+    "width": 3,
+    "max_depth": 3,
     "enum_debug": 0,
     "enum_log_path": ""
   },
