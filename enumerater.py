@@ -64,7 +64,7 @@ class Enumerater:
 
         pool = self._encode2adjaceny()  # Restore network topology
 
-        # _save_pool(self._pickle_name, pool)
+        _save_pool(self._pickle_name, pool)
         return pool  # return the list of Network [Net,Net,...]
 
     def _filldict(self):
