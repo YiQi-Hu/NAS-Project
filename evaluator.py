@@ -9,7 +9,7 @@ import tensorflow as tf
 
 from base import Cell, Network, NetworkItem
 from info_str import NAS_CONFIG
-from utils import Logger as log
+from utils import NAS_LOG
 
 
 class DataSet:
@@ -412,10 +412,10 @@ class Evaluator:
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
             loss, cross_entropy = self._loss(labels, logits)
             train_op, lr = self._train_op(global_step, loss)
-
             # Create a saver.
             saver = tf.train.Saver(tf.global_variables())
             # Start running operations on the Graph.
+
             sess.run(tf.global_variables_initializer())
 
             precision = self._eval(
@@ -502,7 +502,7 @@ class Evaluator:
                 ep, precision[ep], float(time.time() - start_time))
             print('precision = %.3f, cost time %.3f' %
                   (precision[ep], float(time.time() - start_time)))
-        log() << ('eva', self.log)
+        NAS_LOG << ('eva', self.log)
 
         return precision
 
@@ -522,13 +522,20 @@ class Evaluator:
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
-    eval.add_data(500)
-    # g=[[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
-    #       4, 5, 6, 8], [5, 7], [6, 7, 9, 10], [7, 9], [8], [9, 10], [10]]
-    # print(eval._toposort(g))
-    graph_full = [[1], [2], [3], [4]]
-    cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
-                 Cell('pooling', 'max', 3)]
+    eval.add_data(5000)
+    # print(eval._toposort([[1, 4, 3], [2], [3], [], [3]]))
+    # graph_full = [[1], [2], [3], []]
+    # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
+    #              Cell('pooling', 'max', 3)]
+    # network = NetworkItem(0, graph_full, cell_list, "")
+    graph_full = [[1, 2, 3], [2], [3]]
+    cell_list = [Cell('conv', 64, 3, 'relu'), Cell('conv', 64, 5, 'leakyrelu'), Cell('conv', 64, 3, 'relu6')]
+    # eval.add_data(5000)
+    # print(eval._toposort([[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
+    #       4, 5, 6, 8], [5, 7], [6, 7, 9, 10], [7, 9], [8], [9, 10], [10]]))
+    # graph_full = [[1], [2], [3], []]
+    # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
+    #              Cell('pooling', 'max', 3)]
     network1 = NetworkItem(0, graph_full, cell_list, "")
     # cell_list = [cell_list]
     # e=eval.evaluate(graph_full,cell_list[-1])#,is_bestNN=True)
@@ -548,5 +555,8 @@ if __name__ == '__main__':
     Network.pre_block.append(network1)
     network2 = NetworkItem(1, graph_full, cell_list, "")
     e = eval.evaluate(network2, is_bestNN=True)
+    Network.pre_block.append(network2)
+    network3 = NetworkItem(2, graph_full, cell_list, "")
+    e = eval.evaluate(network3, is_bestNN=True)
     # e=eval.train(network.graph_full,cellist)
     # print(e)

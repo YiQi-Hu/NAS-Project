@@ -12,7 +12,6 @@ class Network(object):
         self.id = _id
         self.graph_template = graph_tmp
         self.item_list = []
-        self.pre_block = []
         self.spl = None
 
 class NetworkItem(object):
@@ -112,7 +111,7 @@ class Cell(tuple):
         # '_rv' -> 'range valid'
         fs_rv = (fs in range(1, 1025))
         ks_rv = (ks % 2 == 1) and (ks in range(1, 10))
-        at_rv = (at in ['relu', 'tanh', 'sigmoid', 'identity', 'leakyrelu'])
+        at_rv = (at in ['relu', 'tanh', 'sigmoid', 'identity', 'leakyrelu', 'relu6'])
 
         Cell._check_condition(fs_rv, ks_rv, at_rv, err_msg % 'arg type invalid')
         return
@@ -148,12 +147,35 @@ class CellInitError(Exception):
     def __init__(self, msg):
         Exception.__init__(self, msg)
 
+def test_cell(item):
+    print("子进程", item.cell_list, item.graph,type(item.cell_list[0]))
+
 
 if __name__ == "__main__":
-    cc = Cell('conv', 1024, 7, 'relu') # conv cell
-    pc = Cell('pooling', 'avg', 10) # pooling cell
+    from base import Network, NetworkItem, Cell
+    #初始化一个Network
+    Net = Network(0, [[1], [2], [3], []])
 
-    print(cc.kernel_size)
-    print(pc.type)
-    print(cc)
-    print(pc)
+
+    cellist = [('conv', 512, 5, 'relu'), ('pooling',
+                                        'max', 3), ('pooling', 'max', 2), ]
+    cell_list = []
+    for x in cellist:
+        if len(x) == 4:
+            cell_list.append(Cell(x[0], x[1], x[2], x[3]))
+        else:
+            cell_list.append(Cell(x[0], x[1], x[2]))
+    #初始化一个NetworkItem
+    item = NetworkItem(0, [[1], [2], [3], []], cell_list, "")
+    print(type(cell_list))
+    Net.item_list.append(item)
+
+    print(Net.item_list[0])
+    print("主进程", Net.item_list[0].cell_list)
+    #测试子进程的cell_list
+
+
+    pool = Pool(2)
+    result = pool.apply_async(test_cell, args=(Net.item_list[0],))
+    pool.close()
+    pool.join()

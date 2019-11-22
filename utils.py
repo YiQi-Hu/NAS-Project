@@ -18,8 +18,8 @@ class Communication:
     def __init__(self):
         self.task = queue.Queue()
         self.result = queue.Queue()
-        self.idle_gpuq = multiprocessing.Queue()
-        for gpu in range(NAS_CONFIG['num_gpu']):
+        self.idle_gpuq = multiprocessing.Manager().Queue()
+        for gpu in range(NAS_CONFIG['nas_main']['num_gpu']):
             self.idle_gpuq.put(gpu)
 
 class Logger(object):
@@ -32,8 +32,8 @@ class Logger(object):
         self._log_map = { # module x func -> log
             'nas': {
                 '_subproc_eva': self._sub_proc_log,
-                'eliminate': self._network_log,
-                'train_winner': self._network_log
+                '_save_net_info': self._network_log,
+                'default': self._nas_log
             },
             'eva':{
                 '_eval': self._eva_log
@@ -70,6 +70,8 @@ class Logger(object):
     def _log_output(self, module, func, context):
         output = None
         try:
+            if func not in self._log_map[module].keys():
+                func = 'default'
             output = self._log_map[module][func]
         except:
             # if can't find func's log, search module default log
@@ -100,8 +102,12 @@ class Logger(object):
         module, func = Logger._get_where_called()
         act, others = Logger._get_action(args)
         temp = ifs.MF_TEMP[module][func][act]
+        # print(module, func, temp, others)
+        # print(module, func, temp.format(others))
+        if func != "_save_net_info":
+            print(temp.format(others))
+        self._log_output(module, func, temp.format(others))
 
-        self._log_output(module, func, temp % others)
 
 NAS_LOG = Logger()
 
