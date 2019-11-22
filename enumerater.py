@@ -55,7 +55,7 @@ class Enumerater:
         """
         pool = _read_pool(self._pickle_name)
 
-        if pool and NAS_CONFIG['enum']['enum_debug']:
+        if pool and NAS_CONFIG['enum_debug']:
             return pool  # for debug
 
         self._filldict()  # Generate chain dictionary
@@ -64,7 +64,7 @@ class Enumerater:
 
         pool = self._encode2adjaceny()  # Restore network topology
 
-        _save_pool(self._pickle_name, pool)
+        # _save_pool(self._pickle_name, pool)
         return pool  # return the list of Network [Net,Net,...]
 
     def _filldict(self):
@@ -77,7 +77,7 @@ class Enumerater:
             for j in range(self.depth):
                 if j <= i + 1:
                     continue
-                for k in range(j - i):
+                for k in range(1, j-i):
                     if k < self.max_branch_depth:
                         # print(i,j,k)
                         self._info_dict[cnt] = [i, j, k]
