@@ -18,24 +18,33 @@ class Communication:
     def __init__(self):
         self.task = queue.Queue()
         self.result = queue.Queue()
-        self.idle_gpuq = multiprocessing.Queue()
-        for gpu in range(NAS_CONFIG['num_gpu']):
+        self.idle_gpuq = multiprocessing.Manager().Queue()
+        for gpu in range(NAS_CONFIG['nas_main']['num_gpu']):
             self.idle_gpuq.put(gpu)
 
 class Logger(object):
     def __init__(self):
-        # File object '_funcname_log'
-        # All function in every module has 1 log at most.
-        self.__subproc_eva_log = open(ifs.evalog_path, 'w')
-        self._winner_log = open(ifs.winner_log_path, 'w')
-        self._network_log = open(ifs.network_info_path, 'w')
-        self._module_log = open('memory/module_log.txt', 'w')
+        self._eva_log = open(ifs.evalog_path, 'a')
+        self._sub_proc_log = open(ifs.subproc_log_path, 'a')
+        self._network_log = open(ifs.network_info_path, 'a')
+        self._nas_log = open(ifs.naslog_path, 'a')
+
+        self._log_map = { # module x func -> log
+            'nas': {
+                '_subproc_eva': self._sub_proc_log,
+                '_save_net_info': self._network_log,
+                'default': self._nas_log
+            },
+            'eva':{
+                '_eval': self._eva_log
+            }
+        }
 
     def __del__(self):
-        self.__subproc_eva_log.close()
-        self._winner_log.close()
+        self._eva_log.close()
+        self._sub_proc_log.close()
         self._network_log.close()
-        self._module_log.close()
+        self._nas_log.close()
         
     @staticmethod
     def _get_where_called():
@@ -58,15 +67,22 @@ class Logger(object):
             raise Exception("empty or wrong log args")
         return
 
-    def _log_output(self, func, context):
-        func = func.strip('<>_ \'\"')
+    def _log_output(self, module, func, context):
+        output = None
         try:
-            log_name = '_%s_log' % func
-            output = self.__getattribute__(log_name)
+            if func not in self._log_map[module].keys():
+                func = 'default'
+            output = self._log_map[module][func]
+        except:
+            # if can't find func's log, search module default log
+            # and print context.
+            default_log = '_%s_log' % module
+            if hasattr(self, default_log):
+                output = self.__getattribute__(default_log)
+            print(context)
+        if output:
             output.write(context)
             output.write('\n')
-        except:
-            print(context)
         return
 
     def __lshift__(self, args):
@@ -80,14 +96,18 @@ class Logger(object):
         Return: 
             None
         Example:
-            NAS_LOG = LOGGER() # 'Nas.run' func in nas.py 
+            NAS_LOG = Logger() # 'Nas.run' func in nas.py 
             NAS_LOG << 'enuming'
         """
         module, func = Logger._get_where_called()
         act, others = Logger._get_action(args)
         temp = ifs.MF_TEMP[module][func][act]
+        # print(module, func, temp, others)
+        # print(module, func, temp.format(others))
+        if func != "_save_net_info":
+            print(temp.format(others))
+        self._log_output(module, func, temp.format(others))
 
-        self._log_output(func, temp % others)
 
 NAS_LOG = Logger()
 
