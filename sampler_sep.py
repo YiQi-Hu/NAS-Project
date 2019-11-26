@@ -32,9 +32,12 @@ class Sampler:
         self._setting = dict()
         self._setting['conv'] = copy.deepcopy(NAS_CONFIG['spl']['conv_space'])
         self._setting['pooling'] = copy.deepcopy(NAS_CONFIG['spl']['pool_space'])
+        self._setting['sep_conv'] = copy.deepcopy(NAS_CONFIG['spl']['sep_conv_space'])
         if self._pattern == "Block":
             self._setting['conv']['filter_size'] = \
                 self._setting['conv']['filter_size'][block_id]
+            self._setting['sep_conv']['filter_size'] = \
+                self._setting['sep_conv']['filter_size'][block_id]
         self._dic_index = self._init_dict()  # check
         # Set parameters of optimization module based on the above results
         self.__region, self.__type = self._opt_parameters()
@@ -180,21 +183,22 @@ class Sampler:
             for i in node_cross_tmp:
                 if i != 0:
                     graph_part_sample[num].append(self._crosslayer[num][i - 1])
-
             if not graph_part_sample[num]:
                 graph_part_sample[num].append(self._node_number)
 
-            first = p_node[self._dic_index['conv'][-1]]
+            first = p_node[self._dic_index['type'][-1]]
             tmp = ()
-            if self._pattern == "Block":
+            if self._pattern == "Block" and first == 1:
                 first = 0
-            if first == 0:  # Search operation under conv
-                tmp = tmp + ('conv',)
+            if first == 0 or first == 2:  # Search operation under conv
+                if first == 0:
+                    conv_type = 'conv'
+                else:
+                    conv_type = 'sep_conv'
+                tmp = tmp + (conv_type,)
                 space_conv = ['filter_size', 'kernel_size', 'activation']
                 for key in space_conv:
-                # for key in self._setting['conv']:
-                    tmp = tmp + (self._setting['conv'][key][p_node[self._dic_index['conv ' + key][-1]]],)
-                print('##########', tmp[0], tmp[1], tmp[2], tmp[3])
+                    tmp = tmp + (self._setting[conv_type][key][p_node[self._dic_index[conv_type + ' ' + key][-1]]],)
                 tmp = Cell(tmp[0], tmp[1], tmp[2], tmp[3])
             else:  # Search operation under pooling
                 tmp = tmp + ('pooling',)
@@ -209,7 +213,7 @@ class Sampler:
     def _init_dict(self):
         """Operation space dictionary based on parameter file."""
         dic = {}
-        dic['conv'] = (0, 1, 0)
+        dic['type'] = (0, len(self._setting)-1, 0)
         cnt = 1
         num = 1
         for key in self._setting:
@@ -247,7 +251,7 @@ class Sampler:
             p_node = self._p_table[l:r]  # Sample value of the current node
             if len(ops[num]) != 1:
                 p_node = self._p_table[l:r]  # Sample value of the current node
-                p_node[self._dic_index['conv'][-1]] = 0
+                p_node[self._dic_index['type'][-1]] = 0
                 for j, i in enumerate(self._setting['conv']['filter_size']):
                     if str(i) == ops[num][0]:
                         p_node[self._dic_index['conv filter_size'][-1]] = j
@@ -298,11 +302,14 @@ if __name__ == '__main__':
     print(res)
     print(graph_part_sample)
 
-    print('##############################')
+    print('##############################'*10)
     score = -0.199
     spl.update_opt_model([table_present], [score])  # score +-
     res, graph_part_sample, table_present = spl.sample()
-
-    res, graph_part_sample = spl.convert(table_present)
+    print(res)
+    print(graph_part_sample)
+    print('##############################'*10)
+    spl.update_opt_model([table_present], [score])  # score +-
+    res, graph_part_sample, table_present = spl.sample()
     print(res)
     print(graph_part_sample)
