@@ -11,7 +11,6 @@ from base import Cell, Network, NetworkItem
 from info_str import NAS_CONFIG
 from utils import Logger as log
 
-
 class DataSet:
 
     def __init__(self):
@@ -472,6 +471,7 @@ class Evaluator:
                 _, loss_value, acc = sess.run([train_op, cross_entropy, accuracy],
                                               feed_dict={x: batch_x, labels: batch_y, train_flag: True})
                 if np.isnan(loss_value):
+                    log() << ('eva', self.log)
                     return [-1]
                 sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" %
                                  (step, self.max_steps, loss_value, acc))
@@ -491,6 +491,7 @@ class Evaluator:
             # early stop
             if ep > 10:
                 if precision[ep] < 0.15:
+                    log() << ('eva', self.log)
                     return [-1]
                 if 2 * precision[ep] - precision[ep - 10] - precision[ep - 1] < 0.001:
                     precision = precision[:ep]
@@ -502,8 +503,8 @@ class Evaluator:
                 ep, precision[ep], float(time.time() - start_time))
             print('precision = %.3f, cost time %.3f' %
                   (precision[ep], float(time.time() - start_time)))
-        log() << ('eva', self.log)
 
+        log() << ('eva', self.log)
         return precision
 
     def add_data(self, add_num=0):
