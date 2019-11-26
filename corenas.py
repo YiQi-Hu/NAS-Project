@@ -153,7 +153,7 @@ def _train_winner(net_pool, round, eva):
                 params = (graph, cell, best_nn.pre_block, 0, 0, True, 1)
                 # params = (graph, cell, nn_preblock, pos,
                 # round, finetune_signal, pool_len)
-                opt_score, _ = p.apply(_gpu_eva, args=(params, eva, 0, True))
+                opt_score, _ = p.apply(_gpu_eva, args=(params, eva, 0, best_cell_i))
         best_nn.score_list.append(opt_score)
         if opt_score > best_opt_score:
             best_opt_score = opt_score
@@ -198,14 +198,14 @@ def _init_ops(net_pool):
         nn.table = nn.opt.sample()
         nn.spl.renewp(nn.table)
         cell, graph = nn.spl.sample()
-        # blocks = []
-        # for block in nn.pre_block:  # get the graph_full adjacency list in the previous blocks
-        #     blocks.append(block[0])  # only get the graph_full in the pre_bock
-        # pred_ops = Predictor().predictor(blocks, graph)
-        #
-        # table = nn.spl.init_p(pred_ops)  # spl refer to the pred_ops
-        # nn.spl.renewp(table)
-        # cell, graph = nn.spl.sample()  # sample again after renew the table
+        blocks = []
+        for block in nn.pre_block:  # get the graph_full adjacency list in the previous blocks
+            blocks.append(block[0])  # only get the graph_full in the pre_bock
+        pred_ops = Predictor().predictor(blocks, graph)
+        
+        table = nn.spl.init_p(pred_ops)  # spl refer to the pred_ops
+        nn.spl.renewp(table)
+        cell, graph = nn.spl.sample()  # sample again after renew the table
         nn.graph_full_list.append(graph)  # graph from first sample and second sample are the same, so that we don't have to assign network.graph_full at first time
         nn.cell_list.append(cell)
 
