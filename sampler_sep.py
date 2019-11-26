@@ -264,7 +264,7 @@ class Sampler:
                 table = table + p_node
             else:
                 if self._pattern == "Global":
-                    p_node[self._dic_index['conv'][-1]] = 1
+                    p_node[self._dic_index['type'][-1]] = 1
                 table = table + p_node
         return table
 
