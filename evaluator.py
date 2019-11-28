@@ -11,6 +11,7 @@ from base import Cell, Network, NetworkItem
 from info_str import NAS_CONFIG
 from utils import NAS_LOG
 
+
 class DataSet:
 
     def __init__(self):
@@ -68,19 +69,19 @@ class DataSet:
         data = data[index]
         label = label[index]
         return data[:self.NUM_EXAMPLES_FOR_TRAIN], label[:self.NUM_EXAMPLES_FOR_TRAIN], \
-            data[self.NUM_EXAMPLES_FOR_TRAIN:self.NUM_EXAMPLES_FOR_TRAIN + self.NUM_EXAMPLES_FOR_EVAL], \
-            label[self.NUM_EXAMPLES_FOR_TRAIN:self.NUM_EXAMPLES_FOR_TRAIN +
-                  self.NUM_EXAMPLES_FOR_EVAL]
+               data[self.NUM_EXAMPLES_FOR_TRAIN:self.NUM_EXAMPLES_FOR_TRAIN + self.NUM_EXAMPLES_FOR_EVAL], \
+               label[self.NUM_EXAMPLES_FOR_TRAIN:self.NUM_EXAMPLES_FOR_TRAIN +
+                                                 self.NUM_EXAMPLES_FOR_EVAL]
 
     def _normalize(self, x_train):
         x_train = x_train.astype('float32')
 
         x_train[:, :, :, 0] = (
-            x_train[:, :, :, 0] - np.mean(x_train[:, :, :, 0])) / np.std(x_train[:, :, :, 0])
+                                      x_train[:, :, :, 0] - np.mean(x_train[:, :, :, 0])) / np.std(x_train[:, :, :, 0])
         x_train[:, :, :, 1] = (
-            x_train[:, :, :, 1] - np.mean(x_train[:, :, :, 1])) / np.std(x_train[:, :, :, 1])
+                                      x_train[:, :, :, 1] - np.mean(x_train[:, :, :, 1])) / np.std(x_train[:, :, :, 1])
         x_train[:, :, :, 2] = (
-            x_train[:, :, :, 2] - np.mean(x_train[:, :, :, 2])) / np.std(x_train[:, :, :, 2])
+                                      x_train[:, :, :, 2] - np.mean(x_train[:, :, :, 2])) / np.std(x_train[:, :, :, 2])
 
         return x_train
 
@@ -104,7 +105,7 @@ class DataSet:
             nh = random.randint(0, oshape[0] - crop_shape[0])
             nw = random.randint(0, oshape[1] - crop_shape[1])
             new_batch[i] = new_batch[i][nh:nh + crop_shape[0],
-                                        nw:nw + crop_shape[1]]
+                           nw:nw + crop_shape[1]]
         return np.array(new_batch)
 
     def _random_flip_leftright(self, batch):
@@ -138,7 +139,6 @@ class Evaluator:
         self.LEARNING_RATE_DECAY_FACTOR = NAS_CONFIG['eva']['learning_rate_decay_factor']
         self.MOVING_AVERAGE_DECAY = NAS_CONFIG['eva']['moving_average_decay']
         self.batch_size = NAS_CONFIG['eva']['batch_size']
-        self.epoch = NAS_CONFIG['eva']['search_epoch']
         self.weight_decay = NAS_CONFIG['eva']['weight_decay']
         self.momentum_rate = NAS_CONFIG['eva']['momentum_rate']
         self.model_path = NAS_CONFIG['eva']['model_path']
@@ -147,9 +147,13 @@ class Evaluator:
         self.block_num = 0
         self.log = ''
         self.train_data, self.train_label, self.valid_data, self.valid_label, \
-            self.test_data, self.test_label = DataSet().inputs()
+        self.test_data, self.test_label = DataSet().inputs()
 
-    def _toposort(self, graph):       
+    def set_epoch(self, e):
+        self.epoch = e
+        return
+
+    def _toposort(self, graph):
         node_len = len(graph)
         in_degrees = dict((u, 0) for u in range(node_len))
         for u in range(node_len):
@@ -188,7 +192,7 @@ class Evaluator:
                 pfilter = tf.get_variable(
                     'pointwise_filter', [1, 1, inputdim, hplist.filter_size])
                 conv = tf.nn.separable_conv2d(inputs, kernel, pfilter, strides=[
-                                              1, 1, 1, 1], padding='SAME')
+                    1, 1, 1, 1], padding='SAME')
             else:
                 kernel = tf.get_variable('weights',
                                          shape=[
@@ -280,7 +284,7 @@ class Evaluator:
         inputs = [images for _ in range(nodelen)]
         # bool list for whether this cell has already got input or not
         getinput = [False for _ in range(nodelen)]
-        getinput[0] = True        
+        getinput[0] = True
 
         for node in topo_order:
             # print('Evaluater:right now we are processing node %d'%node,', ',cellist[node])
@@ -358,9 +362,12 @@ class Evaluator:
 
         # Build a Graph that trains the model with one batch of examples and
         # updates the model parameters.
-        train_op = tf.train.MomentumOptimizer(lr, self.momentum_rate, name='Momentum' + str(self.block_num),
-                                              use_nesterov=True).minimize(loss, global_step=global_step)
-        return train_op, lr
+
+        opt = tf.train.MomentumOptimizer(lr, self.momentum_rate, name='Momentum' + str(self.block_num),
+                                         use_nesterov=True)
+        grad = opt.compute_gradients(loss)
+        train_op = opt.minimize(loss, global_step=global_step)
+        return train_op, grad
 
     def evaluate(self, network, is_bestNN=False, update_pre_weight=False):
         '''Method for evaluate the given network.
@@ -375,7 +382,7 @@ class Evaluator:
         tf.reset_default_graph()
         # print("-" * 20, network.id, "-" * 20)
         # print(network.graph, network.cell_list, Network.pre_block)
-        self.log = self.log+"-" * 20 + str(network.id) + "-" * 20+'\n'
+        self.log = self.log + "-" * 20 + str(network.id) + "-" * 20 + '\n'
         for block in Network.pre_block:
             self.log = self.log + str(block.graph) + str(block.cell_list)
         self.log = self.log + str(network.graph) + str(network.cell_list) + '\n'
@@ -418,7 +425,7 @@ class Evaluator:
             sess.run(tf.global_variables_initializer())
 
             precision = self._eval(
-                sess, train_op, cross_entropy, accuracy, x, labels, train_flag)
+                sess, train_op, cross_entropy, accuracy, x, labels, train_flag, lr)
 
             if is_bestNN:  # save model
                 saver.save(sess, os.path.join(
@@ -428,7 +435,7 @@ class Evaluator:
         network.cell_list.pop()
         return float(precision[-1])
 
-    def _get_input(self, sess, update_pre_weight):
+    def _get_input(self, sess, update_pre_weight=False):
         '''Get input for _inference'''
         # if it got previous blocks
         if self.block_num > 0:
@@ -458,16 +465,24 @@ class Evaluator:
 
     def retrain(self):
         tf.reset_default_graph()
-        self.epoch=NAS_CONFIG['eva']['retrain_epoch']
         for block in Network.pre_block:
             self.log = self.log + str(block.graph) + str(block.cell_list)
-        assert self.train_num >= self.batch_size, "Wrong! The data added in train dataset is smaller than batch size!"
+        assert self.train_num >= self.batch_size
         self.block_num = len(Network.pre_block) * NAS_CONFIG['eva']['repeat_search']
         with tf.Session() as sess:
             global_step = tf.Variable(
                 0, trainable=False, name='global_step' + str(self.block_num))
-            x, labels, logits, train_flag = self._get_input(
-                sess, update_pre_weight=True)
+            x, labels, logits, train_flag = self._get_input(sess)
+            for block in Network.pre_block:
+                graph = block.graph
+                cell_list = []
+                for cell in block.cell_list:
+                    if cell.type == 'conv':
+                        cell_list.append(Cell(cell.type, cell.filter_size * 2, cell.kernel_size, cell.activation))
+                    else:
+                        cell_list.append(cell)
+                logits = self._inference(
+                    logits, graph, cell_list, train_flag)
             logits = tf.nn.dropout(logits, keep_prob=1.0)
             # softmax
             logits = self._makedense(
@@ -477,17 +492,40 @@ class Evaluator:
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
             loss, cross_entropy = self._loss(labels, logits)
             train_op, lr = self._train_op(global_step, loss)
-            # Create a saver.
-            saver = tf.train.Saver(tf.global_variables())
+
             sess.run(tf.global_variables_initializer())
+            train_data = np.concatenate((np.array(self.train_data), np.array(self.valid_data)), axis=0).tolist()
+            train_label = np.concatenate((np.array(self.train_label), np.array(self.valid_label)), axis=0).tolist()
+            max_steps = (self.NUM_EXAMPLES_FOR_TRAIN + self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL) // self.batch_size
+            for ep in range(self.epoch):
+                start_time = time.time()
+                for step in range(max_steps):
+                    batch_x = train_data[step *
+                                         self.batch_size:(step + 1) * self.batch_size]
+                    batch_y = train_label[step *
+                                          self.batch_size:(step + 1) * self.batch_size]
+                    batch_x = DataSet().process(batch_x)
+                    _, loss_value, acc = sess.run([train_op, cross_entropy, accuracy],
+                                                  feed_dict={x: batch_x, labels: batch_y, train_flag: True})
 
-            precision = self._eval(
-                sess, train_op, cross_entropy, accuracy, x, labels, train_flag)
-        return float(precision[-1])
+                precision = 0
+                num_iter = len(self.test_label) // self.batch_size
+                for step in range(num_iter):
+                    batch_x = self.test_data[step *
+                                             self.batch_size:(step + 1) * self.batch_size]
+                    batch_y = self.test_label[step *
+                                              self.batch_size:(step + 1) * self.batch_size]
+                    l, acc_ = sess.run([cross_entropy, accuracy],
+                                       feed_dict={x: batch_x, labels: batch_y, train_flag: False})
+                    precision += acc_ / num_iter
+                self.log += 'retrain epoch %d: precision = %.3f, cost time %.3f\n' % (
+                    ep, precision, float(time.time() - start_time))
+        NAS_LOG << ('eva', self.log)
+        return float(precision)
 
-    def _eval(self, sess, train_op, cross_entropy, accuracy, x, labels, train_flag):
+    def _eval(self, sess, train_op, cross_entropy, accuracy, x, labels, train_flag, lr):
 
-        precision = np.zeros([self.epoch])       
+        precision = np.zeros([self.epoch])
         for ep in range(self.epoch):
             start_time = time.time()
             # print("epoch", ep, ":")
@@ -498,8 +536,8 @@ class Evaluator:
                 batch_y = self.train_label[step *
                                            self.batch_size:(step + 1) * self.batch_size]
                 batch_x = DataSet().process(batch_x)
-                _, loss_value, acc = sess.run([train_op, cross_entropy, accuracy],
-                                              feed_dict={x: batch_x, labels: batch_y, train_flag: True})
+                _, loss_value, acc, ll = sess.run([train_op, cross_entropy, accuracy, lr],
+                                                  feed_dict={x: batch_x, labels: batch_y, train_flag: True})
                 if np.isnan(loss_value):
                     NAS_LOG << ('eva', self.log)
                     return [-1]
@@ -520,15 +558,15 @@ class Evaluator:
                 #     "\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
             # early stop
             if ep > 10:
-                if precision[ep] < 0.15:
+                if precision[ep] < 1 / self.NUM_CLASSES:
                     NAS_LOG << ('eva', self.log)
                     return [-1]
-                if 2 * precision[ep] - precision[ep - 10] - precision[ep - 1] < 0.001:
+                if 2 * precision[ep] - precision[ep - 10] - precision[ep - 1] < 0.001 / self.NUM_CLASSES:
                     precision = precision[:ep]
                     # print('early stop at %d epoch' % ep)
                     self.log += 'early stop at %d epoch\n' % ep
                     break
-            # sys.stdout.write("\n")
+
             self.log += 'epoch %d: precision = %.3f, cost time %.3f\n' % (
                 ep, precision[ep], float(time.time() - start_time))
             # print('precision = %.3f, cost time %.3f' %
@@ -537,38 +575,41 @@ class Evaluator:
 
         return precision
 
-    def add_data(self, add_num=0):
-        if self.train_num + add_num > self.NUM_EXAMPLES_FOR_TRAIN or add_num < 0:
+    def set_data_size(self, num):
+        if num > self.NUM_EXAMPLES_FOR_TRAIN or num < 0:
             add_num = self.NUM_EXAMPLES_FOR_TRAIN - self.train_num
             self.train_num = self.NUM_EXAMPLES_FOR_TRAIN
             print('Warning! Add number has been changed to',
                   add_num, ', all data is loaded.')
         else:
-            self.train_num += add_num
+            self.train_num = num
         # print('************A NEW ROUND************')
-        self.max_steps = self.train_num // self.batch_size - 1
+        self.max_steps = self.train_num // self.batch_size
         return
 
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     eval = Evaluator()
-    eval.add_data(5000)
-    # eval.retrain()
-    # print(eval._toposort([[1, 4, 3], [2], [3], [], [3]]))
-    # graph_full = [[1], [2], [3], []]
-    # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
-    #              Cell('pooling', 'max', 3)]
-    # network = NetworkItem(0, graph_full, cell_list, "")
-    graph_full = [[1, 2, 3], [2], [3]]
-    cell_list = [Cell('conv', 64, 3, 'relu'), Cell('conv', 64, 5, 'leakyrelu'), Cell('conv', 64, 3, 'relu6')]
+    eval.set_data_size(50000)
+    eval.set_epoch(1)
+
+    graph_full = [[1], [2], [3], []]
+    cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
+                 Cell('pooling', 'max', 3)]
+    network = NetworkItem(0, graph_full, cell_list, "")
+    Network.pre_block.append(network)
+    eval.retrain()
+    # graph_full = [[1, 3], [2, 3], [3], [4]]
+    # cell_list = [Cell('conv', 24, 3, 'relu'), Cell('conv', 32, 3, 'relu'), Cell('conv', 24, 3, 'relu'),
+    #              Cell('conv', 32, 3, 'relu')]
     # eval.add_data(5000)
     # print(eval._toposort([[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
     #       4, 5, 6, 8], [5, 7], [6, 7, 9, 10], [7, 9], [8], [9, 10], [10]]))
     # graph_full = [[1], [2], [3], []]
     # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
     #              Cell('pooling', 'max', 3)]
-    network1 = NetworkItem(0, graph_full, cell_list, "")
+    # network1 = NetworkItem(0, graph_full, cell_list, "")
     # cell_list = [cell_list]
     # e=eval.evaluate(graph_full,cell_list[-1])#,is_bestNN=True)
     # print(e)
@@ -583,12 +624,12 @@ if __name__ == '__main__':
     #              ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
     #              ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
     # pre_block = [network]
-    e = eval.evaluate(network1, is_bestNN=True)
-    Network.pre_block.append(network1)
-    network2 = NetworkItem(1, graph_full, cell_list, "")
-    e = eval.evaluate(network2, is_bestNN=True)
-    Network.pre_block.append(network2)
-    network3 = NetworkItem(2, graph_full, cell_list, "")
-    e = eval.evaluate(network3, is_bestNN=True)
+    # e = eval.evaluate(network1, is_bestNN=True)
+    # Network.pre_block.append(network1)
+    # network2 = NetworkItem(1, graph_full, cell_list, "")
+    # e = eval.evaluate(network2, is_bestNN=True)
+    # Network.pre_block.append(network2)
+    # network3 = NetworkItem(2, graph_full, cell_list, "")
+    # e = eval.evaluate(network3, is_bestNN=True)
     # e=eval.train(network.graph_full,cellist)
     # print(e)
