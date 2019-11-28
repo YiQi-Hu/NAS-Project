@@ -80,16 +80,7 @@ class Sampler:
             2. score（float, 0 ~ 1.0)
         No returns.
         """
-        # TODO optimier.update_model returns NOTHING ???????????? What is 'result' ?
-        result = self.opt.update_model(table, score)  # here "-" represent that we minimize the loss
-        if result:
-            pos, neg = result
-            print("###################pos  set#######################")
-            for sam in pos:
-                print(self.convert(sam))
-            print("###################neg  set#######################")
-            for sam in neg:
-                print(self.convert(sam))
+        self.opt.update_model(table, score)  # here "-" represent that we minimize the loss
 
     def graph_part_add_invisible_node(self):
         graph_part_tmp = []
@@ -179,6 +170,7 @@ class Sampler:
             l = r
             r = l + len(self._dic_index) + self._cross_node_number
             p_node = self._p_table[l:r]  # Take the search space of a node
+
             node_cross_tmp = list(set(copy.deepcopy(p_node[len(self._dic_index):])))
             for i in node_cross_tmp:
                 if i != 0:
@@ -212,6 +204,7 @@ class Sampler:
 
     def _init_dict(self):
         """Operation space dictionary based on parameter file."""
+
         dic = {}
         dic['type'] = (0, len(self._setting)-1, 0)
         cnt = 1
