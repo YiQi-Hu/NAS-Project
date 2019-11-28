@@ -110,6 +110,9 @@ MF_TEMP = {
     'evaluator': {
         '_eval': {
             'eva': eva
+        },
+        'retrain': {
+            'eva': eva
         }
     },
     'enumerater': {
