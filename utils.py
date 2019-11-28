@@ -35,8 +35,9 @@ class Logger(object):
                 '_save_net_info': self._network_log,
                 'default': self._nas_log
             },
-            'eva':{
-                '_eval': self._eva_log
+            'evaluator': {
+                '_eval': self._eva_log,
+                'retrain': self._eva_log
             }
         }
 
