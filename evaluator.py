@@ -553,15 +553,17 @@ class Evaluator:
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
-    eval.add_data(5000)
+    eval.add_data(-1)
     # eval.retrain()
     # print(eval._toposort([[1, 4, 3], [2], [3], [], [3]]))
     # graph_full = [[1], [2], [3], []]
     # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
     #              Cell('pooling', 'max', 3)]
     # network = NetworkItem(0, graph_full, cell_list, "")
-    graph_full = [[1, 2, 3], [2], [3]]
-    cell_list = [Cell('conv', 64, 3, 'relu'), Cell('conv', 64, 5, 'leakyrelu'), Cell('conv', 64, 3, 'relu6')]
+
+    graph_full = [[1, 2, 3, 5], [2, 4, 3, 5], [3, 5], [5], [3, 5]]
+    cell_list = [Cell('conv', 32, 3, 'relu'), Cell('conv', 16, 3, 'relu'), Cell('conv', 24, 3, 'relu'),
+                 Cell('conv', 24, 3, 'relu'), Cell('conv', 32, 1, 'relu')]
     # eval.add_data(5000)
     # print(eval._toposort([[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
     #       4, 5, 6, 8], [5, 7], [6, 7, 9, 10], [7, 9], [8], [9, 10], [10]]))
@@ -584,11 +586,11 @@ if __name__ == '__main__':
     #              ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
     # pre_block = [network]
     e = eval.evaluate(network1, is_bestNN=True)
-    Network.pre_block.append(network1)
-    network2 = NetworkItem(1, graph_full, cell_list, "")
-    e = eval.evaluate(network2, is_bestNN=True)
-    Network.pre_block.append(network2)
-    network3 = NetworkItem(2, graph_full, cell_list, "")
-    e = eval.evaluate(network3, is_bestNN=True)
+    # Network.pre_block.append(network1)
+    # network2 = NetworkItem(1, graph_full, cell_list, "")
+    # e = eval.evaluate(network2, is_bestNN=True)
+    # Network.pre_block.append(network2)
+    # network3 = NetworkItem(2, graph_full, cell_list, "")
+    # e = eval.evaluate(network3, is_bestNN=True)
     # e=eval.train(network.graph_full,cellist)
     # print(e)

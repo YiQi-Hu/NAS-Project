@@ -26,8 +26,8 @@ naslog_path = os.path.join(log_dir, 'nas_log.txt')
 
 # System information
 evafail = 'NAS: evaluating failed and we will try again...'
-eva_pre = 'block_num:{0[0]} round:{0[1]} network_index:{0[2]}/{0[3]} spl_index:{0[4]}/{0[5]}'
-eva_result_tem = "network_index:{0[0]} spl_index:{0[1]} score:{0[2]} time_cost:{0[3]}"
+eva_pre = 'doing_task: block_num:{0[0]} round:{0[1]} network_index:{0[2]}/{0[3]} spl_index:{0[4]}/{0[5]}'
+eva_result_tem = "arrange_result: network_index:{0[0]} spl_index:{0[1]} score:{0[2]} time_cost:{0[3]}"
 eva_ing = 'block_num:{0[0]} round:{0[1]} network_index:{0[2]}/{0[3]} spl_index:{0[4]}/{0[5]}' \
           ' score:{0[6]} time_cost:{0[7]} eva_pid:{0[8]} finished...'
 eliinfo_tem = 'NAS: eliminating {0[0]}, remaining {0[1]}...'

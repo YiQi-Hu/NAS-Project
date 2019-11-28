@@ -40,7 +40,12 @@ class Cell(tuple):
             "kernel_size": 2,
             "activation": 3
         },
-        "pooling":{
+        "sep_conv": {
+            "filter_size": 1,
+            "kernel_size": 2,
+            "activation": 3
+        },
+        "pooling": {
             "ptype": 1,
             "kernel_size": 2
         }
@@ -90,6 +95,8 @@ class Cell(tuple):
             Cell._conv_vaild(type_args)
         elif cell_type == 'pooling':
             Cell._pool_valid(type_args)
+        elif cell_type == 'sep_conv':
+            Cell._sep_conv_valid(type_args)
         else:
             raise CellInitError('type error')
         return
@@ -133,6 +140,28 @@ class Cell(tuple):
         ks_rv = (ks in range(1, 11))
 
         Cell._check_condition(pt_rv, ks_rv, err_msg % 'arg range invalid')
+        return
+
+    @staticmethod
+    def _sep_conv_valid(args):
+        err_msg = 'cell type \'sep_conv\' %s.'
+
+        if (len(args) > 3):
+            raise CellInitError(err_msg % 'args num > 3')
+        # fileter_size, kernel_size, activation
+        fs, ks, at = args
+        # '_tv' -> 'type valid'
+        fs_tv = isinstance(fs, int)
+        ks_tv = isinstance(ks, int)
+        at_tv = isinstance(at, str)
+
+        Cell._check_condition(fs_tv, ks_tv, at_tv, err_msg % 'arg type invalid')
+        # '_rv' -> 'range valid'
+        fs_rv = (fs in range(1, 1025))
+        ks_rv = (ks % 2 == 1) and (ks in range(1, 10))
+        at_rv = (at in ['relu', 'tanh', 'sigmoid', 'identity', 'leakyrelu', 'relu6'])
+
+        Cell._check_condition(fs_rv, ks_rv, at_rv, err_msg % 'arg type invalid')
         return
 
     @staticmethod

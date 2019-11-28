@@ -80,7 +80,7 @@ def _arrange_result(cmnct, net_pl):
             score, time_cost, nn_id, spl_id = r_
         else:
             score, time_cost, nn_id, spl_id = r_.get()
-        # NAS_LOG << ('eva_result', nn_id, spl_id, score, time_cost)
+        NAS_LOG << ('eva_result', nn_id, spl_id, score, time_cost)
         # mark down the score
         net_pl[nn_id - 1].item_list[-spl_id].score = score
 
@@ -226,7 +226,7 @@ def _assign_task(net_pool, com, round, batch_num=MAIN_CONFIG['spl_network_round'
         (pool_len < MAIN_CONFIG['finetune_threshold'])
     for nn, nn_id in zip(net_pool, range(1, pool_len+1)):
         if round > 1:
-            _gpu_batch_update_model(nn, batch_num)
+            _gpu_batch_update_model(nn)
             _gpu_batch_spl(nn, batch_num)
         para = nn, com, round, nn_id, pool_len, \
             batch_num, block_winner, finetune_sign
@@ -265,7 +265,6 @@ def _eliminate(net_pool=None, round=0):
             scores.pop()
             NAS_LOG << ("elim_net", len(Network.pre_block)+1, round, len(net_pool),
                         net.id, len(net.item_list))
-            # TODO record the info of the network removed
             _save_net_info(net, len(Network.pre_block)+1,
                            round, len(net_pool), net.id, len(net.item_list))
         else:
