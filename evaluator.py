@@ -11,7 +11,6 @@ from base import Cell, Network, NetworkItem
 from info_str import NAS_CONFIG
 from utils import NAS_LOG
 
-
 class DataSet:
 
     def __init__(self):
@@ -374,8 +373,8 @@ class Evaluator:
             Accuracy'''
         self.log = ''
         tf.reset_default_graph()
-        print("-" * 20, network.id, "-" * 20)
-        print(network.graph, network.cell_list, Network.pre_block)
+        # print("-" * 20, network.id, "-" * 20)
+        # print(network.graph, network.cell_list, Network.pre_block)
         self.log = self.log+"-" * 20 + str(network.id) + "-" * 20+'\n'
         for block in Network.pre_block:
             self.log = self.log + str(block.graph) + str(block.cell_list)
@@ -385,7 +384,7 @@ class Evaluator:
         self.block_num = len(Network.pre_block) * NAS_CONFIG['eva']['repeat_search']
         # a pooling later for every block
         if self.block_num == NAS_CONFIG['nas_main']['block_num']:
-            network.cell_list.append(Cell('pooling', 'global'))
+            network.cell_list.append(Cell('pooling', 'global', 1))
         else:
             network.cell_list.append(Cell('pooling', 'max', 2))
 
@@ -491,7 +490,7 @@ class Evaluator:
         precision = np.zeros([self.epoch])       
         for ep in range(self.epoch):
             start_time = time.time()
-            print("epoch", ep, ":")
+            # print("epoch", ep, ":")
             # train step
             for step in range(self.max_steps):
                 batch_x = self.train_data[step *
@@ -502,10 +501,11 @@ class Evaluator:
                 _, loss_value, acc = sess.run([train_op, cross_entropy, accuracy],
                                               feed_dict={x: batch_x, labels: batch_y, train_flag: True})
                 if np.isnan(loss_value):
+                    NAS_LOG << ('eva', self.log)
                     return [-1]
-                sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" %
-                                 (step, self.max_steps, loss_value, acc))
-            sys.stdout.write("\n")
+                # sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" %
+                #                  (step, self.max_steps, loss_value, acc))
+            # sys.stdout.write("\n")
             # evaluation step
             num_iter = self.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL // self.batch_size
             for step in range(num_iter):
@@ -516,22 +516,23 @@ class Evaluator:
                 l, acc_ = sess.run([cross_entropy, accuracy],
                                    feed_dict={x: batch_x, labels: batch_y, train_flag: False})
                 precision[ep] += acc_ / num_iter
-                sys.stdout.write(
-                    "\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
+                # sys.stdout.write(
+                #     "\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
             # early stop
             if ep > 10:
                 if precision[ep] < 0.15:
+                    NAS_LOG << ('eva', self.log)
                     return [-1]
                 if 2 * precision[ep] - precision[ep - 10] - precision[ep - 1] < 0.001:
                     precision = precision[:ep]
-                    print('early stop at %d epoch' % ep)
+                    # print('early stop at %d epoch' % ep)
                     self.log += 'early stop at %d epoch\n' % ep
                     break
-            sys.stdout.write("\n")
+            # sys.stdout.write("\n")
             self.log += 'epoch %d: precision = %.3f, cost time %.3f\n' % (
                 ep, precision[ep], float(time.time() - start_time))
-            print('precision = %.3f, cost time %.3f' %
-                  (precision[ep], float(time.time() - start_time)))
+            # print('precision = %.3f, cost time %.3f' %
+            #       (precision[ep], float(time.time() - start_time)))
         NAS_LOG << ('eva', self.log)
 
         return precision
@@ -553,41 +554,41 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
     eval.add_data(5000)
-    eval.retrain()
-    # # print(eval._toposort([[1, 4, 3], [2], [3], [], [3]]))
-    # # graph_full = [[1], [2], [3], []]
-    # # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
-    # #              Cell('pooling', 'max', 3)]
-    # # network = NetworkItem(0, graph_full, cell_list, "")
-    # graph_full = [[1, 2, 3], [2], [3]]
-    # cell_list = [Cell('conv', 64, 3, 'relu'), Cell('conv', 64, 5, 'leakyrelu'), Cell('conv', 64, 3, 'relu6')]
-    # # eval.add_data(5000)
-    # # print(eval._toposort([[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
-    # #       4, 5, 6, 8], [5, 7], [6, 7, 9, 10], [7, 9], [8], [9, 10], [10]]))
-    # # graph_full = [[1], [2], [3], []]
-    # # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
-    # #              Cell('pooling', 'max', 3)]
-    # network1 = NetworkItem(0, graph_full, cell_list, "")
-    # # cell_list = [cell_list]
-    # # e=eval.evaluate(graph_full,cell_list[-1])#,is_bestNN=True)
-    # # print(e)
-    # # cellist=[('conv', 128, 1, 'relu'), ('conv', 32, 1, 'relu'), ('conv', 256, 1, 'relu'), ('pooling', 'max', 2), ('pooling', 'global', 3), ('conv', 32, 1, 'relu')]
-    # # cellist=[('pooling', 'global', 2), ('pooling', 'max', 3), ('conv', 21, 32, 'leakyrelu'), ('conv', 16, 32, 'leakyrelu'), ('pooling', 'max', 3), ('conv', 16, 32, 'leakyrelu')]
-    #
-    # # graph_part = [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17], []]
-    # # cell_list = [('conv', 64, 3, 'relu'), ('conv', 64, 3, 'relu'), ('pooling', 'max', 2), ('conv', 128, 3, 'relu'),
-    # #              ('conv', 128, 3, 'relu'), ('pooling', 'max', 2), ('conv', 256, 3, 'relu'),
-    # #              ('conv', 256, 3, 'relu'), ('conv', 256, 3, 'relu'), ('pooling', 'max', 2),
-    # #              ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
-    # #              ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
-    # #              ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
-    # # pre_block = [network]
-    # e = eval.evaluate(network1, is_bestNN=True)
-    # Network.pre_block.append(network1)
-    # network2 = NetworkItem(1, graph_full, cell_list, "")
-    # e = eval.evaluate(network2, is_bestNN=True)
-    # Network.pre_block.append(network2)
-    # network3 = NetworkItem(2, graph_full, cell_list, "")
-    # e = eval.evaluate(network3, is_bestNN=True)
-    # # e=eval.train(network.graph_full,cellist)
-    # # print(e)
+    # eval.retrain()
+    # print(eval._toposort([[1, 4, 3], [2], [3], [], [3]]))
+    # graph_full = [[1], [2], [3], []]
+    # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
+    #              Cell('pooling', 'max', 3)]
+    # network = NetworkItem(0, graph_full, cell_list, "")
+    graph_full = [[1, 2, 3], [2], [3]]
+    cell_list = [Cell('conv', 64, 3, 'relu'), Cell('conv', 64, 5, 'leakyrelu'), Cell('conv', 64, 3, 'relu6')]
+    # eval.add_data(5000)
+    # print(eval._toposort([[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
+    #       4, 5, 6, 8], [5, 7], [6, 7, 9, 10], [7, 9], [8], [9, 10], [10]]))
+    # graph_full = [[1], [2], [3], []]
+    # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
+    #              Cell('pooling', 'max', 3)]
+    network1 = NetworkItem(0, graph_full, cell_list, "")
+    # cell_list = [cell_list]
+    # e=eval.evaluate(graph_full,cell_list[-1])#,is_bestNN=True)
+    # print(e)
+    # cellist=[('conv', 128, 1, 'relu'), ('conv', 32, 1, 'relu'), ('conv', 256, 1, 'relu'), ('pooling', 'max', 2), ('pooling', 'global', 3), ('conv', 32, 1, 'relu')]
+    # cellist=[('pooling', 'global', 2), ('pooling', 'max', 3), ('conv', 21, 32, 'leakyrelu'), ('conv', 16, 32, 'leakyrelu'), ('pooling', 'max', 3), ('conv', 16, 32, 'leakyrelu')]
+
+    # graph_part = [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17], []]
+    # cell_list = [('conv', 64, 3, 'relu'), ('conv', 64, 3, 'relu'), ('pooling', 'max', 2), ('conv', 128, 3, 'relu'),
+    #              ('conv', 128, 3, 'relu'), ('pooling', 'max', 2), ('conv', 256, 3, 'relu'),
+    #              ('conv', 256, 3, 'relu'), ('conv', 256, 3, 'relu'), ('pooling', 'max', 2),
+    #              ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
+    #              ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
+    #              ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
+    # pre_block = [network]
+    e = eval.evaluate(network1, is_bestNN=True)
+    Network.pre_block.append(network1)
+    network2 = NetworkItem(1, graph_full, cell_list, "")
+    e = eval.evaluate(network2, is_bestNN=True)
+    Network.pre_block.append(network2)
+    network3 = NetworkItem(2, graph_full, cell_list, "")
+    e = eval.evaluate(network3, is_bestNN=True)
+    # e=eval.train(network.graph_full,cellist)
+    # print(e)
