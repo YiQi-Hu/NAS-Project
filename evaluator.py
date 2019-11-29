@@ -468,7 +468,7 @@ class Evaluator:
 
     def retrain(self, pre_block):
         tf.reset_default_graph()
-        retrain_log = "-" * 20 + "retrain-" * 20 + '\n'
+        retrain_log = "-" * 20 + "retrain" + "-" * 20 + '\n'
         for block in pre_block:
             retrain_log = retrain_log + str(block.graph) + str(block.cell_list) + '\n'
         assert self.train_num >= self.batch_size

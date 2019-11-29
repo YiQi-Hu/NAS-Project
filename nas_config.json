@@ -25,9 +25,9 @@
     "enum_log_path": ""
   },
   "eva": {
-    "task_name": "cifar-10",
+    "task_name": "cifar-100",
     "image_size": 32,
-    "num_classes": 10,
+    "num_classes": 100,
     "num_examples_for_train": 40000,
     "num_examples_per_epoch_for_eval": 10000,
     "regularaztion_rate": 0.001,
