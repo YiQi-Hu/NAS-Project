@@ -32,7 +32,8 @@ def _subproc_eva(params, eva, gpuq):
         score = random.uniform(0, 0.1)
     else:
         os.environ['CUDA_VISIBLE_DEVICES'] = str(ngpu)
-        score = eva.evaluate(item, is_bestNN=False,
+        print("pre_block", Network.pre_block)
+        score = eva.evaluate(item, Network.pre_block, is_bestNN=False,
                              update_pre_weight=ft_sign)
     gpuq.put(ngpu)
     time_cost = time.time() - start_time
@@ -267,7 +268,7 @@ def _subp_confirm_train(eva, network_item, gpuq):
     ngpu = gpuq.get()
     os.environ['CUDA_VISIBLE_DEVICES'] = str(ngpu)
     _epoch_ctrl(eva, stage="confirm")
-    score = eva.evaluate(network_item, is_bestNN=True, update_pre_weight=True)
+    score = eva.evaluate(network_item, Network.pre_block, is_bestNN=True, update_pre_weight=True)
     gpuq.put(ngpu)
     return score
 
@@ -433,7 +434,7 @@ def algo(block_num, eva, com, ds, npool_tem, process_pool):
 def _subp_retrain(eva, gpuq):
     ngpu = gpuq.get()
     os.environ['CUDA_VISIBLE_DEVICES'] = str(ngpu)
-    score = eva.retrain()
+    score = eva.retrain(Network.pre_block)
     gpuq.put(ngpu)
     return score
 

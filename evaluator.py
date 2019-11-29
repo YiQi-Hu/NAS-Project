@@ -410,7 +410,7 @@ class Evaluator:
             logits = tf.nn.dropout(logits, keep_prob=1.0)
             # softmax
             logits = self._makedense(
-                logits, ('', [1024, self.NUM_CLASSES], 'identity'), train_flag)
+                logits, ('', [512, self.NUM_CLASSES], 'identity'), train_flag)
 
             correct_prediction = tf.equal(
                 tf.argmax(logits, 1), tf.argmax(labels, 1))
@@ -490,7 +490,7 @@ class Evaluator:
             logits = tf.nn.dropout(logits, keep_prob=1.0)
             # softmax
             logits = self._makedense(
-                logits, ('', [1024, self.NUM_CLASSES], 'identity'), train_flag)
+                logits, ('', [512, self.NUM_CLASSES], 'identity'), train_flag)
             correct_prediction = tf.equal(
                 tf.argmax(logits, 1), tf.argmax(labels, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
@@ -543,6 +543,7 @@ class Evaluator:
                                                   feed_dict={x: batch_x, labels: batch_y, train_flag: True})
                 if np.isnan(loss_value):
                     NAS_LOG << ('eva', self.log)
+                    print("loss NAN")
                     return [-1]
                 # sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" %
                 #                  (step, self.max_steps, loss_value, acc))
@@ -563,6 +564,7 @@ class Evaluator:
             if ep > 5:
                 if precision[ep] < 1.2 / self.NUM_CLASSES:
                     NAS_LOG << ('eva', self.log)
+                    print("early stop")
                     return [-1]
                 if 2 * precision[ep] - precision[ep - 5] - precision[ep - 1] < 0.001 / self.NUM_CLASSES:
                     precision = precision[:ep]
