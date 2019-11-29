@@ -57,7 +57,7 @@ elim_net = "Network info of net removed\nblock_num: {0[0]} round: {0[1]} network
 elim_net_info = "block_num: {0[0]} round: {0[1]} network_left: {0[2]} " \
                 "network_id: {0[3]} number of scheme: {0[4]}\ngraph_part:{0[5]}\n"
 scheme_info = "    graph_full:{0[0]}\n    cell_list:{0[1]}\n    code:{0[2]}\n    score:{0[3]}\n"
-
+confirm_train = "confirm training..."
 eva = "{0[0]}"
 
 # moudle X function X ACTION -> logger template string
@@ -105,6 +105,9 @@ MF_TEMP = {
         },
         '_rm_other_model': {
             'model_save': model_save
+        },
+        '_confirm_train': {
+            'confirm_train': confirm_train
         }
     },
     'evaluator': {
