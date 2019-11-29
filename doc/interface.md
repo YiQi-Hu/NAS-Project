@@ -164,7 +164,8 @@
 
 + evaluate
     > **Args**:
-    > 1. *network_item* (NetworkItem)
+    > 1. *network* (NetworkItem)
+    > 2. *pre_block* (1d list of NetworkItem)
     > 2. *is_bestNN* (boolean)
     > 3. *update_pre_weight* (boolean)
     >
