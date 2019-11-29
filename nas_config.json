@@ -43,7 +43,7 @@
     "momentum_rate": 0.9,
     "repeat_search": 1,
     "model_path": "model",
-    "dataset_path": "data",
+    "dataset_path": "/home/amax/Desktop",
     "eva_log_path": "",
     "retrain_switch": 0,
     "learning_rate_type": "cos",
