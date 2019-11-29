@@ -247,26 +247,29 @@ class Evaluator:
         i = 0
         inputs = tf.reshape(inputs, [self.batch_size, -1])
 
-        for neural_num in hplist[1]:
+        for i, neural_num in enumerate(hplist[1]):
             with tf.variable_scope('dense' + str(i) + 'block' + str(self.block_num)) as scope:
                 weights = tf.get_variable('weights', shape=[inputs.shape[-1], neural_num],
                                           initializer=tf.contrib.keras.initializers.he_normal())
                 biases = tf.get_variable(
                     'biases', [neural_num], initializer=tf.constant_initializer(0.0))
-                if hplist[2] == 'relu':
-                    local3 = tf.nn.relu(self._batch_norm(tf.matmul(inputs, weights) + biases, train_flag),
-                                        name=scope.name)
-                elif hplist[2] == 'tanh':
-                    local3 = tf.tanh(
-                        tf.matmul(inputs, weights) + biases, name=scope.name)
-                elif hplist[2] == 'sigmoid':
-                    local3 = tf.sigmoid(
-                        tf.matmul(inputs, weights) + biases, name=scope.name)
-                else:
+                if neural_num == self.NUM_CLASSES:
                     local3 = tf.identity(
                         tf.matmul(inputs, weights) + biases, name=scope.name)
+                else:
+                    if hplist[2] == 'relu':
+                        local3 = tf.nn.relu(self._batch_norm(tf.matmul(inputs, weights) + biases, train_flag),
+                                            name=scope.name)
+                    elif hplist[2] == 'tanh':
+                        local3 = tf.tanh(
+                            tf.matmul(inputs, weights) + biases, name=scope.name)
+                    elif hplist[2] == 'sigmoid':
+                        local3 = tf.sigmoid(
+                            tf.matmul(inputs, weights) + biases, name=scope.name)
+                    else:
+                        local3 = tf.identity(
+                            tf.matmul(inputs, weights) + biases, name=scope.name)
             inputs = local3
-            i += 1
         return inputs
 
     def _inference(self, images, graph_part, cellist, train_flag):
@@ -410,7 +413,7 @@ class Evaluator:
             logits = tf.nn.dropout(logits, keep_prob=1.0)
             # softmax
             logits = self._makedense(
-                logits, ('', [1024, self.NUM_CLASSES], 'identity'), train_flag)
+                logits, ('', [256, self.NUM_CLASSES], 'relu'), train_flag)
 
             correct_prediction = tf.equal(
                 tf.argmax(logits, 1), tf.argmax(labels, 1))
@@ -490,7 +493,7 @@ class Evaluator:
             logits = tf.nn.dropout(logits, keep_prob=1.0)
             # softmax
             logits = self._makedense(
-                logits, ('', [1024, self.NUM_CLASSES], 'identity'), train_flag)
+                logits, ('', [256, self.NUM_CLASSES], 'relu'), train_flag)
             correct_prediction = tf.equal(
                 tf.argmax(logits, 1), tf.argmax(labels, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
@@ -594,24 +597,25 @@ class Evaluator:
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     eval = Evaluator()
-    eval.set_data_size(5000)
-    eval.set_epoch(1)
+    eval.set_data_size(50000)
+    eval.set_epoch(10)
     # graph_full = [[1], [2], [3], []]
     # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
     #              Cell('pooling', 'max', 3)]
     # lenet = NetworkItem(0, graph_full, cell_list, "")
+    # e = eval.evaluate(lenet, [], is_bestNN=True)
     # Network.pre_block.append(lenet)
 
-    graph_full = [[1, 3], [2, 3], [3], [4]]
-    cell_list = [Cell('conv', 24, 3, 'relu'), Cell('conv', 32, 3, 'relu'), Cell('conv', 24, 3, 'relu'),
-                 Cell('conv', 32, 3, 'relu')]
+    graph_full = [[1, 4, 3, 5], [2, 4, 3], [3, 5], [5], [3, 5]]
+    cell_list = [Cell('conv', 24, 1, 'relu'), Cell('conv', 16, 3, 'relu'), Cell('conv', 24, 3, 'relu'),
+                 Cell('conv', 24, 1, 'relu'), Cell('conv', 32, 1, 'relu')]
     network1 = NetworkItem(0, graph_full, cell_list, "")
-    network2 = NetworkItem(1, graph_full, cell_list, "")
+    # network2 = NetworkItem(1, graph_full, cell_list, "")
     e = eval.evaluate(network1, [], is_bestNN=True)
-    eval.set_data_size(500)
-    e = eval.evaluate(network2, [network1], is_bestNN=True)
-    eval.set_epoch(2)
-    eval.retrain([network1, network2])
+    # eval.set_data_size(500)
+    # e = eval.evaluate(network2, [network1], is_bestNN=True)
+    # eval.set_epoch(2)
+    # eval.retrain([network1, network2])
     # eval.add_data(5000)
     # print(eval._toposort([[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
     #       4, 5, 6, 8], [5, 7], [6, 7, 9, 10], [7, 9], [8], [9, 10], [10]]))
