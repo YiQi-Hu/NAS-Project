@@ -457,7 +457,7 @@ class Evaluator:
     def _eval(self, sess, x, labels, logits, train_flag, retrain=False):
         global_step = tf.Variable(
             0, trainable=False, name='global_step' + str(self.block_num))
-        target = self._cal_target(logits, labels)
+        accuracy = self._cal_accuracy(logits, labels)
         loss = self._loss(labels, logits)
         train_op = self._train_op(global_step, loss)
 
@@ -489,7 +489,7 @@ class Evaluator:
                 batch_y = self.train_label[step *
                                            self.batch_size:(step + 1) * self.batch_size]
                 batch_x = DataSet().process(batch_x)
-                _, loss_value, acc = sess.run([train_op, loss, target],
+                _, loss_value, acc = sess.run([train_op, loss, accuracy],
                                               feed_dict={x: batch_x, labels: batch_y, train_flag: True})
                 if np.isnan(loss_value):
                     return [-1], saver, log
@@ -499,7 +499,7 @@ class Evaluator:
                                     self.batch_size:(step + 1) * self.batch_size]
                 batch_y = test_label[step *
                                      self.batch_size:(step + 1) * self.batch_size]
-                l, acc_ = sess.run([loss, target],
+                l, acc_ = sess.run([loss, accuracy],
                                    feed_dict={x: batch_x, labels: batch_y, train_flag: False})
                 precision[ep] += acc_ / num_iter
 
@@ -516,7 +516,7 @@ class Evaluator:
 
         return precision, saver, log
 
-    def _cal_target(self, logits, labels):
+    def _cal_accuracy(self, logits, labels):
         """
         calculate the target of this task
             Args:

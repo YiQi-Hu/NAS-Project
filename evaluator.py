@@ -450,7 +450,7 @@ class Evaluator:
     def _eval(self, sess, x, labels, logits, train_flag, retrain=False):
         global_step = tf.Variable(
             0, trainable=False, name='global_step' + str(self.block_num))
-        target = self._cal_target(logits, labels)
+        accuracy = self._cal_accuracy(logits, labels)
         loss = self._loss(labels, logits)
         train_op = self._train_op(global_step, loss)
 
@@ -473,6 +473,7 @@ class Evaluator:
             num_iter = self.NUM_EXAMPLES_FOR_EVAL // self.batch_size
 
         log = ''
+        cost_time = 0
         precision = np.zeros([self.epoch])
         for ep in range(self.epoch):
             # print("epoch", ep, ":")
@@ -484,7 +485,7 @@ class Evaluator:
                 batch_y = self.train_label[step *
                                            self.batch_size:(step + 1) * self.batch_size]
                 batch_x = DataSet().process(batch_x)
-                _, loss_value, acc = sess.run([train_op, loss, target],
+                _, loss_value, acc = sess.run([train_op, loss, accuracy],
                                               feed_dict={x: batch_x, labels: batch_y, train_flag: True})
                 if np.isnan(loss_value):
                     return [-1], saver, log
@@ -497,7 +498,7 @@ class Evaluator:
                                     self.batch_size:(step + 1) * self.batch_size]
                 batch_y = test_label[step *
                                      self.batch_size:(step + 1) * self.batch_size]
-                l, acc_ = sess.run([loss, target],
+                l, acc_ = sess.run([loss, accuracy],
                                    feed_dict={x: batch_x, labels: batch_y, train_flag: False})
                 precision[ep] += acc_ / num_iter
                 sys.stdout.write("\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
@@ -506,20 +507,23 @@ class Evaluator:
             # early stop
             if ep > 5 and not retrain:
                 if precision[ep] < 1.2 / self.NUM_CLASSES:
-                    return [-1], saver, log
+                    precision = [-1]
+                    break
                 if 2 * precision[ep] - precision[ep - 5] - precision[ep - 1] < 0.001 / self.NUM_CLASSES:
                     precision = precision[:ep]
                     log += 'early stop at %d epoch\n' % ep
                     break
 
+            cost_time += (float(time.time() - start_time)) / self.epoch
             log += 'epoch %d: precision = %.3f, cost time %.3f\n' % (
                 ep, precision[ep], float(time.time() - start_time))
             # print('precision = %.3f, cost time %.3f' %
             #       (precision[ep], float(time.time() - start_time)))
 
-        return precision, saver, log
+        target = self._cal_multi_target(precision[-1], cost_time)
+        return target, saver, log
 
-    def _cal_target(self, logits, labels):
+    def _cal_accuracy(self, logits, labels):
         """
         calculate the target of this task
             Args:
@@ -530,8 +534,8 @@ class Evaluator:
         """
         correct_prediction = tf.equal(
             tf.argmax(logits, 1), tf.argmax(labels, 1))
-        target = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-        return target
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+        return accuracy
 
     def _loss(self, labels, logits):
         """
@@ -574,6 +578,9 @@ class Evaluator:
                                          use_nesterov=True)
         train_op = opt.minimize(loss, global_step=global_step)
         return train_op
+
+    def _cal_multi_target(self, precision, time):
+        return precision / time
 
     def set_data_size(self, num):
         if num > self.NUM_EXAMPLES_FOR_TRAIN or num < 0:
