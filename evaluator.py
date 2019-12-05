@@ -383,7 +383,7 @@ class Evaluator:
         network.graph.pop()
         network.cell_list.pop()
         NAS_LOG << ('eva', self.log)
-        return float(precision[-1])
+        return precision
 
     def retrain(self, pre_block):
         tf.reset_default_graph()
@@ -579,8 +579,15 @@ class Evaluator:
         train_op = opt.minimize(loss, global_step=global_step)
         return train_op
 
+    def _stats_graph(self):
+        graph = tf.get_default_graph()
+        flops = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.float_operation())
+        params = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.trainable_variables_parameter())
+        return flops.total_float_ops, params.total_parameters
+
     def _cal_multi_target(self, precision, time):
-        return precision / time
+        flops, model_size = self._stats_graph()
+        return precision / (time + flops + model_size)
 
     def set_data_size(self, num):
         if num > self.NUM_EXAMPLES_FOR_TRAIN or num < 0:
