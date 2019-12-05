@@ -58,7 +58,7 @@ elim_net_info = "block_num: {0[0]} round: {0[1]} network_left: {0[2]} " \
                 "network_id: {0[3]} number of scheme: {0[4]}\ngraph_part:{0[5]}\n"
 scheme_info = "    graph_full:{0[0]}\n    cell_list:{0[1]}\n    code:{0[2]}\n    score:{0[3]}\n"
 
-eva = "%s"
+eva = "{0[0]}"
 
 # moudle X function X ACTION -> logger template string
 MF_TEMP = {
@@ -109,7 +109,10 @@ MF_TEMP = {
     },
     'evaluator': {
         '_eval': {
-            'eva': "%s"
+            'eva': eva
+        },
+        'retrain': {
+            'eva': eva
         }
     },
     'enumerater': {

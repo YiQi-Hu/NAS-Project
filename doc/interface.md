@@ -146,10 +146,6 @@
 + moving_average_decay (float, 1.0 ~ 1e-5)
 + regularaztion_rate (float, 1.0 ~ 1e-5)
 + batch_size (int, <= 200)
-+ epoch (int, any) \[*deprecated*\]
-+ retrain_epoch (int, any)
-+ search_epoch (int, any)
-+ retrain_switch (bool)
 + weight_decay (float, 0 ~ 1.0)
 + momentum_rate (float, 0 ~ 1.0)
 + boundaries (1d int list, values > 0)
@@ -168,7 +164,8 @@
 
 + evaluate
     > **Args**:
-    > 1. *network_item* (NetworkItem)
+    > 1. *network* (NetworkItem)
+    > 2. *pre_block* (1d list of NetworkItem)
     > 2. *is_bestNN* (boolean)
     > 3. *update_pre_weight* (boolean)
     >
@@ -179,9 +176,19 @@
     > 1. *pre_block* = [] & *update_pre_weight* != True
     > 2. *update_pre_weight* = True, but *is_bestNN* = True before.
     > 3. *is_bestNN* = True & *update_pre_weight* = True
-+ add_data
++ retrain
     > **Args**:
-    > 1. *add_num* (int, *batch_size* ~ *num_examples_per_epoch_for_train* - *self.train_num*)
+    >
+    > **Returns**:
+    > 1. *Accuracy* (float, 0 ~ 1.0)
++ set_data_size
+    > **Args**:
+    > 1. *num* (int, *batch_size* ~ *num_examples_per_epoch_for_train* - *self.train_num*)
+    >
+    > **Returns**: None
++ set_epoch
+    > **Args**:
+    > 1. *epoch* (int)
     >
     > **Returns**: None
   

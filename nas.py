@@ -154,7 +154,7 @@ def _gpu_batch_update_model(nn, batch_num=MAIN_CONFIG['spl_network_round']):
     :return:
     """
     for spl_id in range(1, batch_num + 1):
-        nn.spl.update_opt_model(nn.item_list[-spl_id].code, nn.item_list[-spl_id].score)
+        nn.spl.update_opt_model(nn.item_list[-spl_id].code, -nn.item_list[-spl_id].score)
 
 
 def _gpu_batch_init(nn, pred, batch_num=MAIN_CONFIG['spl_network_round']):
@@ -418,10 +418,19 @@ def algo(block_num, eva, com, npool_tem, process_pool):
     return best_nn, best_index
 
 
-def _retrain():
+def _subp_retrain(gpuq):
+    ngpu = gpuq.get()
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(ngpu)
     retrain_eva = Evaluator()
     _datasize_ctrl(retrain_eva)
-    score = retrain_eva.evaluate([], is_bestNN=True, update_pre_weight=True)
+    score = retrain_eva.retrain()
+    gpuq.put(ngpu)
+
+    return score
+
+
+def _retrain(com, process_pool):
+    score = process_pool.apply(_subp_retrain, (com.idle_gpuq,))
     return score
 
 
@@ -447,7 +456,7 @@ class Nas:
         for block in Network.pre_block:
             NAS_LOG << ('pre_block', str(block.graph), str(block.cell_list))
         start_retrain = time.time()
-        retrain_score = _retrain()
+        retrain_score = _retrain(self.com, self.pool)
         NAS_LOG << ('retrain_end', retrain_score, time.time() - start_retrain)
         return Network.pre_block, retrain_score
 
