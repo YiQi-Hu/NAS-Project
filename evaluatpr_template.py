@@ -421,7 +421,7 @@ class Evaluator:
             # softmax
             logits = self._makedense(logits, ('', [256, self.NUM_CLASSES], 'relu'))
 
-            precision, _, log = self._eval(sess, x, labels, logits, train_flag, retrain=True)
+            precision, _, log = self._eval(sess, x, labels, logits, train_flag)
             retrain_log += log
 
         NAS_LOG << ('eva', retrain_log)
@@ -439,8 +439,7 @@ class Evaluator:
             x = graph.get_tensor_by_name("input:0")
             labels = graph.get_tensor_by_name("label:0")
             train_flag = graph.get_tensor_by_name("train_flag:0")
-            input = graph.get_tensor_by_name(
-                "last_layer" + str(self.block_num - 1) + ":0")
+            input = graph.get_tensor_by_name("last_layer" + str(self.block_num - 1) + ":0")
             # only when there's not so many network in the pool will we update the previous blocks' weight
             if not update_pre_weight:
                 input = tf.stop_gradient(input, name="stop_gradient")
@@ -454,56 +453,44 @@ class Evaluator:
             input = tf.identity(x)
         return x, labels, input, train_flag
 
-    def _eval(self, sess, x, labels, logits, train_flag, retrain=False):
+    def _eval(self, sess, data_x, data_y, logits, train_flag):
+        # TODO change here to run training step and evaluation step
+        #  sess: tensorflow session
+        #  data_x: input image
+        #  data_y: input label
         global_step = tf.Variable(
             0, trainable=False, name='global_step' + str(self.block_num))
-        accuracy = self._cal_accuracy(logits, labels)
-        loss = self._loss(labels, logits)
+        accuracy = self._cal_accuracy(logits, data_y)
+        loss = self._loss(data_y, logits)
         train_op = self._train_op(global_step, loss)
 
         saver = tf.train.Saver(tf.global_variables())
         sess.run(tf.global_variables_initializer())
 
-        if retrain:
-            self.train_data = np.concatenate(
-                (np.array(self.train_data), np.array(self.valid_data)), axis=0).tolist()
-            self.train_label = np.concatenate(
-                (np.array(self.train_label), np.array(self.valid_label)), axis=0).tolist()
-            max_steps = (self.NUM_EXAMPLES_FOR_TRAIN + self.NUM_EXAMPLES_FOR_EVAL) // self.batch_size
-            test_data = copy.deepcopy(self.test_data)
-            test_label = copy.deepcopy(self.test_label)
-            num_iter = len(test_label) // self.batch_size
-        else:
-            max_steps = self.train_num // self.batch_size
-            test_data = copy.deepcopy(self.valid_data)
-            test_label = copy.deepcopy(self.valid_label)
-            num_iter = self.NUM_EXAMPLES_FOR_EVAL // self.batch_size
+        max_steps = self.train_num // self.batch_size
+        num_iter = self.NUM_EXAMPLES_FOR_EVAL // self.batch_size
 
         log = ''
         precision = np.zeros([self.epoch])
         for ep in range(self.epoch):
             start_time = time.time()
             for step in range(max_steps):
-                batch_x = self.train_data[step *
-                                          self.batch_size:(step + 1) * self.batch_size]
-                batch_y = self.train_label[step *
-                                           self.batch_size:(step + 1) * self.batch_size]
+                batch_x = self.train_data[step * self.batch_size:(step + 1) * self.batch_size]
+                batch_y = self.train_label[step * self.batch_size:(step + 1) * self.batch_size]
                 batch_x = DataSet().process(batch_x)
-                _, loss_value, acc = sess.run([train_op, loss, accuracy],
-                                              feed_dict={x: batch_x, labels: batch_y, train_flag: True})
+                _, loss_value = sess.run([train_op, loss],
+                                         feed_dict={data_x: batch_x, data_y: batch_y, train_flag: True})
                 if np.isnan(loss_value):
                     return [-1], saver, log
 
             for step in range(num_iter):
-                batch_x = test_data[step *
-                                    self.batch_size:(step + 1) * self.batch_size]
-                batch_y = test_label[step *
-                                     self.batch_size:(step + 1) * self.batch_size]
+                batch_x = self.valid_data[step * self.batch_size:(step + 1) * self.batch_size]
+                batch_y = self.valid_label[step * self.batch_size:(step + 1) * self.batch_size]
                 l, acc_ = sess.run([loss, accuracy],
-                                   feed_dict={x: batch_x, labels: batch_y, train_flag: False})
+                                   feed_dict={data_x: batch_x, data_y: batch_y, train_flag: False})
                 precision[ep] += acc_ / num_iter
 
-            if ep > 5 and not retrain:
+            if ep > 5:
                 if precision[ep] < 1.2 / self.NUM_CLASSES:
                     return [-1], saver, log
                 if 2 * precision[ep] - precision[ep - 5] - precision[ep - 1] < 0.001 / self.NUM_CLASSES:
