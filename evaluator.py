@@ -531,6 +531,8 @@ class Evaluator:
         return float(precision)
 
     def _eval(self, sess, train_op, cross_entropy, accuracy, x, labels, train_flag, lr):
+        """USER IMPLEMENT
+        """
         precision = np.zeros([self.epoch])
         for ep in range(self.epoch):
             start_time = time.time()
