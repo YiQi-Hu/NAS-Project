@@ -113,6 +113,9 @@ MF_TEMP = {
         },
         'retrain': {
             'eva': eva
+        },
+        'evaluate': {
+            'eva': eva
         }
     },
     'enumerater': {

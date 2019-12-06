@@ -37,7 +37,8 @@ class Logger(object):
             },
             'evaluator': {
                 '_eval': self._eva_log,
-                'retrain': self._eva_log
+                'retrain': self._eva_log,
+                'evaluate': self._eva_log
             }
         }
 
