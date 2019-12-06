@@ -18,8 +18,7 @@
     "depth": 4,
     "width": 3,
     "max_depth": 3,
-    "enum_debug": 0,
-    "enum_log_path": ""
+    "enum_debug": 0
   },
   "eva": {
     "task_name": "cifar-10",
@@ -61,7 +60,6 @@
   },
   "spl":{
     "pool_switch": 0,
-    "spl_log_path": "",
     "skip_max_dist": 4,
     "skip_max_num": 3,
     "conv_space": {
