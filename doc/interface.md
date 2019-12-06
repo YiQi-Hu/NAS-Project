@@ -187,12 +187,9 @@
 + num_epochs_per_decay (float, ?)
 + moving_average_decay (float, 1.0 ~ 1e-5)
 + batch_size (int, <= 200)
-<<<<<<< HEAD
-=======
 + epoch (int, any) *deprecated*
 + search_epoch (int, any)
 + retrain_epoch (int, any)
->>>>>>> update interface.md
 + weight_decay (float, 0 ~ 1.0)
 + momentum_rate (float, 0 ~ 1.0)
 + repeat_search (int, >= 1)
@@ -234,18 +231,6 @@
     > 1. *epoch* (int)
     >
     > **Returns**: None
-+ _eval (**USER IMPLEMENT**)
-    > **Args**:
-    > 1. sess
-    > 2. user_pkg (tuple, value:)
-    >    1. logits <!-- TODO -->
-    >    2. data_x <!-- TODO -->
-    >    3. data_y <!-- TODO -->
-    >    4. train_flag <!-- TODO -->
-    > 3. retrain (bool) *deprecated*
-    >
-    > **Returns**:
-    > 1. precision (float, 0 ~ 1)
 
 ## Sampler
 
