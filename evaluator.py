@@ -363,9 +363,9 @@ class Evaluator:
         network.cell_list.append(Cell('pooling', 'max', 2))
 
         with tf.Session() as sess:
-            x, labels, input, train_flag = self._get_input(sess, pre_block, update_pre_weight)
+            data_x, data_y, block_input, train_flag = self._get_input(sess, pre_block, update_pre_weight)
 
-            logits = self._inference(input, network.graph, network.cell_list, train_flag)
+            logits = self._inference(block_input, network.graph, network.cell_list, train_flag)
             for _ in range(NAS_CONFIG['eva']['repeat_search'] - 1):
                 self.block_num += 1
                 logits = self._inference(logits, network.graph, network.cell_list, train_flag)
@@ -373,7 +373,7 @@ class Evaluator:
             logits = tf.nn.dropout(logits, keep_prob=1.0)
             logits = self._makedense(logits, ('', [self.NUM_CLASSES], ''))
 
-            precision, saver, log = self._eval(sess, x, labels, logits, train_flag)
+            precision, saver, log = self._eval(sess, data_x, data_y, logits, train_flag)
             self.log += log
 
             if is_bestNN:  # save model
@@ -395,7 +395,7 @@ class Evaluator:
             retrain_log = retrain_log + str(block.graph) + str(block.cell_list) + '\n'
 
         with tf.Session() as sess:
-            x, labels, logits, train_flag = self._get_input(sess, [])
+            data_x, labels, logits, train_flag = self._get_input(sess, [])
 
             for i, block in enumerate(pre_block):
                 graph = block.graph + [[]]
@@ -414,7 +414,7 @@ class Evaluator:
             # softmax
             logits = self._makedense(logits, ('', [256, self.NUM_CLASSES], 'relu'))
 
-            precision, _, log = self._eval(sess, x, labels, logits, train_flag, retrain=True)
+            precision, _, log = self._eval(sess, data_x, labels, logits, train_flag, retrain=True)
             retrain_log += log
 
         NAS_LOG << ('eva', retrain_log)
@@ -429,25 +429,25 @@ class Evaluator:
             new_saver.restore(sess, os.path.join(
                 self.model_path, 'model' + str(pre_block[-1].id)))
             graph = tf.get_default_graph()
-            x = graph.get_tensor_by_name("input:0")
-            labels = graph.get_tensor_by_name("label:0")
+            data_x = graph.get_tensor_by_name("input:0")
+            data_y = graph.get_tensor_by_name("label:0")
             train_flag = graph.get_tensor_by_name("train_flag:0")
-            input = graph.get_tensor_by_name(
+            block_input = graph.get_tensor_by_name(
                 "last_layer" + str(self.block_num - 1) + ":0")
             # only when there's not so many network in the pool will we update the previous blocks' weight
             if not update_pre_weight:
-                input = tf.stop_gradient(input, name="stop_gradient")
+                block_input = tf.stop_gradient(block_input, name="stop_gradient")
         # if it's the first block
         else:
-            x = tf.placeholder(
+            data_x = tf.placeholder(
                 tf.float32, [self.batch_size, self.IMAGE_SIZE, self.IMAGE_SIZE, 3], name='input')
-            labels = tf.placeholder(
+            data_y = tf.placeholder(
                 tf.int32, [self.batch_size, self.NUM_CLASSES], name="label")
             train_flag = tf.placeholder(tf.bool, name='train_flag')
-            input = tf.identity(x)
-        return x, labels, input, train_flag
+            block_input = tf.identity(data_x)
+        return data_x, data_y, block_input, train_flag
 
-    def _eval(self, sess, x, labels, logits, train_flag, retrain=False):
+    def _eval(self, sess, data_x, labels, logits, train_flag, retrain=False):
         global_step = tf.Variable(
             0, trainable=False, name='global_step' + str(self.block_num))
         accuracy = self._cal_accuracy(logits, labels)
@@ -486,7 +486,7 @@ class Evaluator:
                                            self.batch_size:(step + 1) * self.batch_size]
                 batch_x = DataSet().process(batch_x)
                 _, loss_value, acc = sess.run([train_op, loss, accuracy],
-                                              feed_dict={x: batch_x, labels: batch_y, train_flag: True})
+                                              feed_dict={data_x: batch_x, labels: batch_y, train_flag: True})
                 if np.isnan(loss_value):
                     return [-1], saver, log
                 sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" % (step, max_steps, loss_value, acc))
@@ -499,7 +499,7 @@ class Evaluator:
                 batch_y = test_label[step *
                                      self.batch_size:(step + 1) * self.batch_size]
                 l, acc_ = sess.run([loss, accuracy],
-                                   feed_dict={x: batch_x, labels: batch_y, train_flag: False})
+                                   feed_dict={data_x: batch_x, labels: batch_y, train_flag: False})
                 precision[ep] += acc_ / num_iter
                 sys.stdout.write("\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
             sys.stdout.write("\n")
