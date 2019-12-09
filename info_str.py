@@ -118,6 +118,17 @@ MF_TEMP = {
             'eva': eva
         }
     },
+    'evaluator_template': {
+        '_eval': {
+            'eva': eva
+        },
+        'retrain': {
+            'eva': eva
+        },
+        'evaluate': {
+            'eva': eva
+        }
+    },
     'enumerater': {
         '': ''
     },

@@ -390,7 +390,7 @@ class Evaluator:
         network.graph.pop()
         network.cell_list.pop()
         NAS_LOG << ('eva', self.log)
-        return float(precision[-1])
+        return precision
 
     def retrain(self, pre_block):
         tf.reset_default_graph()
@@ -425,7 +425,7 @@ class Evaluator:
             retrain_log += log
 
         NAS_LOG << ('eva', retrain_log)
-        return float(precision[-1])
+        return precision
 
     def _get_input(self, sess, pre_block, update_pre_weight=False):
         '''Get input for _inference'''
@@ -471,6 +471,7 @@ class Evaluator:
         num_iter = self.NUM_EXAMPLES_FOR_EVAL // self.batch_size
 
         log = ''
+        cost_time = 0
         precision = np.zeros([self.epoch])
         for ep in range(self.epoch):
             start_time = time.time()
@@ -498,10 +499,12 @@ class Evaluator:
                     log += 'early stop at %d epoch\n' % ep
                     break
 
+            cost_time += (float(time.time() - start_time)) / self.epoch
             log += 'epoch %d: precision = %.3f, cost time %.3f\n' % (
                 ep, precision[ep], float(time.time() - start_time))
 
-        return precision, saver, log
+        target = self._cal_multi_target(precision[-1], cost_time)
+        return target, saver, log
 
     def _cal_accuracy(self, logits, labels):
         """
@@ -561,6 +564,17 @@ class Evaluator:
         train_op = opt.minimize(loss, global_step=global_step)
         return train_op
 
+    def _stats_graph(self):
+        graph = tf.get_default_graph()
+        flops = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.float_operation())
+        params = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.trainable_variables_parameter())
+        return flops.total_float_ops, params.total_parameters
+
+    def _cal_multi_target(self, precision, time):
+        # TODO change here for target calculating
+        flops, model_size = self._stats_graph()
+        return precision + 1 / time + 1 / flops + 1 / model_size
+
     def set_data_size(self, num):
         if num > self.NUM_EXAMPLES_FOR_TRAIN or num < 0:
             num = self.NUM_EXAMPLES_FOR_TRAIN
@@ -573,7 +587,7 @@ class Evaluator:
 
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
     eval.set_data_size(50000)
     eval.set_epoch(10)

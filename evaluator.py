@@ -418,7 +418,7 @@ class Evaluator:
             retrain_log += log
 
         NAS_LOG << ('eva', retrain_log)
-        return float(precision[-1])
+        return float(precision)
 
     def _get_input(self, sess, pre_block, update_pre_weight=False):
         '''Get input for _inference'''
@@ -587,7 +587,7 @@ class Evaluator:
 
     def _cal_multi_target(self, precision, time):
         flops, model_size = self._stats_graph()
-        return precision / (time + flops + model_size)
+        return precision + 1 / time + 1 / flops + 1 / model_size
 
     def set_data_size(self, num):
         if num > self.NUM_EXAMPLES_FOR_TRAIN or num < 0:
@@ -605,7 +605,7 @@ class Evaluator:
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     eval = Evaluator()
-    eval.set_data_size(50000)
+    eval.set_data_size(5000)
     eval.set_epoch(1)
     # graph_full = [[1], [2], [3], []]
     # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
@@ -620,10 +620,12 @@ if __name__ == '__main__':
     network1 = NetworkItem(0, graph_full, cell_list, "")
     network2 = NetworkItem(1, graph_full, cell_list, "")
     e = eval.evaluate(network1, is_bestNN=True)
+    print(e)
     eval.set_data_size(500)
     e = eval.evaluate(network2, [network1], is_bestNN=True)
+    print(e)
     eval.set_epoch(2)
-    eval.retrain([network1, network2])
+    print(eval.retrain([network1, network2]))
     # eval.add_data(5000)
     # print(eval._toposort([[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
     #       4, 5, 6, 8], [5, 7], [6, 7, 9, 10], [7, 9], [8], [9, 10], [10]]))
