@@ -7,8 +7,12 @@
     "finetune_threshold": 5,
     "spl_network_round": 2,
     "eliminate_policy": "best",
-    "add_data_per_round": 50,
+    "add_data_mode": "linear",
+    "add_data_per_round": 1600,
     "add_data_for_winner": -1,
+    "init_data_size": 1600,
+    "data_increase_scale": 1.5,
+    "add_data_for_confirm_train": -1,
     "repeat_search": 1,
     "subp_eva_debug": 0,
     "subp_pred_debug": 0,
@@ -33,10 +37,13 @@
     "learning_rate_decay_factor": 0.1,
     "moving_average_decay": 0.98,
     "batch_size": 50,
+    "search_epoch": 3,
+    "confirm_epoch": 4,
+    "retrain_epoch": 6,
     "weight_decay": 0.0003,
     "momentum_rate": 0.9,
     "model_path": "model",
-    "dataset_path": "/home/amax/Desktop",
+    "dataset_path": "data",
     "eva_log_path": "",
     "retrain_switch": 0,
     "learning_rate_type": "cos",
@@ -64,9 +71,27 @@
     "skip_max_num": 3,
     "conv_space": {
       "filter_size": [
+        [16,24,32],
         [32,48,64],
-        [48,64,128],
-        [64,128,192],
+        [64,96,128],
+        [128,192,256]
+      ],
+      "kernel_size": [
+        1,
+        3,
+        5
+      ],
+      "activation": [
+        "relu",
+        "leakyrelu",
+        "relu6"
+      ]
+    },
+    "sep_conv_space": {
+      "filter_size": [
+        [16,24,32],
+        [32,48,64],
+        [64,96,128],
         [128,192,256]
       ],
       "kernel_size": [

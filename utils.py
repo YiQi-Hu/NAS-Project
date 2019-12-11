@@ -12,7 +12,61 @@ def list_swap(ls, i, j):
     cpy = ls[i]
     ls[i] = ls[j]
     ls[j] = cpy
-    
+
+
+class DataSize:
+    def __init__(self, eva):
+        self.eva = eva
+        self.round_count = 0
+        self.mode = NAS_CONFIG['nas_main']['add_data_mode']
+        #  data size control for game
+        self.add_data_per_rd = NAS_CONFIG['nas_main']['add_data_per_round']
+        self.init_lr = NAS_CONFIG['nas_main']['init_data_size']
+        self.scale = NAS_CONFIG['nas_main']['data_increase_scale']
+        #  data size control for confirm train
+        self.data_for_confirm_train = NAS_CONFIG['nas_main']['add_data_for_confirm_train']
+
+    def _game_data_ctrl(self):
+        if self.mode == "linear":
+            self.round_count += 1
+            self.eva.set_data_size(self.round_count * self.add_data_per_rd)
+        elif self.mode == "scale":
+            dsize = int(self.init_lr * (self.scale ** self.round_count))
+            self.eva.set_data_size(dsize)
+            self.round_count += 1
+        else:
+            raise ValueError("signal error: mode, it must be one of linear, scale")
+
+    def control(self, stage="game"):
+        """Increase the dataset's size in different way
+
+        :param stage: must be one of "game", "confirm"
+        :return:
+        """
+        if stage == "game":
+            self._game_data_ctrl()
+        elif stage == "confirm":
+            self.eva.set_data_size(self.data_for_confirm_train)
+        else:
+            raise ValueError("signal error: stage, it must be one of game, confirm")
+
+
+def _epoch_ctrl(eva=None, stage="game"):
+    """
+
+    :param eva:
+    :param stage: must be one of "game", "confirm", "retrain"
+    :return:
+    """
+    if stage == "game":
+        eva.set_epoch(NAS_CONFIG['eva']['search_epoch'])
+    elif stage == "confirm":
+        eva.set_epoch(NAS_CONFIG['eva']['confirm_epoch'])
+    elif stage == "retrain":
+        eva.set_epoch(NAS_CONFIG['eva']['retrain_epoch'])
+    else:
+        raise ValueError("signal error: stage, it must be one of game, confirm, retrain")
+
 
 class Communication:
     def __init__(self):
@@ -36,9 +90,7 @@ class Logger(object):
                 'default': self._nas_log
             },
             'evaluator': {
-                '_eval': self._eva_log,
-                'retrain': self._eva_log,
-                'evaluate': self._eva_log
+                'default': self._eva_log
             }
         }
 
@@ -73,7 +125,8 @@ class Logger(object):
         output = None
         try:
             if func not in self._log_map[module].keys():
-                func = 'default'
+                func = '
+                '
             output = self._log_map[module][func]
         except:
             # if can't find func's log, search module default log
