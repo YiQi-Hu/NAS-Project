@@ -9,7 +9,6 @@
 + Dataset.input <!-- TODO -->
 + Dataset.process \[Options\] <!-- TODO -->
 
-
 ## 评估函数
 
 > 面对具体问题，自定义合适的评估算法。
@@ -19,7 +18,6 @@
 
 + Evaluator.\_\_init\_\_ <!-- TODO -->
 + Evaluator.\_make_layer <!-- TODO -->
-+ Evaluator.add_data <!-- TODO -->
 + Evaluator._eval <!-- TODO -->
     > **Args**:
     > 1. sess
@@ -33,6 +31,7 @@
     > 1. precision (float, 0 ~ 1)
     > 2. saver (tf.Saver)
     > 3. log (string)
++ utils.Datasize.control <!-- TODO -->
 
 ## 用户相关参数
 
