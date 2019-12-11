@@ -390,6 +390,7 @@ class Evaluator:
 
 
 if __name__ == '__main__':
+
     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
     eval.set_data_size(50000)

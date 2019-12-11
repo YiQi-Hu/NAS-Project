@@ -5,7 +5,7 @@
 
 ## 数据集 Dataset
 
-+ Dataset.\_\_init\_\_ <!-- TODO -->
++ Dataset.\_\_init\_\_ 
     > 1. self.IMAGE_SIZE 图片尺寸
     > 2. self.NUM_CLASSES 分类数量/输出张量的最后一维大小
     > 3. self.NUM_EXAMPLES_FOR_TRAIN 训练数据集大小
