@@ -18,128 +18,29 @@ class DataSet:
 
     def __init__(self):
         self.IMAGE_SIZE = 32
-        self.NUM_CLASSES = NAS_CONFIG['eva']['num_classes']
-        self.NUM_EXAMPLES_FOR_TRAIN = NAS_CONFIG['eva']['num_examples_for_train']
-        self.NUM_EXAMPLES_FOR_EVAL = NAS_CONFIG['eva']['num_examples_per_epoch_for_eval']
-        self.task = NAS_CONFIG['eva']['task_name']
-        self.data_path = NAS_CONFIG['eva']['dataset_path']
+        self.NUM_CLASSES = 10
+        self.NUM_EXAMPLES_FOR_TRAIN = 40000
+        self.NUM_EXAMPLES_FOR_EVAL = 10000
+        self.data_path = "./data"
         return
 
     def inputs(self):
-        print("======Loading data======")
-        if self.task == 'cifar-10':
-            test_files = ['test_batch']
-            train_files = ['data_batch_%d' % d for d in range(1, 6)]
-        else:
-            train_files = ['train']
-            test_files = ['test']
-        train_data, train_label = self._load(train_files)
-        train_data, train_label, valid_data, valid_label = self._split(
-            train_data, train_label)
-        test_data, test_label = self._load(test_files)
-        print("======Data Process Done======")
+        '''
+        Method for load data
+                Returns:
+                  train_data, train_label, valid_data, valid_label, test_data, test_label
+        '''
         return train_data, train_label, valid_data, valid_label, test_data, test_label
 
     def process(self, x):
-        x = self._random_flip_leftright(x)
-        x = self._random_crop(x, [32, 32], 4)
-        x = self._cutout(x)
-        return x
-
-    def _load_one(self, file):
-        with open(file, 'rb') as fo:
-            batch = pickle.load(fo, encoding='bytes')
-        data = batch[b'data']
-        label = batch[b'labels'] if self.task == 'cifar-10' else batch[b'fine_labels']
-        return data, label
-
-    def _load(self, files):
-        file_name = 'cifar-10-batches-py' if self.task == 'cifar-10' else 'cifar-100-python'
-        data_dir = os.path.join(self.data_path, file_name)
-        data, label = self._load_one(os.path.join(data_dir, files[0]))
-        for f in files[1:]:
-            batch_data, batch_label = self._load_one(os.path.join(data_dir, f))
-            data = np.append(data, batch_data, axis=0)
-            label = np.append(label, batch_label, axis=0)
-        label = np.array([[float(i == label)
-                           for i in range(self.NUM_CLASSES)] for label in label])
-        data = data.reshape([-1, 3, self.IMAGE_SIZE, self.IMAGE_SIZE])
-        data = data.transpose([0, 2, 3, 1])
-        # pre-process
-        data = self._normalize(data)
-
-        return data, label
-
-    def _split(self, data, label):
-        # shuffle
-        index = [i for i in range(len(data))]
-        random.shuffle(index)
-        data = data[index]
-        label = label[index]
-        return data[:self.NUM_EXAMPLES_FOR_TRAIN], label[:self.NUM_EXAMPLES_FOR_TRAIN], \
-               data[self.NUM_EXAMPLES_FOR_TRAIN:self.NUM_EXAMPLES_FOR_TRAIN + self.NUM_EXAMPLES_FOR_EVAL], \
-               label[self.NUM_EXAMPLES_FOR_TRAIN:self.NUM_EXAMPLES_FOR_TRAIN + self.NUM_EXAMPLES_FOR_EVAL]
-
-    def _normalize(self, x_train):
-        x_train = x_train.astype('float32')
-
-        x_train[:, :, :, 0] = (x_train[:, :, :, 0] - np.mean(x_train[:, :, :, 0])) / np.std(x_train[:, :, :, 0])
-        x_train[:, :, :, 1] = (x_train[:, :, :, 1] - np.mean(x_train[:, :, :, 1])) / np.std(x_train[:, :, :, 1])
-        x_train[:, :, :, 2] = (x_train[:, :, :, 2] - np.mean(x_train[:, :, :, 2])) / np.std(x_train[:, :, :, 2])
-
-        return x_train
-
-    def _random_crop(self, batch, crop_shape, padding=None):
-        oshape = np.shape(batch[0])
-        if padding:
-            oshape = (oshape[0] + 2 * padding, oshape[1] + 2 * padding)
-        new_batch = []
-        npad = ((padding, padding), (padding, padding), (0, 0))
-        for i in range(len(batch)):
-            new_batch.append(batch[i])
-            if padding:
-                new_batch[i] = np.lib.pad(batch[i], pad_width=npad,
-                                          mode='constant', constant_values=0)
-            nh = random.randint(0, oshape[0] - crop_shape[0])
-            nw = random.randint(0, oshape[1] - crop_shape[1])
-            new_batch[i] = new_batch[i][nh:nh + crop_shape[0],
-                           nw:nw + crop_shape[1]]
-        return np.array(new_batch)
-
-    def _random_flip_leftright(self, batch):
-        for i in range(len(batch)):
-            if bool(random.getrandbits(1)):
-                batch[i] = np.fliplr(batch[i])
-        return batch
-
-    def _cutout(self, x):
-        for i in range(len(x)):
-            cut_size = random.randint(0, self.IMAGE_SIZE // 2)
-            s = random.randint(0, self.IMAGE_SIZE - cut_size)
-            x[i, s:s + cut_size, s:s + cut_size, :] = 0
         return x
 
 
 class Evaluator:
     def __init__(self):
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-        # Global constants describing the data set.
-        self.IMAGE_SIZE = NAS_CONFIG['eva']['image_size']
-        self.NUM_CLASSES = NAS_CONFIG['eva']['num_classes']
-        self.NUM_EXAMPLES_FOR_TRAIN = NAS_CONFIG['eva']['num_examples_for_train']
-        self.NUM_EXAMPLES_FOR_EVAL = NAS_CONFIG['eva']['num_examples_per_epoch_for_eval']
-        # Constants describing the training process.
-        # Initial learning rate.
-        self.INITIAL_LEARNING_RATE = NAS_CONFIG['eva']['initial_learning_rate']
-        # Epochs after which learning rate decays
-        self.NUM_EPOCHS_PER_DECAY = NAS_CONFIG['eva']['num_epochs_per_decay']
-        # Learning rate decay factor.
-        self.LEARNING_RATE_DECAY_FACTOR = NAS_CONFIG['eva']['learning_rate_decay_factor']
-        self.MOVING_AVERAGE_DECAY = NAS_CONFIG['eva']['moving_average_decay']
-        self.batch_size = NAS_CONFIG['eva']['batch_size']
-        self.weight_decay = NAS_CONFIG['eva']['weight_decay']
-        self.momentum_rate = NAS_CONFIG['eva']['momentum_rate']
-        self.model_path = NAS_CONFIG['eva']['model_path']
+        self.batch_size = 64
+        self.model_path = "./model"
         self.train_num = 0
         self.block_num = 0
         self.log = ''
@@ -204,13 +105,11 @@ class Evaluator:
         Returns:
                   layer: tensor.'''
         if cell.type == 'conv':
-            layer = self._makeconv(
-                inputs, cell, node, train_flag)
+            layer = self._makeconv(inputs, cell, node, train_flag)
         elif cell.type == 'pooling':
             layer = self._makepool(inputs, cell)
         elif cell.type == 'sep_conv':
-            layer = self._makeconv(
-                inputs, cell, node, train_flag)
+            layer = self._makeconv(inputs, cell, node, train_flag)
         # TODO add any other new operations here
         #  use the form as shown above
         #  '''elif cell.type == 'operation_name':
@@ -225,19 +124,26 @@ class Evaluator:
         return layer
 
     def _name_your_function_here(self, inputs, cell, node):
-        # TODO add your function here if any new operation was added
-        #  layer = tf.get_variable()
-        #  return layer
-        return
+        """
+        the operation defined by user,
+                Args:
+                    inputs: the input tensor of this operation
+                    cell: Class Cell(), hyper parameters for building this layer
+                    node: int, the index of this operation
+                Returns:
+                    layer: the output tensor
+                """
+        # TODO add your function here if any new operation was added, see _makeconv as an example
+        return layer
 
     def _makeconv(self, inputs, hplist, node, train_flag):
         """Generates a convolutional layer according to information in hplist
         Args:
-        inputs: inputing data.
-        hplist: hyperparameters for building this layer
-        node: number of this cell
+            inputs: inputing data.
+            hplist: hyperparameters for building this layer
+            node: int, the index of this operation
         Returns:
-        tensor.
+            conv_layer: the output tensor
         """
         with tf.variable_scope('conv' + str(node) + 'block' + str(self.block_num)) as scope:
             inputdim = inputs.shape[3]
@@ -325,7 +231,7 @@ class Evaluator:
                 weights = self._get_variable('weights', shape=[inputs.shape[-1], neural_num])
                 biases = self._get_variable('biases', [neural_num])
                 mul = tf.matmul(inputs, weights) + biases
-                if neural_num == self.NUM_CLASSES:
+                if neural_num == DataSet().NUM_CLASSES:
                     local3 = self._activation_layer('', mul, scope)
                 else:
                     local3 = self._activation_layer(hplist[2], mul, scope)
@@ -378,7 +284,7 @@ class Evaluator:
                 logits = self._inference(logits, network.graph, network.cell_list, train_flag)
 
             logits = tf.nn.dropout(logits, keep_prob=1.0)
-            logits = self._makedense(logits, ('', [self.NUM_CLASSES], ''))
+            logits = self._makedense(logits, ('', [DataSet().NUM_CLASSES], ''))
 
             precision, saver, log = self._eval(sess, x, labels, logits, train_flag)
             self.log += log
@@ -390,41 +296,6 @@ class Evaluator:
         network.graph.pop()
         network.cell_list.pop()
         NAS_LOG << ('eva', self.log)
-        return precision
-
-    def retrain(self, pre_block):
-        tf.reset_default_graph()
-        assert self.train_num >= self.batch_size
-        self.block_num = len(pre_block) * NAS_CONFIG['eva']['repeat_search'] + 1
-
-        retrain_log = "-" * 20 + "retrain" + "-" * 20 + '\n'
-        for block in pre_block:
-            retrain_log = retrain_log + str(block.graph) + str(block.cell_list) + '\n'
-
-        with tf.Session() as sess:
-            x, labels, logits, train_flag = self._get_input(sess, [])
-
-            for i, block in enumerate(pre_block):
-                graph = block.graph + [[]]
-                cell_list = []
-                for cell in block.cell_list:
-                    if cell.type == 'conv':
-                        cell_list.append(
-                            Cell(cell.type, cell.filter_size * 2, cell.kernel_size, cell.activation))
-                    else:
-                        cell_list.append(cell)
-                cell_list.append(Cell('pooling', 'max', 2))
-                logits = self._inference(logits, graph, cell_list, train_flag)
-                self.block_num += 1
-
-            logits = tf.nn.dropout(logits, keep_prob=1.0)
-            # softmax
-            logits = self._makedense(logits, ('', [256, self.NUM_CLASSES], 'relu'))
-
-            precision, _, log = self._eval(sess, x, labels, logits, train_flag)
-            retrain_log += log
-
-        NAS_LOG << ('eva', retrain_log)
         return precision
 
     def _get_input(self, sess, pre_block, update_pre_weight=False):
@@ -446,64 +317,37 @@ class Evaluator:
         # if it's the first block
         else:
             x = tf.placeholder(
-                tf.float32, [self.batch_size, self.IMAGE_SIZE, self.IMAGE_SIZE, 3], name='input')
+                tf.float32, [self.batch_size, DataSet().IMAGE_SIZE, DataSet().IMAGE_SIZE, 3], name='input')
             labels = tf.placeholder(
-                tf.int32, [self.batch_size, self.NUM_CLASSES], name="label")
+                tf.int32, [self.batch_size, DataSet().NUM_CLASSES], name="label")
             train_flag = tf.placeholder(tf.bool, name='train_flag')
             input = tf.identity(x)
         return x, labels, input, train_flag
 
-    def _eval(self, sess, data_x, data_y, logits, train_flag):
+    def _eval(self, sess, logits, data_x, data_y, *args, **kwargs):
         # TODO change here to run training step and evaluation step
-        #  sess: tensorflow session
-        #  data_x: input image
-        #  data_y: input label
-        global_step = tf.Variable(
-            0, trainable=False, name='global_step' + str(self.block_num))
+        """
+        The actual training process, including the definination of loss and train optimizer
+        Args:
+            sess: tensorflow session
+            logits: output tensor of the model, 2-D tensor of shape [self.batch_size, self.NUM_CLASS]
+            data_x: input image
+            data_y: input label, 2-D tensor of shape [self.batch_size, self.NUM_CLASS]
+        Returns:
+            targets: float, the optimization target, could be the accuracy or the combination of both time and accuracy, etc
+            saver: Tensorflow Saver class
+            log: string, log to be write and saved
+        """
+        global_step = tf.Variable(0, trainable=False, name='global_step' + str(self.block_num))
         accuracy = self._cal_accuracy(logits, data_y)
-        loss = self._loss(data_y, logits)
+        loss = self._loss(logits, data_y)
         train_op = self._train_op(global_step, loss)
 
         saver = tf.train.Saver(tf.global_variables())
         sess.run(tf.global_variables_initializer())
 
-        max_steps = self.train_num // self.batch_size
-        num_iter = self.NUM_EXAMPLES_FOR_EVAL // self.batch_size
+        log = ""
 
-        log = ''
-        cost_time = 0
-        precision = np.zeros([self.epoch])
-        for ep in range(self.epoch):
-            start_time = time.time()
-            for step in range(max_steps):
-                batch_x = self.train_data[step * self.batch_size:(step + 1) * self.batch_size]
-                batch_y = self.train_label[step * self.batch_size:(step + 1) * self.batch_size]
-                batch_x = DataSet().process(batch_x)
-                _, loss_value = sess.run([train_op, loss],
-                                         feed_dict={data_x: batch_x, data_y: batch_y, train_flag: True})
-                if np.isnan(loss_value):
-                    return [-1], saver, log
-
-            for step in range(num_iter):
-                batch_x = self.valid_data[step * self.batch_size:(step + 1) * self.batch_size]
-                batch_y = self.valid_label[step * self.batch_size:(step + 1) * self.batch_size]
-                l, acc_ = sess.run([loss, accuracy],
-                                   feed_dict={data_x: batch_x, data_y: batch_y, train_flag: False})
-                precision[ep] += acc_ / num_iter
-
-            if ep > 5:
-                if precision[ep] < 1.2 / self.NUM_CLASSES:
-                    return [-1], saver, log
-                if 2 * precision[ep] - precision[ep - 5] - precision[ep - 1] < 0.001 / self.NUM_CLASSES:
-                    precision = precision[:ep]
-                    log += 'early stop at %d epoch\n' % ep
-                    break
-
-            cost_time += (float(time.time() - start_time)) / self.epoch
-            log += 'epoch %d: precision = %.3f, cost time %.3f\n' % (
-                ep, precision[ep], float(time.time() - start_time))
-
-        target = self._cal_multi_target(precision[-1], cost_time)
         return target, saver, log
 
     def _cal_accuracy(self, logits, labels):
@@ -516,12 +360,9 @@ class Evaluator:
                 Target tensor of type float.
         """
         # TODO change here for the way of calculating target
-        correct_prediction = tf.equal(
-            tf.argmax(logits, 1), tf.argmax(labels, 1))
-        target = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-        return target
+        return accuracy
 
-    def _loss(self, labels, logits):
+    def _loss(self, logits, labels):
         """
           Args:
             logits: Logits from softmax.
@@ -530,57 +371,21 @@ class Evaluator:
             Loss tensor of type float.
           """
         # TODO change here for the way of calculating loss
-        cross_entropy = tf.reduce_mean(
-            tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits))
-        l2 = tf.add_n([tf.nn.l2_loss(var) for var in tf.trainable_variables()])
-        loss = cross_entropy + l2 * self.weight_decay
         return loss
 
     def _train_op(self, global_step, loss):
         # TODO change here for learning rate and optimizer
-        # Variables that affect learning rate.
-        lr_type = NAS_CONFIG['eva']['learning_rate_type']
-        num_batches_per_epoch = self.train_num / self.batch_size
-        decay_steps = int(num_batches_per_epoch * self.NUM_EPOCHS_PER_DECAY)
-
-        if lr_type == 'const':
-            lr = tf.train.piecewise_constant(global_step, boundaries=NAS_CONFIG['eva']['boundaries'],
-                                             values=NAS_CONFIG['eva']['learing_rate'])
-        elif lr_type == 'cos':
-            lr = tf.train.cosine_decay(
-                self.INITIAL_LEARNING_RATE, global_step, decay_steps)
-        else:
-            # Decay the learning rate exponentially based on the number of steps.
-            lr = tf.train.exponential_decay(self.INITIAL_LEARNING_RATE,
-                                            global_step,
-                                            decay_steps,
-                                            self.LEARNING_RATE_DECAY_FACTOR,
-                                            staircase=True, )
-
-        # Build a Graph that trains the model with one batch of examples and
-        # updates the model parameters.
-        opt = tf.train.MomentumOptimizer(lr, self.momentum_rate, name='Momentum' + str(self.block_num),
-                                         use_nesterov=True)
-        train_op = opt.minimize(loss, global_step=global_step)
         return train_op
-
-    def _stats_graph(self):
-        graph = tf.get_default_graph()
-        flops = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.float_operation())
-        params = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.trainable_variables_parameter())
-        return flops.total_float_ops, params.total_parameters
 
     def _cal_multi_target(self, precision, time):
         # TODO change here for target calculating
-        flops, model_size = self._stats_graph()
-        return precision + 1 / time + 1 / flops + 1 / model_size
+        return target
 
     def set_data_size(self, num):
-        if num > self.NUM_EXAMPLES_FOR_TRAIN or num < 0:
-            num = self.NUM_EXAMPLES_FOR_TRAIN
-            self.train_num = self.NUM_EXAMPLES_FOR_TRAIN
-            print('Warning! Data size has been changed to',
-                  num, ', all data is loaded.')
+        if num > DataSet().NUM_EXAMPLES_FOR_TRAIN or num < 0:
+            num = DataSet().NUM_EXAMPLES_FOR_TRAIN
+            self.train_num = DataSet().NUM_EXAMPLES_FOR_TRAIN
+            print('Warning! Data size has been changed to', num, ', all data is loaded.')
         else:
             self.train_num = num
         return
