@@ -413,9 +413,7 @@ class Evaluator:
             logits = tf.nn.dropout(logits, keep_prob=1.0)
             # softmax
             logits = self._makedense(
-
                 logits, ('', [256, self.NUM_CLASSES], 'relu'), train_flag)
-
             correct_prediction = tf.equal(
                 tf.argmax(logits, 1), tf.argmax(labels, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
@@ -598,23 +596,40 @@ class Evaluator:
 
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
     eval.set_data_size(50000)
-    eval.set_epoch(10)
+    eval.set_epoch(100)
     # graph_full = [[1], [2], [3], []]
     # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
     #              Cell('pooling', 'max', 3)]
     # lenet = NetworkItem(0, graph_full, cell_list, "")
     # e = eval.evaluate(lenet, [], is_bestNN=True)
     # Network.pre_block.append(lenet)
-
-    graph_full = [[1, 4, 3, 5], [2, 4, 3], [3, 5], [5], [3, 5]]
-    cell_list = [Cell('conv', 24, 1, 'relu'), Cell('conv', 16, 3, 'relu'), Cell('conv', 24, 3, 'relu'),
-                 Cell('conv', 24, 1, 'relu'), Cell('conv', 32, 1, 'relu')]
+    pre_block = []
+    graph_full = [[1, 4], [2, 3], [3], [5], [2]]
+    cell_list = [Cell('sep_conv', 24, 3, 'relu6'), Cell('sep_conv', 24, 3, 'relu6'), Cell('sep_conv', 16, 5, 'relu6'),
+                   Cell('sep_conv', 32, 5, 'relu6'), Cell('sep_conv', 24, 3, 'relu6')]
     network1 = NetworkItem(0, graph_full, cell_list, "")
-    # network2 = NetworkItem(1, graph_full, cell_list, "")
-    e = eval.evaluate(network1, [], is_bestNN=True)
+    pre_block.append(network1)
+    graph_full = [[1, 4, 5], [2, 3], [3], [7], [3], [6, 3], [3]]
+    cell_list = [Cell('sep_conv', 64, 5, 'relu6'), Cell('sep_conv', 64, 5, 'relu6'), Cell('sep_conv', 32, 5, 'relu6'),
+                   Cell('sep_conv', 64, 3, 'relu6'), Cell('sep_conv', 24, 1, 'relu6'), Cell('sep_conv', 32, 1, 'relu6'),
+                   Cell('sep_conv', 32, 5, 'relu6')]
+    network2 = NetworkItem(1, graph_full, cell_list, "")
+    pre_block.append(network2)
+    graph_full = [[1, 4, 5], [2, 3], [3], [6], [3], [3]]
+    cell_list = [Cell('sep_conv', 96, 1, 'relu6'), Cell('sep_conv', 96, 3, 'relu6'), Cell('sep_conv', 64, 1, 'relu6'),
+                   Cell('sep_conv', 96, 5, 'relu6'), Cell('sep_conv', 32, 5, 'relu6'), Cell('sep_conv', 96, 3, 'relu6')]
+    network3 = NetworkItem(2, graph_full, cell_list, "")
+    pre_block.append(network3)
+    graph_full = [[1, 4, 5, 2, 6], [2, 3], [3], [7], [3], [6, 3], [3]]
+    cell_list = [Cell('sep_conv', 128, 5, 'relu6'), Cell('sep_conv', 128, 1, 'relu6'), Cell('sep_conv', 64, 1, 'relu6'),
+                 Cell('sep_conv', 128, 3, 'relu6'), Cell('sep_conv', 64, 3, 'relu6'), Cell('sep_conv', 128, 3, 'relu6'),
+                 Cell('sep_conv', 128, 1, 'relu6')]
+    network4 = NetworkItem(3, graph_full, cell_list, "")
+    pre_block.append(network4)
+    # e = eval.evaluate(network1, [], is_bestNN=True)
     # eval.set_data_size(500)
     # e = eval.evaluate(network2, [network1], is_bestNN=True)
     # eval.set_epoch(2)
@@ -646,4 +661,4 @@ if __name__ == '__main__':
     # e = eval.evaluate(network3, is_bestNN=True)
     # e=eval.train(network.graph_full,cellist)
     # print(e)
-    eval.retrain()
+    eval.retrain(pre_block)

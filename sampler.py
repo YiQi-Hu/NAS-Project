@@ -5,6 +5,8 @@ import copy
 from queue import Queue
 from base import Cell
 from info_str import NAS_CONFIG
+import collections
+import operator
 
 class Sampler:
 
@@ -29,22 +31,23 @@ class Sampler:
         self._graph_part_invisible_node = self.graph_part_add_invisible_node()
         self._crosslayer = self._get_crosslayer()
         # Read parameter table to get operation dictionary in stage(block_id)
-        self._setting = dict()
-        self._setting['conv'] = copy.deepcopy(NAS_CONFIG['spl']['conv_space'])
-        self._setting['pooling'] = copy.deepcopy(NAS_CONFIG['spl']['pool_space'])
-        self._setting['sep_conv'] = copy.deepcopy(NAS_CONFIG['spl']['sep_conv_space'])
+        self._setting = collections.OrderedDict()
+        self._setting = copy.deepcopy(NAS_CONFIG['spl']['space'])
         if self._pattern == "Block":
+            del self._setting['pooling']
             self._setting['conv']['filter_size'] = \
                 self._setting['conv']['filter_size'][block_id]
             self._setting['sep_conv']['filter_size'] = \
                 self._setting['sep_conv']['filter_size'][block_id]
+            self._conv_space_control = operator.eq(self._setting['conv'], self._setting['sep_conv'])
+
         self._dic_index = self._init_dict()  # check
         # Set parameters of optimization module based on the above results
         self.__region, self.__type = self._opt_parameters()
         self.__dim = Dimension()
         self.__dim.set_dimension_size(len(self.__region))    # 10%
         self.__dim.set_regions(self.__region, self.__type)
-        self.__parameters_subscript = []  #
+        self.__parameters_subscript = []
         self.opt = Optimizer(self.__dim, self.__parameters_subscript)
         opt_para = copy.deepcopy(NAS_CONFIG["opt"])
         __sample_size = opt_para["sample_size"]  # the instance number of sampling in an iteration
@@ -80,7 +83,7 @@ class Sampler:
             2. score（float, 0 ~ 1.0)
         No returns.
         """
-        self.opt.update_model(table, score)
+        self.opt.update_model(table, score)  # here "-" represent that we minimize the loss
 
     def graph_part_add_invisible_node(self):
         graph_part_tmp = []
@@ -170,6 +173,7 @@ class Sampler:
             l = r
             r = l + len(self._dic_index) + self._cross_node_number
             p_node = self._p_table[l:r]  # Take the search space of a node
+            # print(p_node)
             node_cross_tmp = list(set(copy.deepcopy(p_node[len(self._dic_index):])))
             for i in node_cross_tmp:
                 if i != 0:
@@ -177,37 +181,32 @@ class Sampler:
             if not graph_part_sample[num]:
                 graph_part_sample[num].append(self._node_number)
 
-            first = p_node[self._dic_index['type'][-1]]
-            tmp = ()
-            if self._pattern == "Block" and first == 1:
-                first = 0
-            if first == 0 or first == 2:  # Search operation under conv
-                if first == 0:
-                    conv_type = 'conv'
-                else:
-                    conv_type = 'sep_conv'
-                tmp = tmp + (conv_type,)
-                space_conv = ['filter_size', 'kernel_size', 'activation']
-                for key in space_conv:
-                    tmp = tmp + (self._setting[conv_type][key][p_node[self._dic_index[conv_type + ' ' + key][-1]]],)
-                tmp = Cell(tmp[0], tmp[1], tmp[2], tmp[3])
-            else:  # Search operation under pooling
-                tmp = tmp + ('pooling',)
-                space_pool = ['pooling_type', 'kernel_size']
-                for key in space_pool:
-                # for key in self._setting['pooling']:
-                    tmp = tmp + (self._setting['pooling'][key][p_node[self._dic_index['pooling ' + key][-1]]],)
-                tmp = Cell(tmp[0], tmp[1], tmp[2])
+            for cnt, key_type in enumerate(self._setting):
+                if p_node[self._dic_index['type'][-1]] == cnt:
+                    tmp = (key_type,)
+
+                    if self._conv_space_control is True:
+                        key_type = 'conv'
+
+                    for key_item in self._setting[key_type]:
+                        tmp = tmp + (self._setting[key_type][key_item]
+                                     [p_node[self._dic_index[key_type + ' ' + key_item][-1]]],)
+            # print(tmp)
+            tmp = Cell(tmp)
             res.append(tmp)
+
         return res, graph_part_sample
 
     def _init_dict(self):
         """Operation space dictionary based on parameter file."""
+
         dic = {}
         dic['type'] = (0, len(self._setting)-1, 0)
         cnt = 1
         num = 1
         for key in self._setting:
+            if self._conv_space_control is True and key == 'sep_conv':
+                continue
             for k in self._setting[key]:
                 tmp = len(self._setting[key][k]) - 1
                 dic[key + ' ' + k] = (cnt, cnt + tmp, num)
@@ -236,13 +235,21 @@ class Sampler:
         table = []
         l = 0
         r = 0
+        conv_cnt = 0
+        pooling_cnt = 1
+        for i, j in enumerate(self._setting):
+            if j == 'conv':
+                conv_cnt = i
+            if j == 'pooling':
+                pooling_cnt = i
         for num in range(self._node_number):  # Take the search space of a node
             l = r
             r = l + len(self._dic_index) + self._cross_node_number
             p_node = self._p_table[l:r]  # Sample value of the current node
+
             if len(ops[num]) != 1:
                 p_node = self._p_table[l:r]  # Sample value of the current node
-                p_node[self._dic_index['type'][-1]] = 0
+                p_node[self._dic_index['type'][-1]] = conv_cnt
                 for j, i in enumerate(self._setting['conv']['filter_size']):
                     if str(i) == ops[num][0]:
                         p_node[self._dic_index['conv filter_size'][-1]] = j
@@ -255,7 +262,7 @@ class Sampler:
                 table = table + p_node
             else:
                 if self._pattern == "Global":
-                    p_node[self._dic_index['type'][-1]] = 1
+                    p_node[self._dic_index['type'][-1]] = pooling_cnt
                 table = table + p_node
         return table
 

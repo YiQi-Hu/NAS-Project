@@ -1,5 +1,6 @@
 import os
 import json
+import collections
 
 # Current file name
 _cur_ver_dir = os.getcwd()
@@ -7,7 +8,7 @@ _cur_ver_dir = os.getcwd()
 # NAS configuration dic object
 _nas_config_path = os.path.join(_cur_ver_dir, 'nas_config.json')
 
-NAS_CONFIG = json.load(open(_nas_config_path, encoding='utf-8'))
+NAS_CONFIG = json.load(open(_nas_config_path, encoding='utf-8'), object_pairs_hook=collections.OrderedDict)
 
 # TODO Move to logger.py
 # File path
@@ -58,6 +59,9 @@ elim_net_info = "block_num: {0[0]} round: {0[1]} network_left: {0[2]} " \
                 "network_id: {0[3]} number of scheme: {0[4]}\ngraph_part:{0[5]}\n"
 scheme_info = "    graph_full:{0[0]}\n    cell_list:{0[1]}\n    code:{0[2]}\n    score:{0[3]}\n"
 confirm_train = "confirm training..."
+confirm_train_fin = "confirm train finished and cost time: {0[0]}"
+eva_error = "EVA Error: @@@@@ {0[0]}\n"
+
 eva = "{0[0]}"
 
 # moudle X function X ACTION -> logger template string
@@ -77,7 +81,8 @@ MF_TEMP = {
             'eva_result': eva_result_tem
         },
         '_subproc_eva': {
-            'eva_ing': eva_ing
+            'eva_ing': eva_ing,
+            'eva_error': eva_error
         },
         'algo': {
             'start_game': start_game_tem,
@@ -101,13 +106,15 @@ MF_TEMP = {
             'init_ing': init_ing
         },
         '_do_task': {
-            'eva_pre': eva_pre
+            'eva_pre': eva_pre,
+            'eva_result': eva_result_tem
         },
         '_rm_other_model': {
             'model_save': model_save
         },
         '_confirm_train': {
-            'confirm_train': confirm_train
+            'confirm_train': confirm_train,
+            'confirm_train_fin': confirm_train_fin
         }
     },
     'evaluator': {

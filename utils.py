@@ -3,7 +3,7 @@ import sys
 import os
 import traceback
 import multiprocessing
-
+from base import Network, NetworkItem, Cell
 from info_str import NAS_CONFIG
 import info_str as ifs
 
@@ -73,8 +73,41 @@ class Communication:
         self.task = queue.Queue()
         self.result = queue.Queue()
         self.idle_gpuq = multiprocessing.Manager().Queue()
+        self.net_pool = ""
+        self.tables = []
+        self.round = 0
+        self.tw_count = NAS_CONFIG['nas_main']['num_opt_best'] - NAS_CONFIG['nas_main']['num_gpu']
         for gpu in range(NAS_CONFIG['nas_main']['num_gpu']):
             self.idle_gpuq.put(gpu)
+
+    def wake_up_train_winner(self, res):
+        print("train_winner wake up")
+        score, time_cost, nn_id, spl_id = res
+        print("nn_id spl_id item_list_length", nn_id, spl_id, len(self.net_pool[nn_id - 1].item_list))
+        self.net_pool[nn_id - 1].item_list[spl_id - 1].score = score
+        self.net_pool[nn_id - 1].spl.update_opt_model(self.net_pool[nn_id - 1].item_list[spl_id - 1].code,
+                                                      -self.net_pool[nn_id - 1].item_list[spl_id - 1].score)
+        item_id = len(self.net_pool[nn_id - 1].item_list) + 1
+        cnt = 0
+        while cnt < 500:
+            cell, graph, table = self.net_pool[nn_id - 1].spl.sample()
+            if table not in self.tables:
+                self.tables.append(table)
+                print("sample success", cnt)
+                break
+            cnt += 1
+        if self.tw_count > 0:
+            self.net_pool[nn_id - 1].item_list.append(NetworkItem(item_id, graph, cell, table))
+            item = self.net_pool[nn_id - 1].item_list[-1]
+            task_param = [
+                item, self.net_pool[nn_id - 1].pre_block, self.round, nn_id, 1, item_id,
+                NAS_CONFIG['nas_main']['spl_network_round'] * (self.round - 1) + NAS_CONFIG['nas_main']['num_opt_best'],
+                True, True
+            ]
+            print("train winner new task put")
+            self.task.put(task_param)
+        self.tw_count -= 1
+
 
 class Logger(object):
     def __init__(self):
@@ -83,7 +116,7 @@ class Logger(object):
         self._network_log = open(ifs.network_info_path, 'a')
         self._nas_log = open(ifs.naslog_path, 'a')
 
-        self._log_map = { # module x func -> log
+        self._log_map = {  # module x func -> log
             'nas': {
                 '_subproc_eva': self._sub_proc_log,
                 '_save_net_info': self._network_log,
@@ -99,7 +132,7 @@ class Logger(object):
         self._sub_proc_log.close()
         self._network_log.close()
         self._nas_log.close()
-        
+
     @staticmethod
     def _get_where_called():
         last_stack = traceback.extract_stack()[-3]
