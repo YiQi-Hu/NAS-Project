@@ -3,69 +3,112 @@
 -------------------------
 如何客制化 NAS 工程。
 
+## 数据集 Dataset
+
++ Dataset.\_\_init\_\_ <!-- TODO -->
+    > 1. self.IMAGE_SIZE 图片尺寸
+    > 2. self.NUM_CLASSES 分类数量/输出张量的最后一维大小
+    > 3. self.NUM_EXAMPLES_FOR_TRAIN 训练数据集大小
+    > 4. self.NUM_EXAMPLES_FOR_EVAL 评估数据集大小
+    > 5. self.data_path = "./data" 数据集存放路径
++ Dataset.input 
+    > **功能**： 将数据读入内存
+    >
+    > **Returns**:
+    > 1. train_data 训练样本
+    > 2. train_label 训练标签
+    > 3. valid_data 评估样本
+    > 4. valid_label 评估标签
+    > 5. test_data 测试样本
+    > 6. test_label 测试标签
++ Dataset.process \[Options\] 
+    > **功能**： 对数据进行类似于图片增强等的处理
+    >
+    > **Args**:
+    > 1. x 需要处理的数据
+    >
+    > **Returns**:
+    > 1. x 处理完成的数据
+
 ## 评估函数
 
 > 面对具体问题，自定义合适的评估算法。
 > 网络结构和操作配置已经载入 Tensorflow，计算得到
 > 评估值返回给 NAS，以此作为后续 NAS 淘汰竞赛的指标。
+> evaluator_user.py <!-- TODO -->
 
-+ Evaluator._eval
++ Evaluator.\_\_init\_\_ 
+    > 1. self.batch_size batch大小
+    > 2. self.model_path 模型存储的路径
+
++ Evaluator.\_make_layer 
+    > **功能**： Method for constructing and calculating cell in tensorflow. Please notice that this function do not need rewrite,
+    simply add the corresponding code can full fill its propose. See the instruction in the evaluator_user.py for specify use.
+    >
     > **Args**:
-    > 1. sess
-    > 2. user_pkg (tuple, value:)
-    >    1. logits <!-- TODO -->
-    >    2. data_x <!-- TODO -->
-    >    3. data_y <!-- TODO -->
-    >    4. train_flag <!-- TODO -->
-    > 3. retrain (bool) *deprecated*
+    > 1. inputs: the input tensor of this operation
+    > 2. cell: Class Cell(), hyper parameters for building this layer
+    > 3. node: int, the index of this operation
+    > 4. train_flag: boolean, indicating whether this is a training process or not
     >
     > **Returns**:
-    > 1. precision (float, 0 ~ 1)
+    > 1. layer: tensor.
 
-### 用户相关参数
++ Evaluator._eval
+    > **功能**： The actual training process, including the definination of loss and train optimizer. 定义loss的计算和train opt的类型后启动sess.run()进行训练和评估，并返回对应的优化目标。这里的优化目标可以是单目标，如准确率；也可以是多目标，如综合考虑准确率和模型大小。
+    >
+    > **Args**:
+    > 1. sess: Tensorflow Session
+    > 2. logits: output tensor of the model, 2-D tensor of shape [self.batch_size, self.NUM_CLASS]
+    > 3. data_x: input tensor
+    > 4. data_y: input label, 2-D tensor of shape [self.batch_size, self.NUM_CLASS]
+    > 5. *args (用户自定义参数)
+    > 6. **kwg (用户自定义参数)
+    >
+    > **Returns**:
+    > 1. target (float, 0 ~ 1): the optimization target, could be the accuracy or the combination of both time and accuracy, etc
+    > 2. saver: Tensorflow Saver class
+    > 3. log (string): log to be write and saved
++ utils.Datasize.control <!-- TODO -->
+
+## 用户相关参数
 
 > nas_config.py 用户相关的参数
-> 具体含义请参考 interface.md
 
-+ nas_main
-  + num_gpu
-  + block_num
-+ enum
++ nas_main 总控参数
+  + num_gpu 运行环境GPU个数
+  + block_num 堆叠网络块数量
+  + add_data_per_round 每一轮竞赛增加数据大小
+  + add_data_for_winner 竞赛胜利者的训练数据集大小(-1代表使用全部数据)
+  + repeat_search
++ enum 穷举模块参数
   + depth
   + width
   + max_depth
-+ eva
-  + task_name
-  + image_size
-  + num_classes
-  + num_examples_for_train
-  + num_examples_per_epoch_for_eval
-  + initial_learning_rate
-  + num_epochs_per_decay
-  + learning_rate_decay_factor
-  + moving_average_decay
-  + batch_size
-  + weight_decay
-  + momentum_rate
-  + model_path
-  + dataset_path
-  + eva_log_path
-  + retrain_switch
-  + learning_rate_type
-  + boundaries
-  + learing_rate
-+ spl
++ spl 采样参数
   + skip_max_dist
   + skip_max_num
 
-## 配置參數搜索空间与配置参数生成模板
+## 配置参数搜索空间与配置参数生成模板
 
-> 如果想要自定义特定的网络节点操作配置，请完成以下几点：
->
-> 1. 修改 class _Cell_ 函数：
->    1. \_\_getstate\_\_, \_\_setstate\_\_ 进程传递编码相关，具体要求请参考 pickle 官方文档。
->    2. \_check_valid 参数检查
->    3. _Cell_ 类型继承自元组，也可以放弃语法糖和严格参数检查，采用较为简单的设计。
-> 2. 修改 NAS_CONFIG\['spl'\] 搜索空间
-> 3. 修改 Evaluator._make_layer 轉換成具體網絡節點
->
+如果想要自定义特定的网络节点操作配置，请完成以下几点：
+
+1. 修改 class _Cell_ 函数
+    1. \_\_getstate\_\_, \_\_setstate\_\_ 进程传递编码相关，具体要求请参考 pickle 官方文档。
+    2. (Options) \_check_valid 参数检查
+    3. _Cell_ 类型继承自元组，也可以放弃语法糖和严格参数检查，采用较为简单的设计。
+2. 修改 NAS_CONFIG\['spl'\] 搜索空间
+3. 修改 Evaluator._make_layer 转换成具体网络节点，并且实现自定义操作的函数
+4. Sampler 搜索空间构成 <!-- TODO -->
+
+## NAS日志
+
+1. 日志文件夹 .\memory
+    1. 评估: evaluator_log.txt
+    2. 子进程: subproc_log.txt
+    3. 网络信息: network_info.txt
+    4. 总控: nas_log.txt
+2. 日志纪录对象Logger:
+    > 提供全工程统一的日志纪录接口
+    > 如果需要纪录更多更复杂的日志，可以重新实现Logger
+    > 具体使用说明，请参考interface.md

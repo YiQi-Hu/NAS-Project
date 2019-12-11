@@ -1,11 +1,4 @@
 import os
-import pickle
-import random
-import sys
-import time
-import copy
-
-import numpy as np
 import tensorflow as tf
 
 from base import Cell, NetworkItem
@@ -41,6 +34,7 @@ class Evaluator:
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
         self.batch_size = 64
         self.model_path = "./model"
+
         self.train_num = 0
         self.block_num = 0
         self.log = ''
@@ -101,9 +95,12 @@ class Evaluator:
     def _make_layer(self, inputs, cell, node, train_flag):
         '''Method for constructing and calculating cell in tensorflow
         Args:
-                  cell: Class Cell(), hyper parameters for building this layer
+                inputs: the input tensor of this operation
+                cell: Class Cell(), hyper parameters for building this layer
+                node: int, the index of this operation
+                train_flag: boolean, indicating whether this is a training process or not
         Returns:
-                  layer: tensor.'''
+                layer: tensor.'''
         if cell.type == 'conv':
             layer = self._makeconv(inputs, cell, node, train_flag)
         elif cell.type == 'pooling':
@@ -263,6 +260,7 @@ class Evaluator:
             update_pre_weight: Symbol for indicating whether to update previous blocks' weight, default by False.
         Returns:
             Accuracy'''
+        # TODO repeat search in NAS_CONFIG has been moved to nas module
         assert self.train_num >= self.batch_size
         tf.reset_default_graph()
         self.block_num = len(pre_block) * NAS_CONFIG['eva']['repeat_search']
