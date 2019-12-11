@@ -132,6 +132,17 @@ MF_TEMP = {
             'eva': eva
         }
     },
+    'eval_test_input': {
+        '_eval': {
+            'eva': eva
+        },
+        'retrain': {
+            'eva': eva
+        },
+        'evaluate': {
+            'eva': eva
+        }
+    },
     'enumerater': {
         '': ''
     },
