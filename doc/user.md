@@ -3,7 +3,7 @@
 -------------------------
 如何客制化 NAS 工程。
 
-## 數據集 Dataset
+## 数据集 Dataset
 
 + Dataset.\_\_init\_\_ <!-- TODO -->
 + Dataset.input <!-- TODO -->
@@ -19,14 +19,15 @@
 
 + Evaluator.\_\_init\_\_ <!-- TODO -->
 + Evaluator.\_make_layer <!-- TODO -->
++ Evaluator.add_data <!-- TODO -->
 + Evaluator._eval <!-- TODO -->
     > **Args**:
     > 1. sess
     > 2. logits
     > 3. data_x
     > 4. data_y
-    > 5. *args (用戶自定義參數)
-    > 6. **kwg (用戶自定義參數)
+    > 5. *args (用户自定义参数)
+    > 6. **kwg (用户自定义参数)
     >
     > **Returns**:
     > 1. precision (float, 0 ~ 1)
@@ -36,23 +37,22 @@
 ## 用户相关参数
 
 > nas_config.py 用户相关的参数
-> 具体含义请参考 interface.md
 
-+ nas_main
-  + num_gpu
-  + block_num
-  + num_examples_for_train
-  + num_examples_per_epoch_for_eval
++ nas_main 总控参数
+  + num_gpu 运行环境GPU个数
+  + block_num 堆叠网络块数量
+  + add_data_per_round 每一轮竞赛增加数据大小
+  + add_data_for_winner 竞赛胜利者的训练数据集大小(-1代表使用全部数据)
   + repeat_search
-+ enum
++ enum 穷举模块参数
   + depth
   + width
   + max_depth
-+ spl
++ spl 采样参数
   + skip_max_dist
   + skip_max_num
 
-## 配置參數搜索空间与配置参数生成模板
+## 配置参数搜索空间与配置参数生成模板
 
 如果想要自定义特定的网络节点操作配置，请完成以下几点：
 
@@ -61,9 +61,17 @@
     2. (Options) \_check_valid 参数检查
     3. _Cell_ 类型继承自元组，也可以放弃语法糖和严格参数检查，采用较为简单的设计。
 2. 修改 NAS_CONFIG\['spl'\] 搜索空间
-3. 修改 Evaluator._make_layer 轉換成具體網絡節點，並且實現自定義操作的函數
-4. Sampler 搜索空間構成 <!-- TODO -->
+3. 修改 Evaluator._make_layer 转换成具体网络节点，并且实现自定义操作的函数
+4. Sampler 搜索空间构成 <!-- TODO -->
 
-## NAS日誌對象 Logger
+## NAS日志
 
-log_path
+1. 日志文件夹 .\memory
+    1. 评估: evaluator_log.txt
+    2. 子进程: subproc_log.txt
+    3. 网络信息: network_info.txt
+    4. 总控: nas_log.txt
+2. 日志纪录对象Logger:
+    > 提供全工程统一的日志纪录接口
+    > 如果需要纪录更多更复杂的日志，可以重新实现Logger
+    > 具体使用说明，请参考interface.md
