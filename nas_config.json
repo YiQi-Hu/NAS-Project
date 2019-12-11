@@ -9,9 +9,11 @@
     "eliminate_policy": "best",
     "add_data_mode": "linear",
     "add_data_per_round": 1600,
+    "add_data_for_winner": -1,
     "init_data_size": 1600,
     "data_increase_scale": 1.5,
     "add_data_for_confirm_train": -1,
+    "repeat_search": 1,
     "subp_eva_debug": 0,
     "subp_pred_debug": 0,
     "eva_debug": 0,
@@ -19,10 +21,9 @@
   },
   "enum":{
     "depth": 4,
-    "width": 1,
-    "max_depth": 2,
-    "enum_debug": 0,
-    "enum_log_path": ""
+    "width": 3,
+    "max_depth": 3,
+    "enum_debug": 0
   },
   "eva": {
     "task_name": "cifar-10",
@@ -41,7 +42,6 @@
     "retrain_epoch": 6,
     "weight_decay": 0.0003,
     "momentum_rate": 0.9,
-    "repeat_search": 2,
     "model_path": "model",
     "dataset_path": "data",
     "eva_log_path": "",
@@ -67,7 +67,6 @@
   },
   "spl":{
     "pool_switch": 0,
-    "spl_log_path": "",
     "skip_max_dist": 4,
     "skip_max_num": 3,
     "conv_space": {

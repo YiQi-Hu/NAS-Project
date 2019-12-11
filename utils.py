@@ -125,7 +125,8 @@ class Logger(object):
         output = None
         try:
             if func not in self._log_map[module].keys():
-                func = 'default'
+                func = '
+                '
             output = self._log_map[module][func]
         except:
             # if can't find func's log, search module default log

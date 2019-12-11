@@ -59,7 +59,7 @@ elim_net_info = "block_num: {0[0]} round: {0[1]} network_left: {0[2]} " \
 scheme_info = "    graph_full:{0[0]}\n    cell_list:{0[1]}\n    code:{0[2]}\n    score:{0[3]}\n"
 confirm_train = "confirm training..."
 eva = "{0[0]}"
-
+eva.foramt()
 # moudle X function X ACTION -> logger template string
 MF_TEMP = {
     'nas': {
@@ -115,6 +115,20 @@ MF_TEMP = {
             'eva': eva
         },
         'retrain': {
+            'eva': eva
+        },
+        'evaluate': {
+            'eva': eva
+        }
+    },
+    'evaluator_template': {
+        '_eval': {
+            'eva': eva
+        },
+        'retrain': {
+            'eva': eva
+        },
+        'evaluate': {
             'eva': eva
         }
     },

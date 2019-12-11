@@ -57,7 +57,7 @@ class Cell(tuple):
     def __new__(self, *args):
         if len(args) == 1 and isinstance(args[0], tuple):
             args = args[0]
-        Cell._check_vaild(args)
+        # Cell._check_vaild(args)
         return tuple.__new__(self, args)
 
     def __getnewargs__(self):
