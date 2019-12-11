@@ -472,6 +472,9 @@ class Evaluator:
             test_label = copy.deepcopy(self.valid_label)
             num_iter = self.NUM_EXAMPLES_FOR_EVAL // self.batch_size
 
+    def _eval(self, sess, train_op, cross_entropy, accuracy, x, labels, train_flag, lr):
+        """USER IMPLEMENT
+        """
         log = ''
         cost_time = 0
         precision = np.zeros([self.epoch])
