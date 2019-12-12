@@ -95,11 +95,9 @@
 
 1. 修改 class _Cell_ 函数
     1. \_\_getstate\_\_, \_\_setstate\_\_ 进程传递编码相关，具体要求请参考 pickle 官方文档。
-    2. (Options) \_check_valid 参数检查
-    3. _Cell_ 类型继承自元组，也可以放弃语法糖和严格参数检查，采用较为简单的设计。
-2. 修改 NAS_CONFIG\['spl'\] 搜索空间
+    2. 可以放弃 _Cell_ 类型的语法糖，采用较为简单的设计。
+2. 修改 NAS_CONFIG\['spl'\]\['space'\] 搜索空间
 3. 修改 Evaluator._make_layer 转换成具体网络节点，并且实现自定义操作的函数
-4. Sampler 搜索空间构成 <!-- TODO -->
 
 ## NAS日志
 

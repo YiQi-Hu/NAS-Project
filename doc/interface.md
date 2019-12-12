@@ -50,6 +50,12 @@
 + 'pooling' items
     1. ptype (string, 'avg' or 'max' or 'global')
     2. kernel_size (int, 1 ~ 10)
++ Cell.get_format
+    > **Args**:
+    > 1. *cell_type* (string, type of cell defined in configuration)
+    >
+    > **Returns**:
+    > 1. *format* (tuple, keys order)
 
 ## info_str (abbr. ifs)
 
@@ -187,7 +193,6 @@
 + num_epochs_per_decay (float, ?)
 + moving_average_decay (float, 1.0 ~ 1e-5)
 + batch_size (int, <= 200)
-+ epoch (int, any) *deprecated*
 + search_epoch (int, any)
 + retrain_epoch (int, any)
 + weight_decay (float, 0 ~ 1.0)
@@ -238,14 +243,7 @@
 
 + skip_max_dist (int, 0 ~ max_depth)
 + skip_max_num (int, 0 ~ max_depth - 1)
-+ conv_space (dict)
-  + filter_size (2d int list, value as Cell.filter_size)
-  + kernel_size (1d int list, value as Cell.kernel_size)
-  + activation (1d string list, value as Cell.activation)
-+ pool_space (dict)
-  + pooling_type (1d string list, value as Cell.pooling_type)
-  + kernel_size (1d int list, value as Cell.kernel_size)
-+ pool_switch (boolean)
++ space (dict, user defined)
 
 ### Method
 
