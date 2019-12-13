@@ -77,7 +77,7 @@ class Communication:
         self.tables = []
         self.round = 0
         self.tw_count = NAS_CONFIG['nas_main']['num_opt_best'] - NAS_CONFIG['nas_main']['num_gpu']
-        for gpu in range(NAS_CONFIG['nas_main']['num_gpu']):
+        for gpu in range(1, NAS_CONFIG['nas_main']['num_gpu']):
             self.idle_gpuq.put(gpu)
 
     def wake_up_train_winner(self, res):
@@ -158,8 +158,7 @@ class Logger(object):
         output = None
         try:
             if func not in self._log_map[module].keys():
-                func = '
-                '
+                func = ''
             output = self._log_map[module][func]
         except:
             # if can't find func's log, search module default log
