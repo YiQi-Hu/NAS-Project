@@ -3,9 +3,9 @@
     "pattern": "Block",
     "num_gpu": 2,
     "block_num": 2,
-    "num_opt_best":2,
+    "num_opt_best":12,
     "finetune_threshold": 5,
-    "spl_network_round": 2,
+    "spl_network_round": 3,
     "eliminate_policy": "best",
     "add_data_mode": "linear",
     "add_data_per_round": 1600,
@@ -26,9 +26,9 @@
     "enum_debug": 0
   },
   "eva": {
-    "task_name": "cifar-10",
+    "task_name": "cifar-100",
     "image_size": 32,
-    "num_classes": 10,
+    "num_classes": 100,
     "num_examples_for_train": 40000,
     "num_examples_per_epoch_for_eval": 10000,
     "regularaztion_rate": 0.001,
@@ -37,9 +37,9 @@
     "learning_rate_decay_factor": 0.1,
     "moving_average_decay": 0.98,
     "batch_size": 50,
-    "search_epoch": 3,
-    "confirm_epoch": 4,
-    "retrain_epoch": 6,
+    "search_epoch": 16,
+    "confirm_epoch": 64,
+    "retrain_epoch": 300,
     "weight_decay": 0.0003,
     "momentum_rate": 0.9,
     "model_path": "model",
@@ -63,7 +63,7 @@
       "budget": 20000,
       "positive_num": 2,
       "rand_probability": 0.99,
-      "uncertain_bit": 3
+      "uncertain_bit": 10
   },
   "spl":{
     "pool_switch": 0,
@@ -76,6 +76,7 @@
           [48, 64, 128],
           [64, 128, 192],
           [128, 192, 256]
+          [256, 384, 512]
         ],
         "kernel_size": [
           1,
@@ -107,6 +108,7 @@
           [48, 64, 128],
           [64, 128, 192],
           [128, 192, 256]
+          [256, 384, 512]
         ],
         "kernel_size": [
           1,
@@ -120,5 +122,6 @@
         ]
       }
     }
+
   }
 }

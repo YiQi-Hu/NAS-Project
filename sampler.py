@@ -211,7 +211,6 @@ class Sampler:
         cnt = 1
         num = 1
         for key in self._setting:
-
             for k in self._setting[key]:
                 tmp = len(self._setting[key][k]) - 1
                 dic[key + ' ' + k] = (cnt, cnt + tmp, num)
