@@ -222,47 +222,47 @@
 
 ### Config
 
-+ pool_switch ?
-+ skip_max_dist (int, 0 ~ max_depth)
-+ skip_max_num (int, 0 ~ max_depth - 1)
-+ space (dict, user defined)
++ pool_switch (int ,0 or 1) 			#控制搜索空间是否加入池化操作 block搜索下设置为0
++ skip_max_dist (int, 0 ~ max_depth) 	#最大跨层长度 范围0至最大距离
++ skip_max_num (int, 0 ~ max_depth - 1) #最大跨层个数 范围0至最大距离-1
++ space (dict, user defined)			#搜索空间     字典形式，用户自定义
 
 ### Method
 
-+ \_\_init\_\_
++ \_\_init\_\_											 		#Sample类初始化
     > **Args**:
-    > 1. graph_part (2d int list, as Network.graph_part)
-    > 2. block_num (int, 0 ~ any)
+    > 1. graph_part (2d int list, as Network.graph_template) 	#类型二维列表，是Network类的graph_template参数
+    > 2. block_num (int, 0 ~ any)						 		#搜索空间block_num id 
     >
     > **Returns**: None
     >
-+ sample
-    > **Args**: None
++ sample														#sample方法 作用：进行一次采样
+    > **Args**: None											#传入参数空
     >
-    > **Returns**:
-    > 1. *cell*: (1d Cell list)
-    > 2. *graph_full*: (2d int list, as NetworkItem.graph_full)
-    > 3. *table*: (1d int list, depending on dimension)
-+ update_model
+    > **Returns**:												#返回值三个
+    > 1. *cell*: (1d Cell list)									#配置列表
+    > 2. *graph_full*: (2d int list, as NetworkItem.graph) 		#完整的拓扑结构(包含跨层链接) 是NetworkItem类的graph参数
+    > 3. *table*: (1d int list, depending on dimension)			#cell和graph_full 所对应的优化空间的code编码
++ update_model													#更新模型方法
     > **Args**:
-    > 1. *table* (1d int list, depending on dimension)
-    > 2. *score* （float, 0 ~ 1.0)
+    > 1. *table* (1d int list, depending on dimension)			#某一组拓扑结构和配置列表的code编码 根据优化空间定义的
+    > 2. *score* （float, 0 ~ 1.0)								#评估返回后的分数
     >
     > **Returns**: None
-+ ops2table
++ ops2table														#预测模块的结果转化为code编码的方法
     > **Args**
-    > 1. *ops*
+    > 1. *ops* (2d list)										#预测模块传入特定的ops参数
     >
     > **Retruns**:
-    > 1. *table*: (1d int list, depending on dimension)
+    > 1. *table*: (1d int list, depending on dimension)			#返回一组code编码 根据优化空间的定义
     >
-+ convert
++ convert														#code转cell_list和graph方法
     > **Args**:
-    > 1. *table*: (1d int list, depending on dimension)
+    > 1. *table*: (1d int list, depending on dimension)			#code编码 根据优化空间的定义
     >
     > **Returns**:
-    > 1. *cell_list*: (1d Cell list)
-    > 2. *graph_full*: (2d int list, as NetworkItem.graph_full)
+    > 1. *cell_list*: (1d Cell list)							#一组配置列表
+    > 2. *graph_full*: (2d int list, as NetworkItem.graph)		#一个完整的拓扑结构(包含跨层链接)
 
 ## Predictor
 
