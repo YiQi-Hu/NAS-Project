@@ -1,6 +1,6 @@
 import os
 
-from nas import CUR_VER_DIR
+from info_str import _cur_ver_dir
 import numpy as np
 from enumerater import Enumerater
 from predict_op.label_encoding import decoder, encoder, getClassNum
@@ -16,8 +16,8 @@ MAX_NETWORK_LENGTH = 71
 net_data_path = './predict_op/data/net.npy'
 label_data_path = './predict_op/data/label.npy'
 
-model_json_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json')
-model_weights_path = os.path.join(CUR_VER_DIR, 'predict_op', 'model.json.h5')
+model_json_path = os.path.join(_cur_ver_dir, 'predict_op', 'model.json')
+model_weights_path = os.path.join(_cur_ver_dir, 'predict_op', 'model.json.h5')
 
 # TODO Predictor.train -> Predictor.train_model (defined in interface.md)
 # TODO DO NOT overuse @staticmethod. It can be your private function in predictor.py.
