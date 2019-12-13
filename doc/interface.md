@@ -50,6 +50,12 @@
 + 'pooling' items
     1. ptype (string, 'avg' or 'max' or 'global')
     2. kernel_size (int, 1 ~ 10)
++ Cell.get_format
+    > **Args**:
+    > 1. *cell_type* (string, type of cell defined in configuration)
+    >
+    > **Returns**:
+    > 1. *format* (tuple, keys order)
 
 ## info_str (abbr. ifs)
 
@@ -82,14 +88,6 @@
 >
 > Ex. `nas_config['num_gpu']`, `nas_config['enum']['max_depth']`
 
-## Communication
-
-> No method
-
-+ task (queue.Queue)
-+ result (queue.Queue)
-+ idle_gpuq (mutilprocessing.Manager.Queue)
-
 ## Logger
 
 > Wrtie log or print system information.
@@ -103,7 +101,7 @@
 > Return:
 >     None
 > Example:
->     NAS_LOG = Logger() # 'Nas.run' func in nas.py 
+>     NAS_LOG = Logger() # 'Nas.run' func in nas.py
 >     NAS_LOG << 'enuming'
 
 + _eva_log = (string, from ifs.evalog_path)
@@ -125,8 +123,13 @@
 + spl_network_round (int, >= 1)
 + eliminate_policy (str, "best")
 + pattern (string, "Global" or "Block")
-+ add_data_per_round(int, > 0)
-+ add_data_for_winner(int, > 0 or -1(all))
++ add_data_per_round (int, > 0)
++ add_data_for_winner (int, > 0 or -1(all))
++ add_data_mode ?
++ init_data_size ?
++ data_increase_scale ?
++ add_data_for_confirm_train ?
++ repeat_search (int, >= 1)
 
 ### Method
 
@@ -137,25 +140,10 @@
     > **Returns**:
     > 1. *best_nn* (Network)
 
-## Logger
-
-> Write log or print system information.
-> Use `from utils import NAS_LOG` to get project logger
-> No attributes. Use '<<' operator to save information.
->
-> Example:
->
-> `NAS_LOG << 'enuming # 'run' in nas.py'`
->
-> `NAS_LOG << ('eva_result', nn_id, score, time_cost) # '_subproc_eva' in nas.py`
->
-> Logger saves the result from evaluator in log file (like 'memory\evaluating_log.txt') automatically.
-
 ## Enumerater
 
 ### Config
 
-<!-- TODO -->
 1. depth (int, any)
 2. width (int, any)
 3. max_depth (int, any)
@@ -187,12 +175,10 @@
 + num_epochs_per_decay (float, ?)
 + moving_average_decay (float, 1.0 ~ 1e-5)
 + batch_size (int, <= 200)
-+ epoch (int, any) *deprecated*
 + search_epoch (int, any)
 + retrain_epoch (int, any)
 + weight_decay (float, 0 ~ 1.0)
 + momentum_rate (float, 0 ~ 1.0)
-+ repeat_search (int, >= 1)
 + model_path (string, file path)
 + dataset_path (string, file path)
 + eva_log_path (string, file path)
@@ -206,8 +192,8 @@
     > **Args**:
     > 1. *network* (NetworkItem)
     > 2. *pre_block* (1d list of NetworkItem)
-    > 2. *is_bestNN* (boolean)
-    > 3. *update_pre_weight* (boolean)
+    > 3. *is_bestNN* (boolean)
+    > 4. *update_pre_weight* (boolean)
     >
     > **Returns**:
     > 1. *Accuracy* (float, 0 ~ 1.0)
@@ -236,20 +222,14 @@
 
 ### Config
 
++ pool_switch ?
 + skip_max_dist (int, 0 ~ max_depth)
 + skip_max_num (int, 0 ~ max_depth - 1)
-+ conv_space (dict)
-  + filter_size (2d int list, value as Cell.filter_size)
-  + kernel_size (1d int list, value as Cell.kernel_size)
-  + activation (1d string list, value as Cell.activation)
-+ pool_space (dict)
-  + pooling_type (1d string list, value as Cell.pooling_type)
-  + kernel_size (1d int list, value as Cell.kernel_size)
-+ pool_switch (boolean)
++ space (dict, user defined)
 
 ### Method
 
-+ __init__
++ \_\_init\_\_
     > **Args**:
     > 1. graph_part (2d int list, as Network.graph_part)
     > 2. block_num (int, 0 ~ any)
