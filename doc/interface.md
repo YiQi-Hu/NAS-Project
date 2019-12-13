@@ -50,12 +50,25 @@
 + 'pooling' items
     1. ptype (string, 'avg' or 'max' or 'global')
     2. kernel_size (int, 1 ~ 10)
++ Cell.get_format
+    > **Args**:
+    > 1. *cell_type* (string, type of cell defined in configuration)
+    >
+    > **Returns**:
+    > 1. *format* (tuple, keys order)
 
-## info_str
+## info_str (abbr. ifs)
 
 > Except nas_config, every property else is string.
 
-### nas_config
++ log_dir (string, './NAS-PROJECT/memory')
++ evalog_path (string (string, log_dir + 'evaluator_log.txt')
++ subproc_log (string, log_dir + 'subproc_log.txt')
++ network_info_path (string, log_dir + 'network_info.txt')
++ naslog_path (string, log_dir + 'nas_log.txt')
++ MF_TEMP (3d string dict, moudle X function X ACTION -> logger template string)
+
+## nas_config
 
 > Defined in *nas_config.json*.
 >
@@ -64,18 +77,46 @@
 >
 > The following keys correspond to modul parameters:
 >
-> 1. enum -> Enumerater
-> 2. eva -> Evalutor
-> 3. spl -> Sampler
-> 4. pred -> Predictor
+> 1. nas_main, core -> Nas
+> 2. enum -> Enumerater
+> 3. eva -> Evalutor
+> 4. opt -> Optimizer
+> 5. spl -> Sampler
+> 6. pred -> Predictor
 >
 > You can get Nas parameter directly with its name.
 >
 > Ex. `nas_config['num_gpu']`, `nas_config['enum']['max_depth']`
 
-### Properties (string)
+## Communication
 
-<!-- TODO -->
+> No method
+
++ task (queue.Queue)
++ result (queue.Queue)
++ idle_gpuq (mutilprocessing.Manager.Queue)
+
+## Logger
+
+> Wrtie log or print system information.
+> The specified log templeate is defined in info_str.py
+>
+> Args:
+>
+> 1. args (string or tuple, non-empty)
+>    When it's tuple, its value is string.
+>         The first value must be action.
+> Return:
+>     None
+> Example:
+>     NAS_LOG = Logger() # 'Nas.run' func in nas.py 
+>     NAS_LOG << 'enuming'
+
++ _eva_log = (string, from ifs.evalog_path)
++ _sub_proc_log = (string, from ifs.subproc_log_path)
++ _network_log = (string, from ifs.network_info_path)
++ _nas_log = (string, from ifs.naslog_path)
++ _log_map (2d string dict, module x func -> log)
 
 ## Nas
 
@@ -86,10 +127,12 @@
 + num_opt_best (int, >= 1)
 + block_num (int, >= 1)
 + num_gpu (int, >= 1)
-+ finetune_threshold (int, ?) <!--TODO-->
++ finetune_threshold (int, ?)
 + spl_network_round (int, >= 1)
-+ eliminate_policy (str, )
++ eliminate_policy (str, "best")
 + pattern (string, "Global" or "Block")
++ add_data_per_round(int, > 0)
++ add_data_for_winner(int, > 0 or -1(all))
 
 ### Method
 
@@ -119,10 +162,9 @@
 ### Config
 
 <!-- TODO -->
-1. max_depth (int, any)
-2. max_width (int, any)
-3. max_branch_depth (int, any)
-4. enum_log_path (string, file path)
+1. depth (int, any)
+2. width (int, any)
+3. max_depth (int, any)
 
 ### Method
 
@@ -138,37 +180,37 @@
 
 > Note: The range of image_size, num_classes, num_examples_per_epoch_for_train, num_examples_per_epoch_for_eval depend on dateset.
 
-+ image_size (int, unknown)
-+ num_classes (int, unknown)
-+ num_examples_for_train (int, unknown)
-+ num_examples_per_epoch_for_eval (int, unknown)
-+ initial_learning_rate (float, 1.0 ~ 1e-5)
-+ moving_average_decay (float, 1.0 ~ 1e-5)
-+ regularaztion_rate (float, 1.0 ~ 1e-5)
-+ batch_size (int, <= 200)
-+ epoch (int, any) \[*deprecated*\]
-+ retrain_epoch (int, any)
-+ search_epoch (int, any)
-+ retrain_switch (bool)
-+ weight_decay (float, 0 ~ 1.0)
-+ momentum_rate (float, 0 ~ 1.0)
-+ boundaries (1d int list, values > 0)
-+ learning_rate_type (string, 'const' or 'cos' or 'exp_decay')
-+ learning_rate (1d float list, value 0 ~ 1, len is same as boundaries)
-+ eva_path (string, file path)
-+ model_save_path (string, file path)
-+ dataset_path (string, file path)
 + task_name (string, value:)
     1. cifar-10
     2. cifar-100
     3. imagnet
++ image_size (int, unknown)
++ num_classes (int, unknown)
++ num_examples_for_train (int, unknown)
++ num_examples_per_epoch_for_eval (int, unknown)
++ regularaztion_rate (float, 1.0 ~ 1e-5)
++ initial_learning_rate (float, 1.0 ~ 1e-5)
++ num_epochs_per_decay (float, ?)
++ moving_average_decay (float, 1.0 ~ 1e-5)
++ batch_size (int, <= 200)
++ search_epoch (int, any)
++ retrain_epoch (int, any)
++ weight_decay (float, 0 ~ 1.0)
++ momentum_rate (float, 0 ~ 1.0)
 + repeat_search (int, >= 1)
++ model_path (string, file path)
++ dataset_path (string, file path)
++ eva_log_path (string, file path)
++ learning_rate_type (string, 'const' or 'cos' or 'exp_decay')
++ learning_rate (1d float list, value 0 ~ 1, len is same as boundaries)
++ boundaries (1d int list, values > 0)
 
 ### Method
 
 + evaluate
     > **Args**:
-    > 1. *network_item* (NetworkItem)
+    > 1. *network* (NetworkItem)
+    > 2. *pre_block* (1d list of NetworkItem)
     > 2. *is_bestNN* (boolean)
     > 3. *update_pre_weight* (boolean)
     >
@@ -179,27 +221,29 @@
     > 1. *pre_block* = [] & *update_pre_weight* != True
     > 2. *update_pre_weight* = True, but *is_bestNN* = True before.
     > 3. *is_bestNN* = True & *update_pre_weight* = True
-+ add_data
++ retrain
     > **Args**:
-    > 1. *add_num* (int, *batch_size* ~ *num_examples_per_epoch_for_train* - *self.train_num*)
+    >
+    > **Returns**:
+    > 1. *Accuracy* (float, 0 ~ 1.0)
++ set_data_size
+    > **Args**:
+    > 1. *num* (int, *batch_size* ~ *num_examples_per_epoch_for_train* - *self.train_num*)
     >
     > **Returns**: None
-  
++ set_epoch
+    > **Args**:
+    > 1. *epoch* (int)
+    >
+    > **Returns**: None
+
 ## Sampler
 
 ### Config
 
 + skip_max_dist (int, 0 ~ max_depth)
 + skip_max_num (int, 0 ~ max_depth - 1)
-+ conv_space (dict)
-  + filter_size (1d int list, value as Cell.filter_size)
-  + kernel_size (2d int list, value as Cell.kernel_size)
-  + activation (1d string list, value as Cell.activation)
-+ pool_space (dict)
-  + pooling_type (1d string list, value as Cell.pooling_type)
-  + kernel_size (1d int list, value as Cell.kernel_size)
-+ pool_switch (boolean)
-+ spl_log_path (string, file path)
++ space (dict, user defined)
 
 ### Method
 
@@ -261,8 +305,8 @@
 
 ### Config
 
-+ sample_size (int, )
-+ budget (int, )
-+ positive_num (int, )
-+ rand_probability (float, )
-+ uncertain_bit (int, )
++ sample_size (int, ?)
++ budget (int, ?)
++ positive_num (int, ?)
++ rand_probability (float, ?)
++ uncertain_bit (int, ?)
