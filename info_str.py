@@ -26,8 +26,8 @@ naslog_path = os.path.join(log_dir, 'nas_log.txt')
 
 # System information
 evafail = 'NAS: evaluating failed and we will try again...'
-eva_pre = 'block_num:{0[0]} round:{0[1]} network_index:{0[2]}/{0[3]} spl_index:{0[4]}/{0[5]}'
-eva_result_tem = "network_index:{0[0]} spl_index:{0[1]} score:{0[2]} time_cost:{0[3]}"
+eva_pre = 'doing_task: block_num:{0[0]} round:{0[1]} network_index:{0[2]}/{0[3]} spl_index:{0[4]}/{0[5]}'
+eva_result_tem = "arrange_result: network_index:{0[0]} spl_index:{0[1]} score:{0[2]} time_cost:{0[3]}"
 eva_ing = 'block_num:{0[0]} round:{0[1]} network_index:{0[2]}/{0[3]} spl_index:{0[4]}/{0[5]}' \
           ' score:{0[6]} time_cost:{0[7]} eva_pid:{0[8]} finished...'
 eliinfo_tem = 'NAS: eliminating {0[0]}, remaining {0[1]}...'
@@ -57,9 +57,9 @@ elim_net = "Network info of net removed\nblock_num: {0[0]} round: {0[1]} network
 elim_net_info = "block_num: {0[0]} round: {0[1]} network_left: {0[2]} " \
                 "network_id: {0[3]} number of scheme: {0[4]}\ngraph_part:{0[5]}\n"
 scheme_info = "    graph_full:{0[0]}\n    cell_list:{0[1]}\n    code:{0[2]}\n    score:{0[3]}\n"
-
+confirm_train = "confirm training..."
 eva = "{0[0]}"
-
+eva.foramt()
 # moudle X function X ACTION -> logger template string
 MF_TEMP = {
     'nas': {
@@ -105,6 +105,9 @@ MF_TEMP = {
         },
         '_rm_other_model': {
             'model_save': model_save
+        },
+        '_confirm_train': {
+            'confirm_train': confirm_train
         }
     },
     'evaluator': {

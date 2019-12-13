@@ -495,8 +495,8 @@ class Evaluator:
                                               feed_dict={data_x: batch_x, labels: batch_y, train_flag: True})
                 if np.isnan(loss_value):
                     return [-1], saver, log
-                sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" % (step, max_steps, loss_value, acc))
-            sys.stdout.write("\n")
+                # sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" % (step, max_steps, loss_value, acc))
+            # sys.stdout.write("\n")
 
             # evaluation step
             for step in range(num_iter):
@@ -635,3 +635,4 @@ if __name__ == '__main__':
     # e = eval.evaluate(network3, is_bestNN=True)
     # e=eval.train(network.graph_full,cellist)
     # print(e)
+    eval.retrain()
