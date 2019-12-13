@@ -38,8 +38,11 @@ def _subproc_eva(params, eva, gpuq):
             score = eva.evaluate(item, pre_blk, is_bestNN=False,
                                  update_pre_weight=ft_sign)
         except Exception as e:
+            pre_blk_list = []
+            for blk in pre_blk:
+                pre_blk_list.append([blk.graph, blk.cell_list])
             error_info = "Eva Error {} graph{} cell{} pre{} rd{} nnid{} splid{}".format(
-                         e, item.graph, item.cell_list, pre_blk, rd, nn_id, spl_id)
+                         e, item.graph, item.cell_list, pre_blk_list, rd, nn_id, spl_id)
             print(error_info)
             traceback.print_exc(file=sys.stdout)
             error_f = open("error_log.txt", "a")

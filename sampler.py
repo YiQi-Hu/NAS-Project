@@ -83,7 +83,7 @@ class Sampler:
             2. score（float, 0 ~ 1.0)
         No returns.
         """
-        self.opt.update_model(table, score)  # here "-" represent that we minimize the loss
+        self.opt.update_model(table, score)
 
     def graph_part_add_invisible_node(self):
         graph_part_tmp = []
