@@ -230,7 +230,7 @@ class Evaluator:
         Returns:
         tensor.
         """
-        with tf.variable_scope('conv' + str(node) + 'block' + str(self.block_num)) as scope:
+        with tf.variable_scope('block' + str(self.block_num) + 'conv' + str(node)) as scope:
             inputdim = inputs.shape[3]
             kernel = self._get_variable(
                 'weights', shape=[hplist.kernel_size, hplist.kernel_size, inputdim, hplist.filter_size])
@@ -242,7 +242,7 @@ class Evaluator:
         return conv_layer
 
     def _makesep_conv(self, inputs, hplist, node, train_flag):
-        with tf.variable_scope('conv' + str(node) + 'block' + str(self.block_num)) as scope:
+        with tf.variable_scope('block' + str(self.block_num) + 'conv' + str(node)) as scope:
             inputdim = inputs.shape[3]
             kernel = self._get_variable(
                 'weights', shape=[hplist.kernel_size, hplist.kernel_size, inputdim, 1])
@@ -312,7 +312,7 @@ class Evaluator:
         inputs = tf.reshape(inputs, [self.batch_size, -1])
 
         for i, neural_num in enumerate(hplist[1]):
-            with tf.variable_scope('dense' + str(i) + 'block' + str(self.block_num)) as scope:
+            with tf.variable_scope('block' + str(self.block_num) + 'dense' + str(i)) as scope:
                 weights = self._get_variable('weights', shape=[inputs.shape[-1], neural_num])
                 biases = self._get_variable('biases', [neural_num])
                 mul = tf.matmul(inputs, weights) + biases
@@ -364,7 +364,7 @@ class Evaluator:
 
             for _ in range(NAS_CONFIG['eva']['repeat_search'] - 1):
                 graph_full = network.graph + [[]]
-                cell_list = network.cell_list + [Cell('identity', '', 2)]
+                cell_list = network.cell_list + [Cell('pooling', 'max', 1)]
                 block_input = self._inference(block_input, graph_full, cell_list, train_flag)
                 self.block_num += 1
             # a pooling layer for last repeat block
@@ -404,14 +404,14 @@ class Evaluator:
                             Cell(cell.type, cell.filter_size * 2, cell.kernel_size, cell.activation))
                     else:
                         cell_list.append(cell)
+                cell_list.append(Cell('pooling', 'max', 1))
                 # repeat search
                 for _ in range(NAS_CONFIG['eva']['repeat_search'] - 1):
-                    cell_list.append(Cell('idxxx', 'max', 2))
                     retrain_log = retrain_log + str(graph) + str(cell_list) + '\n'
                     logits = self._inference(logits, graph, cell_list, train_flag)
                     self.block_num += 1
                 # add pooling layer only in last repeat block
-                cell_list.append(Cell('pooling', 'max', 2))
+                cell_list[-1] = Cell('pooling', 'max', 2)
                 retrain_log = retrain_log + str(graph) + str(cell_list) + '\n'
                 logits = self._inference(logits, graph, cell_list, train_flag)
                 self.block_num += 1
