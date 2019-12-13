@@ -11,6 +11,7 @@ import tensorflow as tf
 from base import Cell, NetworkItem
 from info_str import NAS_CONFIG
 from utils import NAS_LOG
+from data import cifar10
 
 
 class DataSet:
@@ -216,7 +217,7 @@ class Evaluator:
             layer = self._makeconv(
                 inputs, cell, node, train_flag)
         else:
-            assert False, "Wrong cell type!"
+            layer = tf.identity(inputs)
 
         return layer
 
@@ -355,20 +356,21 @@ class Evaluator:
         # print(network.graph, network.cell_list, Network.pre_block)
         self.log = "-" * 20 + str(network.id) + "-" * 20 + '\n'
         for block in pre_block:
-            self.log = self.log + str(block.graph) + str(block.cell_list)
+            self.log = self.log + str(block.graph) + str(block.cell_list) + '\n'
         self.log = self.log + str(network.graph) + str(network.cell_list) + '\n'
-
-        # a pooling layer for every block
-        network.graph.append([])
-        network.cell_list.append(Cell('pooling', 'max', 2))
 
         with tf.Session() as sess:
             data_x, data_y, block_input, train_flag = self._get_input(sess, pre_block, update_pre_weight)
 
-            logits = self._inference(block_input, network.graph, network.cell_list, train_flag)
             for _ in range(NAS_CONFIG['eva']['repeat_search'] - 1):
+                graph_full = network.graph + [[]]
+                cell_list = network.cell_list + [Cell('identity', '', 2)]
+                block_input = self._inference(block_input, graph_full, cell_list, train_flag)
                 self.block_num += 1
-                logits = self._inference(logits, network.graph, network.cell_list, train_flag)
+            # a pooling layer for last repeat block
+            graph_full = network.graph + [[]]
+            cell_list = network.cell_list + [Cell('pooling', 'max', 2)]
+            logits = self._inference(block_input, graph_full, cell_list, train_flag)
 
             logits = tf.nn.dropout(logits, keep_prob=1.0)
             logits = self._makedense(logits, ('', [self.NUM_CLASSES], ''))
@@ -380,8 +382,6 @@ class Evaluator:
                 saver.save(sess, os.path.join(
                     self.model_path, 'model' + str(network.id)))
 
-        network.graph.pop()
-        network.cell_list.pop()
         NAS_LOG << ('eva', self.log)
         return precision
 
@@ -391,13 +391,11 @@ class Evaluator:
         self.block_num = len(pre_block) * NAS_CONFIG['eva']['repeat_search'] + 1
 
         retrain_log = "-" * 20 + "retrain" + "-" * 20 + '\n'
-        for block in pre_block:
-            retrain_log = retrain_log + str(block.graph) + str(block.cell_list) + '\n'
 
         with tf.Session() as sess:
             data_x, labels, logits, train_flag = self._get_input(sess, [])
 
-            for i, block in enumerate(pre_block):
+            for block in pre_block:
                 graph = block.graph + [[]]
                 cell_list = []
                 for cell in block.cell_list:
@@ -406,7 +404,15 @@ class Evaluator:
                             Cell(cell.type, cell.filter_size * 2, cell.kernel_size, cell.activation))
                     else:
                         cell_list.append(cell)
+                # repeat search
+                for _ in range(NAS_CONFIG['eva']['repeat_search'] - 1):
+                    cell_list.append(Cell('idxxx', 'max', 2))
+                    retrain_log = retrain_log + str(graph) + str(cell_list) + '\n'
+                    logits = self._inference(logits, graph, cell_list, train_flag)
+                    self.block_num += 1
+                # add pooling layer only in last repeat block
                 cell_list.append(Cell('pooling', 'max', 2))
+                retrain_log = retrain_log + str(graph) + str(cell_list) + '\n'
                 logits = self._inference(logits, graph, cell_list, train_flag)
                 self.block_num += 1
 
@@ -603,7 +609,7 @@ class Evaluator:
 
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
     eval.set_data_size(5000)
     eval.set_epoch(1)
