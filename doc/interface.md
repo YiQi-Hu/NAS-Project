@@ -166,37 +166,30 @@
     1. cifar-10
     2. cifar-100
     3. imagnet
-+ image_size (int, unknown)
-+ num_classes (int, unknown)
-+ num_examples_for_train (int, unknown)
-+ num_examples_per_epoch_for_eval (int, unknown)
-+ regularaztion_rate (float, 1.0 ~ 1e-5)
-+ initial_learning_rate (float, 1.0 ~ 1e-5)
-+ num_epochs_per_decay (float, ?)
-+ moving_average_decay (float, 1.0 ~ 1e-5)
-+ batch_size (int, <= 200)
-+ search_epoch (int, any)
-+ retrain_epoch (int, any)
-+ weight_decay (float, 0 ~ 1.0)
-+ momentum_rate (float, 0 ~ 1.0)
-+ model_path (string, file path)
-+ dataset_path (string, file path)
-+ eva_log_path (string, file path)
-+ learning_rate_type (string, 'const' or 'cos' or 'exp_decay')
-+ learning_rate (1d float list, value 0 ~ 1, len is same as boundaries)
-+ boundaries (1d int list, values > 0)
++ image_size (int, size of the input image, 2nd and 3rd dimension of the input tensor)
++ num_classes (int, for image classification task, the number of class, the last dimension of output tensor)
++ num_examples_for_train (int, the number of dataset used for train, apart from validation)
++ num_examples_for_eval (int, the number of dataset used for validation)
++ initial_learning_rate (float, 1.0 ~ 1e-5, the initial learning rate)
++ weight_decay (float, 0 ~ 1.0, L2 factor in loss function)
++ momentum_rate (float, 0 ~ 1.0, momentum rate when use momentum optimizer)
++ batch_size (int, <= 200, batch size, may cause OOM error when set too big)
++ search_epoch (int, any, epochs when search)
++ retrain_epoch (int, epochs when retrain)
++ model_path (string, file path of saved model)
++ dataset_path (string, file path of data set)
 
 ### Method
 
 + evaluate
     > **Args**:
-    > 1. *network* (NetworkItem)
-    > 2. *pre_block* (1d list of NetworkItem)
-    > 3. *is_bestNN* (boolean)
-    > 4. *update_pre_weight* (boolean)
+    > 1. *network* (NetworkItem, the network to be evaluated)
+    > 2. *pre_block* (1d list of NetworkItem, blocks precede this network )
+    > 3. *is_bestNN* (boolean, indicator of whether this network needs to be saved or not)
+    > 4. *update_pre_weight* (boolean, indicator of whether need to update the weight of previous block)
     >
     > **Returns**:
-    > 1. *Accuracy* (float, 0 ~ 1.0)
+    > 1. *Score* (float, 0 ~ 1.0)
     >
     > **Invalid**:
     > 1. *pre_block* = [] & *update_pre_weight* != True
@@ -206,7 +199,7 @@
     > **Args**:
     >
     > **Returns**:
-    > 1. *Accuracy* (float, 0 ~ 1.0)
+    > 1. *Score* (float, 0 ~ 1.0)
 + set_data_size
     > **Args**:
     > 1. *num* (int, *batch_size* ~ *num_examples_per_epoch_for_train* - *self.train_num*)
