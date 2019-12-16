@@ -135,11 +135,6 @@ class Evaluator:
         # Constants describing the training process.
         # Initial learning rate.
         self.INITIAL_LEARNING_RATE = 0.025
-        # Epochs after which learning rate decays
-        self.NUM_EPOCHS_PER_DECAY = 80
-        # Learning rate decay factor.
-        self.LEARNING_RATE_DECAY_FACTOR = 0.1
-        self.MOVING_AVERAGE_DECAY = 0.98
         self.batch_size = 50
         self.weight_decay = 0.0003
         self.momentum_rate = 0.9
@@ -558,7 +553,7 @@ class Evaluator:
         return loss
 
     def _train_op(self, global_step, loss):
-        lr = tf.train.cosine_decay(self.INITIAL_LEARNING_RATE, global_step, self.NUM_EPOCHS_PER_DECAY)
+        lr = tf.train.cosine_decay(self.INITIAL_LEARNING_RATE, global_step)
 
         # Build a Graph that trains the model with one batch of examples and
         # updates the model parameters.

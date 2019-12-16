@@ -174,8 +174,6 @@
 + weight_decay (float, 0 ~ 1.0, L2 factor in loss function)
 + momentum_rate (float, 0 ~ 1.0, momentum rate when use momentum optimizer)
 + batch_size (int, <= 200, batch size, may cause OOM error when set too big)
-+ search_epoch (int, any, epochs when search)
-+ retrain_epoch (int, epochs when retrain)
 + model_path (string, file path of saved model)
 + dataset_path (string, file path of data set)
 
