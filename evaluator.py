@@ -21,7 +21,7 @@ class DataSet:
         self.NUM_CLASSES = 10
         self.NUM_EXAMPLES_FOR_TRAIN = 40000
         self.NUM_EXAMPLES_FOR_EVAL = 10000
-        self.task = "cifar10"
+        self.task = "cifar-10"
         self.data_path = '/home/amax/Desktop'
         return
 
@@ -507,8 +507,8 @@ class Evaluator:
                 l, acc_ = sess.run([loss, accuracy],
                                    feed_dict={data_x: batch_x, labels: batch_y, train_flag: False})
                 precision[ep] += acc_ / num_iter
-                sys.stdout.write("\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
-            sys.stdout.write("\n")
+                # sys.stdout.write("\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
+            # sys.stdout.write("\n")
 
             # early stop
             if ep > 5 and not retrain:
