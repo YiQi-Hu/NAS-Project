@@ -12,9 +12,8 @@ MAX_NETWORK_LENGTH = 71
 #model_json_path = './predict_op/model.json'
 #model_weights_path = './predict_op/model.json.h5'
 
-# TODO Please use os.path.join instead.
-net_data_path = './predict_op/data/net.npy'
-label_data_path = './predict_op/data/label.npy'
+net_data_path = os.path.join(_cur_ver_dir, 'predict_op/data', 'net.npy')
+label_data_path = os.path.join(_cur_ver_dir, 'predict_op/data', 'label.npy')
 
 model_json_path = os.path.join(_cur_ver_dir, 'predict_op', 'model.json')
 model_weights_path = os.path.join(_cur_ver_dir, 'predict_op', 'model.json.h5')
@@ -139,8 +138,7 @@ class Feature:
                 endpoint[i] = 1
         return endpoint
 
-    @staticmethod
-    def _find_endpoint_link_set(id, endpoint_link_num_set, link_set):
+    def _find_endpoint_link_set(self, id, endpoint_link_num_set, link_set):
         # 寻找端点的支链集
         links = []
         for i in range(len(endpoint_link_num_set)):
@@ -150,8 +148,7 @@ class Feature:
                 break
         return links
 
-    @staticmethod
-    def _find_node_links(id, node_link_num_set, link_set):
+    def _find_node_links(self, id, node_link_num_set, link_set):
         # 寻找与节点所在支链有相同端点的支链集
         links = []
         link_num = 0
@@ -164,24 +161,21 @@ class Feature:
                 links.append(link_set[i])
         return links
 
-    @staticmethod
-    def _find_node_link(id, node_link_num_set, link_set):
+    def _find_node_link(self, id, node_link_num_set, link_set):
         # 寻找节点所在的支链
         for i in range(len(node_link_num_set)):
             if node_link_num_set[i][0] == id:
                 link_num = link_set[node_link_num_set[i][1]]
                 return link_num
 
-    @staticmethod
-    def _is_endpoint(node_num, endpoint_link_num_set):
+    def _is_endpoint(self, node_num, endpoint_link_num_set):
         # 判断是否为端点
         for i in range(len(endpoint_link_num_set)):
             if endpoint_link_num_set[i][0] == node_num:
                 return 1
         return 0
 
-    @staticmethod
-    def _link_num(node_id, endpoint_link_num_set):
+    def _link_num(self, node_id, endpoint_link_num_set):
         # 支链的个数
         for i in range(len(endpoint_link_num_set)):
             if endpoint_link_num_set[i][0] == node_id:
@@ -189,31 +183,27 @@ class Feature:
                 return len(e) - 1
         return 0
 
-    @staticmethod
-    def _mean_link(link_set):
+    def _mean_link(self, link_set):
         # 支链长度的期望
         links_len = []
         for e in link_set:
             links_len.append(e[3])
         return np.mean(links_len)
 
-    @staticmethod
-    def _var_link(link_set):
+    def _var_link(self, link_set):
         # 支链的方差
         links_len = []
         for e in link_set:
             links_len.append(e[3])
         return np.var(links_len)
 
-    @staticmethod
-    def _relative_Loc(id, link):
+    def _relative_Loc(self, id, link):
         # 节点在支链中的相对位置
         for i in range(len(link[4])):
             if link[4][i] == id:
                 return i + 1
 
-    @staticmethod
-    def _find_max_link(link_set):
+    def _find_max_link(self, link_set):
         # 寻找最长支链
         max_length = 0
         index = 0
@@ -223,8 +213,7 @@ class Feature:
                 max_length = link_set[i][3]
         return index, max_length
 
-    @staticmethod
-    def _find_min_link(link_set):
+    def _find_min_link(self, link_set):
         # 寻找最短支链
         min_length = 0
         index = 0
@@ -257,8 +246,7 @@ class Predictor:
         self.model = model_from_json(model_json)
         self.model.load_weights(model_weights_path)
 
-    @staticmethod
-    def _list2mat(G):
+    def _list2mat(self, G):
         # 将领接表转换成邻接矩阵
         graph = np.zeros((len(G), len(G)), dtype=int)
         for i in range(len(G)):
@@ -268,8 +256,7 @@ class Predictor:
                     graph[i][k] = 1
         return graph
 
-    @staticmethod
-    def _graph_concat(graphs):
+    def _graph_concat(self, graphs):
         if len(graphs) == 1:
             return graphs[0]
         elif len(graphs) > 1:
@@ -288,8 +275,7 @@ class Predictor:
 
             return new_graph
 
-    @staticmethod
-    def _get_new_order(links, graph_size):
+    def _get_new_order(self, links, graph_size):
         # 获得节点在新的编码方式下的顺序
         new_order = np.zeros((2, graph_size), dtype=int)
         for i in range(graph_size):
@@ -303,8 +289,7 @@ class Predictor:
         new_order = np.argsort(new_order[1, :])
         return new_order
 
-    @staticmethod
-    def _get_new_mat(new_order, mat):
+    def _get_new_mat(self, new_order, mat):
         # 获得在新的编码方式下网络结构的邻接矩阵
         size = len(mat)
         graph = np.zeros((size, size), dtype=int)
@@ -317,8 +302,7 @@ class Predictor:
                     graph[pre][after] = 1
         return graph
 
-    @staticmethod
-    def _padding(node_feature, length):
+    def _padding(self, node_feature, length):
         # 对输入数据做填充，保证输入数据的一致性
         if len(node_feature) < length:
             add = np.ones((length - len(node_feature), len(node_feature[0])))
@@ -340,8 +324,8 @@ class Predictor:
             graphs_orders.append(order)
         return graphs_mat, graphs_orders
 
-    @staticmethod
-    def _class_id_2_parameter(order, class_list):
+
+    def _class_id_2_parameter(self, order, class_list):
         # 将最后输出的类别转换成需要预测的操作详细参数
         parameters = decoder(class_list)
         parameters_cp = parameters.copy()
@@ -349,15 +333,13 @@ class Predictor:
             parameters[order[i]] = parameters_cp[i]
         return parameters[:len(order)]
 
-    @staticmethod
-    def _save_model(model, json_path, weights_path):
+    def _save_model(self, model, json_path, weights_path):
         model_json = model.to_json()
         with open(json_path, 'w') as file:
             file.write(model_json)
             model.save_weights(weights_path)
 
-    @staticmethod
-    def _my_param_style(cell_list):
+    def _my_param_style(self, cell_list):
         filter_size = [16, 32, 48, 64, 96, 128, 192, 256, 512, 1024]
         pool_size = [2, 3, 4, 5, 7]
         labels = []
@@ -401,6 +383,14 @@ class Predictor:
 
     # 模块接口
     def predictor(self, pre_block, graph_full):
+        '''
+        Method for predicting block's operation
+        Args:
+            pre_block:Previous block Networkitem_list
+            graph_full:Current block Networkitem
+        return:
+            Operation of each node in the current block,including size and filters
+        '''
         graph_list = []
         if pre_block:
             for block in pre_block:
@@ -415,7 +405,15 @@ class Predictor:
                                                     class_list[len(new_graph) - len(graph_full):len(new_graph)])
         return ops
 
-    def train(self, graph_full, cell_list):
+    def train_model(self, graph_full, cell_list):
+        '''
+        Retrain the predictor model with networks that
+        get high accuracy on the validation set
+        Args:
+            graph_full: a Network Topology
+            cell_list: Class Cell()'s list
+        no Returns
+        '''
         x_train = []
         y_train = []
         net, label = self._read_data(net_data_path, label_data_path)
