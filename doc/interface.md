@@ -232,9 +232,9 @@
 ### Config
 
 + pool_switch (int ,0 or 1) 控制搜索空间是否加入池化操作，block搜索下设置为0
-+ skip_max_dist (int, 0 ~ max_depth) 最大跨层长度，范围0至最大距离
-+ skip_max_num (int, 0 ~ max_depth - 1) 最大跨层个数，范围0至最大距离-1
-+ space (dict, user defined) 搜索空间，字典，用户自定义
++ skip_max_dist (int, 0 ~ max_depth) 最大跨层长度
++ skip_max_num (int, 0 ~ max_depth - 1) 最大跨层个数
++ space (dict, user defined) 搜索空间
 
 ### Method
 
