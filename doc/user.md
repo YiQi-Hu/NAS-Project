@@ -1,7 +1,6 @@
-# User Manual
+# User Cookbook
 
 -------------------------
-如何客制化 NAS 工程。
 
 ## 数据集 Dataset
 
