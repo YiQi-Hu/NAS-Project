@@ -289,16 +289,16 @@
 
 + predict
     > **Args**:
-    > 1. *graph_ful* (2d int list, adjacency table)
-    > 2. *pre_block* (1d NetworkItem list)
+    > 1. *graph_ful* (2d int list, adjacency table) #一个不加跨层连接的拓扑结构
+    > 2. *pre_block* (1d NetworkItem list) #之前block的拓扑结构，是Network类的item_list
     >
     > **Returns**:
-    > 1. *ops*
+    > 1. *ops* #一个二维的序列，输入参数graph_full的操作配置，只包含卷积操作的大小和核个数，或是否为池化操作
 
 + train_model
     > **Args**:
-    > 1. *graph_full*: (2d int list, as NetworkItem.graph_full)
-    > 2. *cell_list*: (1d Cell list)
+    > 1. *graph_full*: (2d int list, as NetworkItem.graph_full) #一个网络完整的拓扑结构
+    > 2. *cell_list*: (1d Cell list) #一组配置列表
     > **Returns**: None
     >
 
