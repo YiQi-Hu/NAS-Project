@@ -144,18 +144,17 @@
 
 ### Config
 
-1. depth (int, any)
-2. width (int, any)
-3. max_depth (int, any)
+1. depth (int, any)  # 所枚举的网络结构的深度
+2. width (int, any)  # 所枚举的网络结构的支链个数
+3. max_depth (int, any)  # 约束支链上节点的最大个数
 
 ### Method
 
 1. enumrate
-    > **Args**: None
+    > **Args**: None  # 无参数读入
     >
     > **Returns**:
-    > 1. *pool* (1d Network list)
-
+    > 1. *pool* (1d Network list)  # 返回由base中Network结构组成的list
 ## Evaluator
 
 ### Config

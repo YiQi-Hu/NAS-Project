@@ -78,7 +78,7 @@ class Enumerater:
                 if j <= i + 1:
                     continue
                 for k in range(1, j-i):
-                    if k < self.max_branch_depth:
+                    if k <= self.max_branch_depth:
                         # print(i,j,k)
                         self._info_dict[cnt] = [i, j, k]
                         cnt += 1
