@@ -7,21 +7,21 @@
 
 > No Method, Data only.
 
-+ id (int, any)
-+ graph_part (2d int list, adjacency list)
-+ item_list (1d NetworkItem list)
-+ pre_block (1d NetworkItem list, class static variable)
-+ spl (class Sampler)
++ id (int, any) 枚举出的每一个网络的固定编号
++ graph_template (2d int list, adjacency list) 枚举出的拓扑结构，不含跨层连接和操作配置，以邻接表的形式呈现
++ item_list (1d NetworkItem list) 配置列表，每个元素为一条配置，每条配置相当于一个完整的网络
++ pre_block (1d NetworkItem list, class static variable) 已经固定下来的block对应的配置
++ spl (class Sampler) 该网络单独维护的采样方法
 
 ## NetworkItem
 
 > No Method, Data only.
 
-+ id (int, any)
-+ graph_full (2d int list, adjacency list)
-+ cell_list (1d Cell list)
-+ code (1d int list, depending on dimension)
-+ score (int, 0 ~ 1)
++ id (int, any) 一个网络中每条配置对应的固定编号
++ graph_full (2d int list, adjacency list) 完整的拓扑结构
++ cell_list (1d Cell list) 对应的操作配置
++ code (1d int list, depending on dimension) 该条配置在采样模块中呈现的编码
++ score (int, 0 ~ 1) 该条配置的评分，由评估模块给出
 
 ## Cell (inherit from Tuple)
 
@@ -61,12 +61,12 @@
 
 > Except nas_config, every property else is string.
 
-+ log_dir (string, './NAS-PROJECT/memory')
-+ evalog_path (string (string, log_dir + 'evaluator_log.txt')
-+ subproc_log (string, log_dir + 'subproc_log.txt')
-+ network_info_path (string, log_dir + 'network_info.txt')
-+ naslog_path (string, log_dir + 'nas_log.txt')
-+ MF_TEMP (3d string dict, moudle X function X ACTION -> logger template string)
++ log_dir (string, './NAS-PROJECT/memory') 日志存储目录
++ evalog_path (string (string, log_dir + 'evaluator_log.txt') 评估日志
++ subproc_log (string, log_dir + 'subproc_log.txt') 子进程日志
++ network_info_path (string, log_dir + 'network_info.txt') 网络结构信息
++ naslog_path (string, log_dir + 'nas_log.txt') 总控搜索日志
++ MF_TEMP (3d string dict, moudle X function X ACTION -> logger template string) 日志模板索引
 
 ## nas_config
 
@@ -114,7 +114,7 @@
 >
 
 + _eva_log = (string, from ifs.evalog_path)
-+ _sub_proc_log = (string, from ifs.subproc_log_path)
++ _sub_proc_log = (string, from ifs.subproc_log_path) 
 + _network_log = (string, from ifs.network_info_path)
 + _nas_log = (string, from ifs.naslog_path)
 + _log_map (2d string dict, module x func -> log)
@@ -125,29 +125,28 @@
 
 ### Config
 
-+ num_opt_best (int, >= 1)
-+ block_num (int, >= 1)
-+ num_gpu (int, >= 1)
-+ finetune_threshold (int, ?)
-+ spl_network_round (int, >= 1)
-+ eliminate_policy (str, "best")
-+ pattern (string, "Global" or "Block")
-+ add_data_per_round (int, > 0)
-+ add_data_for_winner (int, > 0 or -1(all))
-+ add_data_mode ?
-+ init_data_size ?
-+ data_increase_scale ?
-+ add_data_for_confirm_train ?
-+ repeat_search (int, >= 1)
++ num_opt_best (int, >= 1) 竞赛结束，就赢家的基础上继续进行采样评估的次数
++ block_num (int, >= 1) 搜索的block数量
++ num_gpu (int, >= 1) 使用的GPU数量
++ finetune_threshold (int, ?) 竞赛后期开始进行finetune的阶段，当竞赛者个数小于此设定值时，开始finetune
++ spl_network_round (int, >= 1) 每轮竞赛每个网络进行采样评估的次数
++ eliminate_policy (str, "best") 减半策略（按网路的最优评分或者综合评分）
++ pattern (string, "Global" or "Block") 搜索模式
++ add_data_per_round (int, > 0) 每轮竞赛添加数据量
++ add_data_mode (string, "linear" or "scale") 数据增长方式（线性还是指数）
++ init_data_size (int, > 0) 初始添加数据量
++ data_increase_scale (float, > 1) 数据以指数增长时，底数的大小
++ add_data_for_confirm_train (int, -1 or > 0) 固定当前block网络结构前的训练所添加的数据量
++ repeat_search (int, >= 1) 搜得block中的结构重复堆叠的次数
 
 ### Method
 
 + run
-    > **Args**:
-    > 1. *proc_pool* (mutiprocessor.Pool)
+    > **Args**: None
     >
     > **Returns**:
-    > 1. *best_nn* (Network)
+    > 1. *Network.pre_block* (1d NetworkItem list, and its length equals to block_num) 搜得的最终网络结构
+    > 2. *retrain_score* retrain的评分
 
 ## Enumerater
 
