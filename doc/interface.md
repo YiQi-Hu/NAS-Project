@@ -306,8 +306,8 @@
 
 ### Config
 
-+ sample_size (int, ?)
-+ budget (int, ?)
-+ positive_num (int, ?)
-+ rand_probability (float, ?)
-+ uncertain_bit (int, ?)
++ sample_size (int, 优化过程中维护的标记为负的样本数量)
++ budget (int, 总的采样次数)
++ positive_num (int, 优化过程中维护的标记为正的样本数量)
++ rand_probability (float, 从学习得到的分类区域内采样的概率，一般设为接近于1的数)
++ uncertain_bit (int, 采样时随机的维度数，小表示鼓励利用，大表示鼓励探索)
