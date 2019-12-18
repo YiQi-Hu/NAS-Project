@@ -26,20 +26,20 @@ best_nn = nas.run()
 
 ### 修改数据集
 
-1. 将数据集放在data文件夹底下
-   > 也可以更改 `NAS_CONFIG['eva']['dataset_path']` 的数据集路径，或是直接修改 `Dataset.data_path` (定义在evalutor.py或evalutor_user.py)
-2. 根据具体任务，设置数据集参数：
-    1. IMAGE_SIZE 图片尺寸
-    2. NUM_CLASSES 分类数量/输出张量的最后一维大小
-    3. NUM_EXAMPLES_FOR_TRAIN 训练数据集大小
-    4. NUM_EXAMPLES_FOR_EVAL 评估数据集大小
+1. 将数据集放在data文件夹底下，直接修改 `Dataset.data_path`
+   > `Dataset` 定义在 evalutor.py 或 evalutor_user.py
+2. 根据具体任务，设置 `Dataset` 参数：
+    1. *IMAGE_SIZE* 图片尺寸
+    2. *NUM_CLASSES* 分类数量/输出张量的最后一维大小
+    3. *NUM_EXAMPLES_FOR_TRAIN* 训练数据集大小
+    4. *NUM_EXAMPLES_FOR_EVAL* 评估数据集大小
 3. 实现 `Dataset.input` 方法，返回数据集：
-    1. train_data 训练样本
-    2. train_label 训练标签
-    3. valid_data 评估样本
-    4. valid_label 评估标签
-    5. test_data 测试样本
-    6. test_label 测试标签
+    1. *train_data* 训练样本
+    2. *train_label* 训练标签
+    3. *valid_data* 评估样本
+    4. *valid_label* 评估标签
+    5. *test_data* 测试样本
+    6. *test_label* 测试标签
 4. (可选) 实现数据增强方法 `Dataset.process`
 
 > 数据集类型 `Dataset` 具体细节可以参考下方说明，以及 [evaluator.py](../evaluator.py) 中读入cifar-10数据集的范例。
@@ -53,7 +53,7 @@ best_nn = nas.run()
 
 #### 具体范例
 
-打算加入新的操作**Separable Convolution**到神经网络，其中包含几个参数**filter_size**, **kernel_size**, **activation**
+打算加入新的操作 **Separable Convolution** 到神经网络，其中包含几个参数 **filter_size**, **kernel_size**, **activation**
 
 ```json
 "sep_conv": {
@@ -78,7 +78,7 @@ best_nn = nas.run()
 
 > **注意**：当参数是**1维列表**，代表参数的搜索空间；当参数是**2维列表**，代表**模块**的参数搜索空间(按照列表次序)
 
-接下来，只需要简单地放入配置参数文件 [nas_config.json](../nas_config.json)/spl/space底下
+接下来，只需要简单地放入配置参数文件 [nas_config.json](../nas_config.json)/spl/space 底下
 
 ```python
 "spl":{
@@ -108,7 +108,7 @@ best_nn = nas.run()
   }
 ```
 
-最后，在`Evaluator._make_layer`，给出配置参数的具体操作方法
+最后，在 `Evaluator._make_layer` ，给出配置参数的具体操作方法
 
 ```python
 def _make_layer(self, inputs, cell, node):
@@ -117,7 +117,8 @@ def _make_layer(self, inputs, cell, node):
     else:
         assert False, "Wrong cell type!"
     return layer
-def _makesep_conv(self, inputs, hplist, node, train_flag):
+
+def _makesep_conv(self, inputs, hplist, node):
     # TODO
     return sep_conv_layer
 ```
@@ -126,18 +127,18 @@ def _makesep_conv(self, inputs, hplist, node, train_flag):
 
 ### 实现评估方法
 
-请实现`Evalutor._eval`方法。我们已经给出方法的模版，以及评估需要的参数：
+请实现 `Evalutor._eval` 方法。我们已经给出方法的模版，以及评估需要的参数：
 
-1. sess: Tensorflow Session 对象，其中网络构图已经载入Tensorflow
-2. logits: 模型输出
-3. data_x: 训练样本
-4. data_y: 训练标签
+1. _sess_: Tensorflow Session 对象，其中网络构图已经载入Tensorflow
+2. _logits_: 模型输出
+3. _data\_x_: 训练样本
+4. _data\_y_: 训练标签
 
 NAS工程需要方法返回下列结果，方便我们进行网络竞赛淘汰：
 
-1. target: 网络的评估值，必须是浮点数
-2. saver: Tensorflow Saver 对象，保存训练模型
-3. log: 运行日志 (可以在memory/evaluator_log.txt中找到)
+1. _target_: 网络的评估值，必须是浮点数
+2. _saver_: Tensorflow Saver 对象，保存训练模型
+3. _log_: 运行日志 (可以在memory/evaluator_log.txt中找到)
 
 > [evaluator.py](../evaluator.py) 已经给出图像识别任务的评估方法。
 > [evaluator_user.py](./../evaluator_user.py) 给出这个方法的模版。更详细的方法说明，可以参考下方[评估函数](user.md###评估函数)说明。
@@ -151,18 +152,18 @@ NAS工程需要方法返回下列结果，方便我们进行网络竞赛淘汰�
 下列为用户相关的参数：
 
 + nas_main 总控参数
-  + num_gpu 运行环境GPU个数
-  + block_num 堆叠网络块数量
-  + add_data_per_round 每一轮竞赛增加数据大小
-  + add_data_for_winner 竞赛胜利者的训练数据集大小(-1代表使用全部数据)
-  + repeat_search 模块重复次数
+  + _num\_gpu_ 运行环境GPU个数
+  + _block\_num_ 堆叠网络块数量
+  + _add\_data\_per\_round_ 每一轮竞赛增加数据大小
+  + _add\_data\_for\_winner_ 竞赛胜利者的训练数据集大小 (-1代表使用全部数据)
+  + _repeat\_search_ 模块重复次数
 + enum 穷举模块参数
-  + depth 枚举的网络结构的深度
-  + width 枚举的网络结构的支链个数
-  + max_depth 约束支链上节点的最大个数
+  + _depth_ 枚举的网络结构的深度
+  + _width_ 枚举的网络结构的支链个数
+  + _max\_depth_ 约束支链上节点的最大个数
 + spl 采样参数
-  + skip_max_dist 最大跨层长度
-  + skip_max_num 最大跨层个数
+  + _skip\_max\_dist_ 最大跨层长度
+  + _skip\_max\_num_ 最大跨层个数
 
 > 所有工程相关配置参数都定义于 [nas_config.py](../nas_config.py)
 >
@@ -183,28 +184,29 @@ NAS工程需要方法返回下列结果，方便我们进行网络竞赛淘汰�
 
 ## 用户相关参数与模块函数
 
-### 用户参数总览
+### *用户参数总览*
 
 + nas_main 总控参数
-  + num_gpu 运行环境GPU个数
-  + block_num 堆叠网络块数量
-  + add_data_per_round 每一轮竞赛增加数据大小
-  + add_data_for_winner 竞赛胜利者的训练数据集大小(-1代表使用全部数据)
-  + repeat_search 模块重复次数
+  + _num\_gpu_ 运行环境GPU个数
+  + _block\_num_ 堆叠网络块数量
+  + _add\_data\_per\_round_ 每一轮竞赛增加数据大小
+  + _add\_data\_for\_winner_ 竞赛胜利者的训练数据集大小(-1代表使用全部数据)
+  + _repeat\_search_ 模块重复次数
 + enum 穷举模块参数
-  + depth 枚举的网络结构的深度
-  + width 枚举的网络结构的支链个数
-  + max_depth 约束支链上节点的最大个数
+  + _depth_ 枚举的网络结构的深度
+  + _width_ 枚举的网络结构的支链个数
+  + _max\_depth_ 约束支链上节点的最大个数
 + eva
-  + dataset_path 数据集路径
+  + _dataset\_path_ 数据集路径
 + spl 采样参数
-  + skip_max_dist 最大跨层长度
-  + skip_max_num 最大跨层个数
-  + space 搜索空间
+  + _skip\_max\_dist_ 最大跨层长度
+  + _skip\_max\_num_ 最大跨层个数
+  + _space_ 搜索空间
 
 ### 数据集
 
 + Dataset.\_\_init\_\_ 
+    > **Args**:
     > 1. self.IMAGE_SIZE 图片尺寸
     > 2. self.NUM_CLASSES 分类数量/输出张量的最后一维大小
     > 3. self.NUM_EXAMPLES_FOR_TRAIN 训练数据集大小
