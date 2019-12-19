@@ -135,8 +135,6 @@ class Evaluator:
         # Constants describing the training process.
         # Initial learning rate.
         self.INITIAL_LEARNING_RATE = 0.025
-        # Epochs after which learning rate decays
-        self.NUM_EPOCHS_PER_DECAY = 80
         # Learning rate decay factor.
         self.LEARNING_RATE_DECAY_FACTOR = 0.1
         self.MOVING_AVERAGE_DECAY = 0.98
@@ -221,25 +219,24 @@ class Evaluator:
 
         return layer
 
-    def _makeconv(self, inputs, hplist, node, train_flag):
+    def _makeconv(self, x, hplist, node, train_flag):
         """Generates a convolutional layer according to information in hplist
         Args:
-        inputs: inputing data.
+        x: inputing data.
         hplist: hyperparameters for building this layer
         node: number of this cell
         Returns:
         tensor.
         """
         with tf.variable_scope('block' + str(self.block_num) + 'conv' + str(node)) as scope:
-            inputdim = inputs.shape[3]
+            inputdim = x.shape[3]
             kernel = self._get_variable(
                 'weights', shape=[hplist.kernel_size, hplist.kernel_size, inputdim, hplist.filter_size])
-            conv = tf.nn.conv2d(inputs, kernel, [1, 1, 1, 1], padding='SAME')
+            x = self._activation_layer(hplist.activation, x, scope)
+            x = tf.nn.conv2d(x, kernel, [1, 1, 1, 1], padding='SAME')
             biases = self._get_variable('biases', hplist.filter_size)
-            bn = self._batch_norm(tf.nn.bias_add(conv, biases), train_flag)
-            conv_layer = self._activation_layer(hplist.activation, bn, scope)
-
-        return conv_layer
+            x = self._batch_norm(tf.nn.bias_add(x, biases), train_flag)
+        return x
 
     def _makesep_conv(self, inputs, hplist, node, train_flag):
         with tf.variable_scope('block' + str(self.block_num) + 'conv' + str(node)) as scope:
@@ -526,8 +523,8 @@ class Evaluator:
             # print('precision = %.3f, cost time %.3f' %
             #       (precision[ep], float(time.time() - start_time)))
 
-        target = self._cal_multi_target(precision[-1], cost_time)
-        return target, saver, log
+        # target = self._cal_multi_target(precision[-1], cost_time)
+        return precision[-1], saver, log
 
     def _cal_accuracy(self, logits, labels):
         """
@@ -558,7 +555,9 @@ class Evaluator:
         return loss
 
     def _train_op(self, global_step, loss):
-        lr = tf.train.cosine_decay(self.INITIAL_LEARNING_RATE, global_step, self.NUM_EPOCHS_PER_DECAY)
+        num_batches_per_epoch = self.train_num / self.batch_size
+        decay_steps = int(num_batches_per_epoch * self.epoch)
+        lr = tf.train.cosine_decay(self.INITIAL_LEARNING_RATE, global_step, decay_steps)
 
         # Build a Graph that trains the model with one batch of examples and
         # updates the model parameters.
@@ -569,9 +568,9 @@ class Evaluator:
 
     def _stats_graph(self):
         graph = tf.get_default_graph()
-        # flops = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.float_operation())
+        flops = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.float_operation())
         params = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.trainable_variables_parameter())
-        return 1, params.total_parameters
+        return flops.total_float_ops, params.total_parameters
 
     def _cal_multi_target(self, precision, time):
         flops, model_size = self._stats_graph()
@@ -607,13 +606,17 @@ if __name__ == '__main__':
                  Cell('conv', 32, 3, 'relu')]
     network1 = NetworkItem(0, graph_full, cell_list, "")
     network2 = NetworkItem(1, graph_full, cell_list, "")
+    network3 = NetworkItem(2, graph_full, cell_list, "")
+    network4 = NetworkItem(3, graph_full, cell_list, "")
     e = eval.evaluate(network1, is_bestNN=True)
     print(e)
     eval.set_data_size(500)
     e = eval.evaluate(network2, [network1], is_bestNN=True)
+    eval.evaluate(network3, [network1, network2], is_bestNN=True)
+    eval.evaluate(network4, [network1, network2, network3], is_bestNN=True)
     print(e)
-    eval.set_epoch(2)
-    print(eval.retrain([network1, network2]))
+    eval.set_epoch(1)
+    print(eval.retrain([network1, network2, network3, network4]))
     # eval.add_data(5000)
     # print(eval._toposort([[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
     #       4, 5, 6, 8], [5, 7], [6, 7, 9, 10], [7, 9], [8], [9, 10], [10]]))
@@ -635,4 +638,3 @@ if __name__ == '__main__':
     # e = eval.evaluate(network3, is_bestNN=True)
     # e=eval.train(network.graph_full,cellist)
     # print(e)
-    eval.retrain()
