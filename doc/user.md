@@ -15,34 +15,46 @@ nas = Nas(Pool(processes=NUM_GPU))
 best_nn = nas.run()
 ```
 
-## 迁移到具体任务
+## 配置具体任务
 
 为了在不同的具体任务上运行 Nas 算法，根据具体任务内容，需要补完
 工程的代码模版，主要分为三个部份：
 
 1. 修改数据集
-2. 添加网络节点操作
-3. 实现评估方法
+2. 实现评估方法
+3. 添加网络节点操作 (可选)
 
-### 修改数据集
+### 修改数据集和数据集参数
 
-1. 将数据集放在data文件夹底下，直接修改 `Dataset.data_path`
-   > `Dataset` 定义在 evalutor.py 或 evalutor_user.py
-2. 根据具体任务，设置 `Dataset` 参数：
-    1. *IMAGE_SIZE* 图片尺寸
-    2. *NUM_CLASSES* 分类数量/输出张量的最后一维大小
-    3. *NUM_EXAMPLES_FOR_TRAIN* 训练数据集大小
-    4. *NUM_EXAMPLES_FOR_EVAL* 评估数据集大小
-3. 实现 `Dataset.input` 方法，返回数据集：
-    1. *train_data* 训练样本
-    2. *train_label* 训练标签
-    3. *valid_data* 评估样本
-    4. *valid_label* 评估标签
-    5. *test_data* 测试样本
-    6. *test_label* 测试标签
-4. (可选) 实现数据增强方法 `Dataset.process`
+根据具体任务，设置 `Evaluator.__init__` 参数：
 
-> 数据集类型 `Dataset` 具体细节可以参考下方说明，以及 [evaluator.py](../evaluator.py) 中读入cifar-10数据集的范例。
+1. *INPUT_SHAPE* 图片尺寸
+2. *OUTPUT_SHAPE* 分类数量/输出张量的最后一维大小
+3. *NUM_EXAMPLES_FOR_TRAIN* 训练数据集大小
+4. *train_data* 训练样本
+5. *train_label* 训练标签
+6. *valid_data* 评估样本
+7. *valid_label* 评估标签
+
+> Todo
+
+### 实现评估方法
+
+请实现 `Evalutor._eval` 方法。我们已经给出方法的模版，以及评估需要的参数：
+
+1. _sess_: Tensorflow Session 对象，其中网络构图已经载入Tensorflow
+2. _logits_: 模型输出 (Tensor 类型)
+3. _data\_x_: 训练样本 (Tensorflow Placeholder 类型)
+4. _data\_y_: 训练标签 (Tensorflow Placeholder 类型)
+
+NAS工程需要方法返回下列结果，方便我们进行网络竞赛淘汰：
+
+1. _target_: 网络的评估值，必须是浮点数
+2. _saver_: Tensorflow Saver 对象，保存训练模型
+3. _log_: 运行日志 (内容可以在memory/evaluator_log.txt中找到)
+
+> [evaluator.py](../evaluator.py) 已经给出图像识别任务的评估方法。
+> [evaluator_user.py](./../evaluator_user.py) 给出这个方法的模版。更详细的方法说明，可以参考下方[评估函数](user.md###评估函数)说明。
 
 ### 添加网络节点操作
 
@@ -124,24 +136,6 @@ def _makesep_conv(self, inputs, hplist, node):
 ```
 
 > **Separable Convolution** 已经在NAS工程中实现了，可以用来参考。
-
-### 实现评估方法
-
-请实现 `Evalutor._eval` 方法。我们已经给出方法的模版，以及评估需要的参数：
-
-1. _sess_: Tensorflow Session 对象，其中网络构图已经载入Tensorflow
-2. _logits_: 模型输出
-3. _data\_x_: 训练样本
-4. _data\_y_: 训练标签
-
-NAS工程需要方法返回下列结果，方便我们进行网络竞赛淘汰：
-
-1. _target_: 网络的评估值，必须是浮点数
-2. _saver_: Tensorflow Saver 对象，保存训练模型
-3. _log_: 运行日志 (可以在memory/evaluator_log.txt中找到)
-
-> [evaluator.py](../evaluator.py) 已经给出图像识别任务的评估方法。
-> [evaluator_user.py](./../evaluator_user.py) 给出这个方法的模版。更详细的方法说明，可以参考下方[评估函数](user.md###评估函数)说明。
 
 ## 其他常见问题
 
