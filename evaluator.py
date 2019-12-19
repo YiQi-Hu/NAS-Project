@@ -21,7 +21,7 @@ class DataSet:
         self.NUM_CLASSES = 10
         self.NUM_EXAMPLES_FOR_TRAIN = 40000
         self.NUM_EXAMPLES_FOR_EVAL = 10000
-        self.task = "cifar10"
+        self.task = "cifar-10"
         self.data_path = '/home/amax/Desktop'
         return
 
@@ -135,9 +135,6 @@ class Evaluator:
         # Constants describing the training process.
         # Initial learning rate.
         self.INITIAL_LEARNING_RATE = 0.025
-        # Learning rate decay factor.
-        self.LEARNING_RATE_DECAY_FACTOR = 0.1
-        self.MOVING_AVERAGE_DECAY = 0.98
         self.batch_size = 50
         self.weight_decay = 0.0003
         self.momentum_rate = 0.9
@@ -504,8 +501,8 @@ class Evaluator:
                 l, acc_ = sess.run([loss, accuracy],
                                    feed_dict={data_x: batch_x, labels: batch_y, train_flag: False})
                 precision[ep] += acc_ / num_iter
-                sys.stdout.write("\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
-            sys.stdout.write("\n")
+                # sys.stdout.write("\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
+            # sys.stdout.write("\n")
 
             # early stop
             if ep > 5 and not retrain:
@@ -606,17 +603,13 @@ if __name__ == '__main__':
                  Cell('conv', 32, 3, 'relu')]
     network1 = NetworkItem(0, graph_full, cell_list, "")
     network2 = NetworkItem(1, graph_full, cell_list, "")
-    network3 = NetworkItem(2, graph_full, cell_list, "")
-    network4 = NetworkItem(3, graph_full, cell_list, "")
     e = eval.evaluate(network1, is_bestNN=True)
     print(e)
     eval.set_data_size(500)
     e = eval.evaluate(network2, [network1], is_bestNN=True)
-    eval.evaluate(network3, [network1, network2], is_bestNN=True)
-    eval.evaluate(network4, [network1, network2, network3], is_bestNN=True)
     print(e)
-    eval.set_epoch(1)
-    print(eval.retrain([network1, network2, network3, network4]))
+    eval.set_epoch(2)
+    print(eval.retrain([network1, network2]))
     # eval.add_data(5000)
     # print(eval._toposort([[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
     #       4, 5, 6, 8], [5, 7], [6, 7, 9, 10], [7, 9], [8], [9, 10], [10]]))
