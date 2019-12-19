@@ -7,6 +7,7 @@ import copy
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.client import timeline
 
 from base import Cell, NetworkItem
 from info_str import NAS_CONFIG
@@ -344,7 +345,7 @@ class Evaluator:
             Accuracy'''
         assert self.train_num >= self.batch_size
         tf.reset_default_graph()
-        self.block_num = len(pre_block) * NAS_CONFIG['nas_main']['repeat_search']
+        self.block_num = len(pre_block)
 
         # print("-" * 20, network.id, "-" * 20)
         # print(network.graph, network.cell_list, Network.pre_block)
@@ -356,14 +357,11 @@ class Evaluator:
         with tf.Session() as sess:
             data_x, data_y, block_input, train_flag = self._get_input(sess, pre_block, update_pre_weight)
 
-            for _ in range(NAS_CONFIG['nas_main']['repeat_search'] - 1):
-                graph_full = network.graph + [[]]
-                cell_list = network.cell_list + [Cell('pooling', 'max', 1)]
-                block_input = self._inference(block_input, graph_full, cell_list, train_flag)
-                self.block_num += 1
+            graph_full, cell_list = self._recode(network.graph, network.cell_list,
+                                                 NAS_CONFIG['nas_main']['repeat_search'])
             # a pooling layer for last repeat block
-            graph_full = network.graph + [[]]
-            cell_list = network.cell_list + [Cell('pooling', 'max', 2)]
+            graph_full = graph_full + [[]]
+            cell_list = cell_list + [Cell('pooling', 'max', 2)]
             logits = self._inference(block_input, graph_full, cell_list, train_flag)
 
             logits = tf.nn.dropout(logits, keep_prob=1.0)
@@ -382,40 +380,34 @@ class Evaluator:
     def retrain(self, pre_block):
         tf.reset_default_graph()
         assert self.train_num >= self.batch_size
-        self.block_num = len(pre_block) * NAS_CONFIG['nas_main']['repeat_search'] + 1
+        self.block_num = len(pre_block)
 
         retrain_log = "-" * 20 + "retrain" + "-" * 20 + '\n'
 
-        with tf.Session() as sess:
-            data_x, labels, logits, train_flag = self._get_input(sess, [])
+        data_x, labels, block_input, train_flag = self._get_input('', [])
+        for block in pre_block:
+            self.block_num += 1
+            cell_list = []
+            for cell in block.cell_list:
+                if cell.type == 'conv':
+                    cell_list.append(Cell(cell.type, cell.filter_size * 2, cell.kernel_size, cell.activation))
+                else:
+                    cell_list.append(cell)
+            # repeat search
+            graph_full, cell_list = self._recode(block.graph, block.cell_list, NAS_CONFIG['nas_main']['repeat_search'])
+            # add pooling layer only in last repeat block
+            cell_list.append(Cell('pooling', 'max', 2))
+            graph_full.append([])
+            retrain_log = retrain_log + str(graph_full) + str(cell_list) + '\n'
+            block_input = self._inference(block_input, graph_full, cell_list, train_flag)
 
-            for block in pre_block:
-                graph = block.graph + [[]]
-                cell_list = []
-                for cell in block.cell_list:
-                    if cell.type == 'conv':
-                        cell_list.append(
-                            Cell(cell.type, cell.filter_size * 2, cell.kernel_size, cell.activation))
-                    else:
-                        cell_list.append(cell)
-                cell_list.append(Cell('pooling', 'max', 1))
-                # repeat search
-                for _ in range(NAS_CONFIG['nas_main']['repeat_search'] - 1):
-                    retrain_log = retrain_log + str(graph) + str(cell_list) + '\n'
-                    logits = self._inference(logits, graph, cell_list, train_flag)
-                    self.block_num += 1
-                # add pooling layer only in last repeat block
-                cell_list[-1] = Cell('pooling', 'max', 2)
-                retrain_log = retrain_log + str(graph) + str(cell_list) + '\n'
-                logits = self._inference(logits, graph, cell_list, train_flag)
-                self.block_num += 1
+        logits = tf.nn.dropout(block_input, keep_prob=1.0)
+        # softmax
+        logits = self._makedense(logits, ('', [256, self.NUM_CLASSES], 'relu'))
 
-            logits = tf.nn.dropout(logits, keep_prob=1.0)
-            # softmax
-            logits = self._makedense(logits, ('', [256, self.NUM_CLASSES], 'relu'))
-
-            precision, _, log = self._eval(sess, data_x, labels, logits, train_flag, retrain=True)
-            retrain_log += log
+        sess = tf.Session()
+        precision, _, log = self._eval(sess, data_x, labels, logits, train_flag, retrain=True)
+        retrain_log += log
 
         NAS_LOG << ('eva', retrain_log)
         return float(precision)
@@ -446,6 +438,17 @@ class Evaluator:
             train_flag = tf.placeholder(tf.bool, name='train_flag')
             block_input = tf.identity(data_x)
         return data_x, data_y, block_input, train_flag
+
+    def _recode(self, graph_full, cell_list, repeat_num):
+        new_graph = [] + graph_full
+        new_cell_list = [] + cell_list
+        add = 0
+        for i in range(repeat_num - 1):
+            new_cell_list += cell_list
+            add += len(graph_full)
+            for sub_list in graph_full:
+                new_graph.append([x + add for x in sub_list])
+        return new_graph, new_cell_list
 
     def _eval(self, sess, data_x, labels, logits, train_flag, retrain=False):
         global_step = tf.Variable(
@@ -501,8 +504,8 @@ class Evaluator:
                 l, acc_ = sess.run([loss, accuracy],
                                    feed_dict={data_x: batch_x, labels: batch_y, train_flag: False})
                 precision[ep] += acc_ / num_iter
-                # sys.stdout.write("\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
-            # sys.stdout.write("\n")
+                sys.stdout.write("\r>> valid %d/%d loss %.4f acc %.4f" % (step, num_iter, l, acc_))
+            sys.stdout.write("\n")
 
             # early stop
             if ep > 5 and not retrain:
@@ -589,8 +592,8 @@ class Evaluator:
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
-    eval.set_data_size(5000)
-    eval.set_epoch(1)
+    eval.set_data_size(10000)
+    eval.set_epoch(10)
     # graph_full = [[1], [2], [3], []]
     # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
     #              Cell('pooling', 'max', 3)]
@@ -605,10 +608,10 @@ if __name__ == '__main__':
     network2 = NetworkItem(1, graph_full, cell_list, "")
     e = eval.evaluate(network1, is_bestNN=True)
     print(e)
-    eval.set_data_size(500)
+    eval.set_data_size(10000)
     e = eval.evaluate(network2, [network1], is_bestNN=True)
     print(e)
-    eval.set_epoch(2)
+    eval.set_epoch(5)
     print(eval.retrain([network1, network2]))
     # eval.add_data(5000)
     # print(eval._toposort([[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
