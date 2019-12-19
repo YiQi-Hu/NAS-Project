@@ -216,25 +216,24 @@ class Evaluator:
 
         return layer
 
-    def _makeconv(self, inputs, hplist, node, train_flag):
+    def _makeconv(self, x, hplist, node, train_flag):
         """Generates a convolutional layer according to information in hplist
         Args:
-        inputs: inputing data.
+        x: inputing data.
         hplist: hyperparameters for building this layer
         node: number of this cell
         Returns:
         tensor.
         """
         with tf.variable_scope('block' + str(self.block_num) + 'conv' + str(node)) as scope:
-            inputdim = inputs.shape[3]
+            inputdim = x.shape[3]
             kernel = self._get_variable(
                 'weights', shape=[hplist.kernel_size, hplist.kernel_size, inputdim, hplist.filter_size])
-            conv = tf.nn.conv2d(inputs, kernel, [1, 1, 1, 1], padding='SAME')
+            x = self._activation_layer(hplist.activation, x, scope)
+            x = tf.nn.conv2d(x, kernel, [1, 1, 1, 1], padding='SAME')
             biases = self._get_variable('biases', hplist.filter_size)
-            bn = self._batch_norm(tf.nn.bias_add(conv, biases), train_flag)
-            conv_layer = self._activation_layer(hplist.activation, bn, scope)
-
-        return conv_layer
+            x = self._batch_norm(tf.nn.bias_add(x, biases), train_flag)
+        return x
 
     def _makesep_conv(self, inputs, hplist, node, train_flag):
         with tf.variable_scope('block' + str(self.block_num) + 'conv' + str(node)) as scope:
@@ -521,8 +520,8 @@ class Evaluator:
             # print('precision = %.3f, cost time %.3f' %
             #       (precision[ep], float(time.time() - start_time)))
 
-        target = self._cal_multi_target(precision[-1], cost_time)
-        return target, saver, log
+        # target = self._cal_multi_target(precision[-1], cost_time)
+        return precision[-1], saver, log
 
     def _cal_accuracy(self, logits, labels):
         """
@@ -553,7 +552,9 @@ class Evaluator:
         return loss
 
     def _train_op(self, global_step, loss):
-        lr = tf.train.cosine_decay(self.INITIAL_LEARNING_RATE, global_step)
+        num_batches_per_epoch = self.train_num / self.batch_size
+        decay_steps = int(num_batches_per_epoch * self.epoch)
+        lr = tf.train.cosine_decay(self.INITIAL_LEARNING_RATE, global_step, decay_steps)
 
         # Build a Graph that trains the model with one batch of examples and
         # updates the model parameters.
@@ -564,9 +565,9 @@ class Evaluator:
 
     def _stats_graph(self):
         graph = tf.get_default_graph()
-        # flops = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.float_operation())
+        flops = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.float_operation())
         params = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.trainable_variables_parameter())
-        return 1, params.total_parameters
+        return flops.total_float_ops, params.total_parameters
 
     def _cal_multi_target(self, precision, time):
         flops, model_size = self._stats_graph()
@@ -630,4 +631,3 @@ if __name__ == '__main__':
     # e = eval.evaluate(network3, is_bestNN=True)
     # e=eval.train(network.graph_full,cellist)
     # print(e)
-    eval.retrain(pre_block)
