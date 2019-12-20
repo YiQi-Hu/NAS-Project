@@ -2,6 +2,27 @@
 
 -------------------------
 
+## 概览
+
+**NAS** (Neural Architecture Search) 算法，一种用于自动搜索比人工设计表现更优异的神经网络的自动机器学习算法。
+
+工程主要分为五个部份：
+
+1. Enumerater: 穷举网络结构，产生多个备选网络。
+2. Predictor: 根据人类的先验知识，初始化合适的网络节点配置。
+3. Evaluator: 评估网络表现结果，用来判断网络结构的优劣。
+4. Sampler, Optimizer: 节点配置采样和优化，提升网络的表现。
+
+工程总控的总体搜索过程：
+
+1. 初始化备选网络池 (Enumerater, Predictor)
+2. 评估网络结构的表现 (Evaluator)
+3. 根据评估结果，进行淘汰竞赛，从网络池中删去劣等的网络结构
+4. 对于存活的网络，采样和优化网络节点配置 (Sampler, Optimizer)
+5. 反复竞赛之后，最终将挑选出优胜的网络
+6. 以优胜的网络为前置网络模块，接在下一轮竞赛的网络结构前面。
+7. NAS算法得到以优胜的网络组成链状网络模块，作为最佳网络结构返回
+
 ## 运行 NAS 算法
 
 创建 Nas 总控对象，run 方法最终返回最佳网络结果。
@@ -20,11 +41,11 @@ best_nn = nas.run()
 为了在不同的具体任务上运行 Nas 算法，根据具体任务内容，需要补完
 工程的代码模版，主要分为三个部份：
 
-1. 修改数据集
-2. 实现评估方法
-3. 添加网络节点操作 (可选)
+1. 修改数据集和评估参数
+2. 实现网络评估方法
+3. 配置搜索空间 (可选)
 
-### 修改数据集和数据集参数
+### 修改数据集和评估参数
 
 根据具体任务，设置 `Evaluator.__init__` 参数：
 
@@ -38,27 +59,27 @@ best_nn = nas.run()
 
 > Todo
 
-### 实现评估方法
+### 实现网络评估方法
 
 请实现 `Evalutor._eval` 方法。我们已经给出方法的模版，以及评估需要的参数：
 
 1. _sess_: Tensorflow Session 对象，其中网络构图已经载入Tensorflow
-2. _logits_: 模型输出 (Tensor 类型)
-3. _data\_x_: 训练样本 (Tensorflow Placeholder 类型)
-4. _data\_y_: 训练标签 (Tensorflow Placeholder 类型)
+2. _logits_: 模型输出 (tf.Tensor对象)
+3. _data\_x_: 训练样本 (tf.placeholder对象)
+4. _data\_y_: 训练标签 (tf.placeholder对象)
 
 NAS工程需要方法返回下列结果，方便我们进行网络竞赛淘汰：
 
 1. _target_: 网络的评估值，必须是浮点数
-2. _saver_: Tensorflow Saver 对象，保存训练模型
+2. _saver_: tf.Saver对象，保存训练模型
 3. _log_: 运行日志 (内容可以在memory/evaluator_log.txt中找到)
 
 > [evaluator.py](../evaluator.py) 已经给出图像识别任务的评估方法。
 > [evaluator_user.py](./../evaluator_user.py) 给出这个方法的模版。更详细的方法说明，可以参考下方[评估函数](user.md###评估函数)说明。
 
-### 添加网络节点操作
+### 配置搜索空间
 
-如果想要自定义特定的网络节点操作配置，请完成以下几点：
+如果想要配置搜索空间，需要添加自定义特定的网络节点操作配置。请完成以下几点：
 
 1. 修改 `NAS_CONFIG['spl']['space']` 搜索空间
 2. 修改 `Evaluator._make_layer` 转换成具体网络节点，并且实现自定义操作的函数
@@ -88,7 +109,7 @@ NAS工程需要方法返回下列结果，方便我们进行网络竞赛淘汰�
 }
 ```
 
-> **注意**：当参数是**1维列表**，代表参数的搜索空间；当参数是**2维列表**，代表**模块**的参数搜索空间(按照列表次序)
+> **注意**：当参数是**1维列表**，代表**全体网络节点**的参数搜索空间；当参数是**2维列表**，子表代表**单个网络模块**的参数搜索空间(按照列表次序)。
 
 接下来，只需要简单地放入配置参数文件 [nas_config.json](../nas_config.json)/spl/space 底下
 
@@ -135,13 +156,13 @@ def _makesep_conv(self, inputs, hplist, node):
     return sep_conv_layer
 ```
 
-> **Separable Convolution** 已经在NAS工程中实现了，可以用来参考。
+> **Separable Convolution** 已经在NAS工程中实现，请作为参考。
 
 ## 其他常见问题
 
 ### 如何控制 NAS 算法运行细节？
 
-可以透过修改配置参数，让NAS工程可以运行在不同环境执行不同任务。
+可以透过修改配置参数，让NAS工程可以在不同环境执行不同任务。
 
 下列为用户相关的参数：
 
@@ -165,7 +186,7 @@ def _makesep_conv(self, inputs, hplist, node):
 
 ### 如何找到工程日志文件？
 
-所有日志文件都放在工程文件夹memory：
+所有日志文件都放在工程文件夹 *memory：*
 
 1. 评估过程 evaluator_log.txt
 2. 子进程 subproc_log.txt
