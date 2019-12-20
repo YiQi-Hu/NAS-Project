@@ -28,15 +28,21 @@ best_nn = nas.run()
 
 根据具体任务，设置 `Evaluator.__init__` 参数：
 
-1. *INPUT_SHAPE* 图片尺寸
-2. *OUTPUT_SHAPE* 分类数量/输出张量的最后一维大小
-3. *NUM_EXAMPLES_FOR_TRAIN* 训练数据集大小
+1. *input_shape* 图片尺寸
+2. *output_shape* 分类数量/输出张量的最后一维大小
+3. *batch_size* 训练数据集大小
 4. *train_data* 训练样本
 5. *train_label* 训练标签
 6. *valid_data* 评估样本
 7. *valid_label* 评估标签
+8. *model_path* 模型路径
 
-> Todo
+> **注意**: 请勿更改下列参数 (NAS工程相关)
+>
+> 1. *os.environ\["TF_CPP_MIN_LOG_LEVEL"\]*
+> 2. *train_num*
+> 3. *block_num* 
+> 4. *log*
 
 ### 实现评估方法
 
