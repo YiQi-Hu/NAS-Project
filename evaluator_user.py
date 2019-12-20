@@ -10,10 +10,6 @@ class DataSet:
     # TODO for dataset changing please rewrite this class's "inputs" function and "process" function
 
     def __init__(self):
-        self.IMAGE_SIZE = 32
-        self.NUM_CLASSES = 10
-        self.NUM_EXAMPLES_FOR_TRAIN = 40000
-        self.NUM_EXAMPLES_FOR_EVAL = 10000
         self.data_path = "./data"
         return
 
@@ -23,7 +19,7 @@ class DataSet:
                 Returns:
                   train_data, train_label, valid_data, valid_label, test_data, test_label
         '''
-        return train_data, train_label, valid_data, valid_label, test_data, test_label
+        return train_data, train_label, test_data, test_label
 
     def process(self, x):
         return x
@@ -31,15 +27,20 @@ class DataSet:
 
 class Evaluator:
     def __init__(self):
+        # don't change the parameters below
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-        self.batch_size = 64
-        self.model_path = "./model"
-
         self.train_num = 0
         self.block_num = 0
         self.log = ''
-        self.train_data, self.train_label, self.valid_data, self.valid_label, \
-        self.test_data, self.test_label = DataSet().inputs()
+
+        # change the value of parameters below
+        self.batch_size = 64
+        self.input_shape = []
+        self.output_shape = []
+        self.model_path = "./model"
+        self.train_data, self.train_label, self.test_data, self.test_label = DataSet().inputs()
+        return
+
 
     def set_epoch(self, e):
         self.epoch = e
@@ -55,22 +56,18 @@ class Evaluator:
           Logits.'''
         topo_order = self._toposort(graph_part)
         nodelen = len(graph_part)
-        # input list for every cell in network
         inputs = [images for _ in range(nodelen)]
-        # bool list for whether this cell has already got input or not
         getinput = [False for _ in range(nodelen)]
         getinput[0] = True
 
         for node in topo_order:
             layer = self._make_layer(inputs[node], cell_list[node], node, train_flag)
-            # update inputs information of the cells below this cell
             for j in graph_part[node]:
-                if getinput[j]:  # if this cell already got inputs from other cells precedes it
+                if getinput[j]:
                     inputs[j] = self._pad(inputs[j], layer)
                 else:
                     inputs[j] = layer
                     getinput[j] = True
-
         # give last layer a name
         last_layer = tf.identity(layer, name="last_layer" + str(self.block_num))
         return last_layer
@@ -106,7 +103,7 @@ class Evaluator:
         elif cell.type == 'pooling':
             layer = self._makepool(inputs, cell)
         elif cell.type == 'sep_conv':
-            layer = self._makeconv(inputs, cell, node, train_flag)
+            layer = self._makesep_conv(inputs, cell, node, train_flag)
         # TODO add any other new operations here
         #  use the form as shown above
         #  '''elif cell.type == 'operation_name':
@@ -133,39 +130,34 @@ class Evaluator:
         # TODO add your function here if any new operation was added, see _makeconv as an example
         return layer
 
-    def _makeconv(self, inputs, hplist, node, train_flag):
+    def _makeconv(self, x, hplist, node, train_flag):
         """Generates a convolutional layer according to information in hplist
         Args:
-            inputs: inputing data.
+            x: inputing data.
             hplist: hyperparameters for building this layer
             node: int, the index of this operation
         Returns:
             conv_layer: the output tensor
         """
         with tf.variable_scope('conv' + str(node) + 'block' + str(self.block_num)) as scope:
-            inputdim = inputs.shape[3]
-            kernel = self._get_variable(
-                'weights', shape=[hplist.kernel_size, hplist.kernel_size, inputdim, hplist.filter_size])
-            conv = tf.nn.conv2d(inputs, kernel, [1, 1, 1, 1], padding='SAME')
+            inputdim = x.shape[3]
+            kernel = self._get_variable('weights',
+                                        shape=[hplist.kernel_size, hplist.kernel_size, inputdim, hplist.filter_size])
+            x = self._activation_layer(hplist.activation, x, scope)
+            x = tf.nn.conv2d(x, kernel, [1, 1, 1, 1], padding='SAME')
             biases = self._get_variable('biases', hplist.filter_size)
-            bn = self._batch_norm(tf.nn.bias_add(conv, biases), train_flag)
-            conv_layer = self._activation_layer(hplist.activation, bn, scope)
-
-        return conv_layer
+            x = self._batch_norm(tf.nn.bias_add(x, biases), train_flag)
+        return x
 
     def _makesep_conv(self, inputs, hplist, node, train_flag):
         with tf.variable_scope('conv' + str(node) + 'block' + str(self.block_num)) as scope:
             inputdim = inputs.shape[3]
-            kernel = self._get_variable(
-                'weights', shape=[hplist.kernel_size, hplist.kernel_size, inputdim, 1])
-            pfilter = self._get_variable(
-                'pointwise_filter', [1, 1, inputdim, hplist.filter_size])
-            conv = tf.nn.separable_conv2d(
-                inputs, kernel, pfilter, strides=[1, 1, 1, 1], padding='SAME')
+            dfilter = self._get_variable('weights', shape=[hplist.kernel_size, hplist.kernel_size, inputdim, 1])
+            pfilter = self._get_variable('pointwise_filter', [1, 1, inputdim, hplist.filter_size])
+            conv = tf.nn.separable_conv2d(inputs, dfilter, pfilter, strides=[1, 1, 1, 1], padding='SAME')
             biases = self._get_variable('biases', hplist.filter_size)
             bn = self._batch_norm(tf.nn.bias_add(conv, biases), train_flag)
             conv_layer = self._activation_layer(hplist.activation, bn, scope)
-
         return conv_layer
 
     def _batch_norm(self, input, train_flag):
@@ -228,6 +220,7 @@ class Evaluator:
                 weights = self._get_variable('weights', shape=[inputs.shape[-1], neural_num])
                 biases = self._get_variable('biases', [neural_num])
                 mul = tf.matmul(inputs, weights) + biases
+                # TODO ????
                 if neural_num == DataSet().NUM_CLASSES:
                     local3 = self._activation_layer('', mul, scope)
                 else:
@@ -260,39 +253,36 @@ class Evaluator:
             update_pre_weight: Symbol for indicating whether to update previous blocks' weight, default by False.
         Returns:
             Accuracy'''
-        # TODO repeat search in NAS_CONFIG has been moved to nas module
         assert self.train_num >= self.batch_size
         tf.reset_default_graph()
-        self.block_num = len(pre_block) * NAS_CONFIG['eva']['repeat_search']
+        self.block_num = len(pre_block)
 
         self.log = "-" * 20 + str(network.id) + "-" * 20 + '\n'
         for block in pre_block:
-            self.log = self.log + str(block.graph) + str(block.cell_list)
+            self.log = self.log + str(block.graph) + str(block.cell_list) + '\n'
         self.log = self.log + str(network.graph) + str(network.cell_list) + '\n'
 
-        network.graph.append([])
-        network.cell_list.append(Cell('pooling', 'max', 2))
-
         with tf.Session() as sess:
-            x, labels, input, train_flag = self._get_input(sess, pre_block, update_pre_weight)
+            data_x, data_y, block_input, train_flag = self._get_input(sess, pre_block, update_pre_weight)
 
-            logits = self._inference(input, network.graph, network.cell_list, train_flag)
-            for _ in range(NAS_CONFIG['eva']['repeat_search'] - 1):
-                self.block_num += 1
-                logits = self._inference(logits, network.graph, network.cell_list, train_flag)
+            graph_full, cell_list = self._recode(network.graph, network.cell_list,
+                                                 NAS_CONFIG['nas_main']['repeat_search'])
+            # a pooling layer for last repeat block
+            graph_full = graph_full + [[]]
+            cell_list = cell_list + [Cell('pooling', 'max', 2)]
+            logits = self._inference(block_input, graph_full, cell_list, train_flag)
 
             logits = tf.nn.dropout(logits, keep_prob=1.0)
-            logits = self._makedense(logits, ('', [DataSet().NUM_CLASSES], ''))
+            # TODO dense layer?
+            logits = self._makedense(logits, ('', [self.output_shape[-1]], ''))
 
-            precision, saver, log = self._eval(sess, x, labels, logits, train_flag)
+            precision, saver, log = self._eval(sess, data_x, data_y, logits, train_flag)
             self.log += log
 
             if is_bestNN:  # save model
                 saver.save(sess, os.path.join(
                     self.model_path, 'model' + str(network.id)))
 
-        network.graph.pop()
-        network.cell_list.pop()
         NAS_LOG << ('eva', self.log)
         return precision
 
@@ -314,13 +304,22 @@ class Evaluator:
                 input = tf.stop_gradient(input, name="stop_gradient")
         # if it's the first block
         else:
-            x = tf.placeholder(
-                tf.float32, [self.batch_size, DataSet().IMAGE_SIZE, DataSet().IMAGE_SIZE, 3], name='input')
-            labels = tf.placeholder(
-                tf.int32, [self.batch_size, DataSet().NUM_CLASSES], name="label")
+            x = tf.placeholder(tf.float32, self.input_shape, name='input')
+            labels = tf.placeholder(tf.int32, self.output_shape, name="label")
             train_flag = tf.placeholder(tf.bool, name='train_flag')
             input = tf.identity(x)
         return x, labels, input, train_flag
+
+    def _recode(self, graph_full, cell_list, repeat_num):
+        new_graph = [] + graph_full
+        new_cell_list = [] + cell_list
+        add = 0
+        for i in range(repeat_num - 1):
+            new_cell_list += cell_list
+            add += len(graph_full)
+            for sub_list in graph_full:
+                new_graph.append([x + add for x in sub_list])
+        return new_graph, new_cell_list
 
     def _eval(self, sess, logits, data_x, data_y, *args, **kwargs):
         # TODO change here to run training step and evaluation step
@@ -380,56 +379,24 @@ class Evaluator:
         return target
 
     def set_data_size(self, num):
-        if num > DataSet().NUM_EXAMPLES_FOR_TRAIN or num < 0:
-            num = DataSet().NUM_EXAMPLES_FOR_TRAIN
-            self.train_num = DataSet().NUM_EXAMPLES_FOR_TRAIN
+        if num > len(list(self.train_label)) or num < 0:
+            num = len(list(self.train_label))
             print('Warning! Data size has been changed to', num, ', all data is loaded.')
-        else:
-            self.train_num = num
+        self.train_num = num
         return
 
 
 if __name__ == '__main__':
-
     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
     eval.set_data_size(50000)
     eval.set_epoch(10)
-    # graph_full = [[1], [2], [3], []]
-    # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
-    #              Cell('pooling', 'max', 3)]
-    # lenet = NetworkItem(0, graph_full, cell_list, "")
-    # e = eval.evaluate(lenet, [], is_bestNN=True)
-    # Network.pre_block.append(lenet)
 
     graph_full = [[1, 3], [2, 3], [3], [4]]
     cell_list = [Cell('conv', 24, 3, 'relu'), Cell('conv', 32, 3, 'relu'), Cell('conv', 24, 3, 'relu'),
                  Cell('conv', 32, 3, 'relu')]
     network1 = NetworkItem(0, graph_full, cell_list, "")
-    # network2 = NetworkItem(1, graph_full, cell_list, "")
+    network2 = NetworkItem(1, graph_full, cell_list, "")
     e = eval.evaluate(network1, is_bestNN=True)
-    # eval.set_data_size(500)
-    # e = eval.evaluate(network2, [network1], is_bestNN=True)
-    # eval.set_epoch(2)
-    # eval.retrain([network1, network2])
-    # eval.add_data(5000)
-    # print(eval._toposort([[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
-    #       4, 5, 6, 8], [5, 7], [6, 7, 9, 10], [7, 9], [8], [9, 10], [10]]))
-    # cellist=[('conv', 128, 1, 'relu'), ('conv', 32, 1, 'relu'), ('conv', 256, 1, 'relu'), ('pooling', 'max', 2), ('pooling', 'global', 3), ('conv', 32, 1, 'relu')]
-    # cellist=[('pooling', 'global', 2), ('pooling', 'max', 3), ('conv', 21, 32, 'leakyrelu'), ('conv', 16, 32, 'leakyrelu'), ('pooling', 'max', 3), ('conv', 16, 32, 'leakyrelu')]
-    # graph_part = [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17], []]
-    # cell_list = [('conv', 64, 3, 'relu'), ('conv', 64, 3, 'relu'), ('pooling', 'max', 2), ('conv', 128, 3, 'relu'),
-    #              ('conv', 128, 3, 'relu'), ('pooling', 'max', 2), ('conv', 256, 3, 'relu'),
-    #              ('conv', 256, 3, 'relu'), ('conv', 256, 3, 'relu'), ('pooling', 'max', 2),
-    #              ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
-    #              ('pooling', 'max', 2), ('conv', 512, 3, 'relu'), ('conv', 512, 3, 'relu'),
-    #              ('conv', 512, 3, 'relu'), ('dense', [4096, 4096, 1000], 'relu')]
-    # pre_block = [network]
-    # Network.pre_block.append(network1)
-    # network2 = NetworkItem(1, graph_full, cell_list, "")
-    # e = eval.evaluate(network2, is_bestNN=True)
-    # Network.pre_block.append(network2)
-    # network3 = NetworkItem(2, graph_full, cell_list, "")
-    # e = eval.evaluate(network3, is_bestNN=True)
-    # e=eval.train(network.graph_full,cellist)
-    # print(e)
+    eval.set_data_size(500)
+    e = eval.evaluate(network2, [network1], is_bestNN=True)
