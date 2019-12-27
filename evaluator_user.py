@@ -253,14 +253,19 @@ class Evaluator:
             self.log = self.log + str(block.graph) + str(block.cell_list) + '\n'
         self.log = self.log + str(network.graph) + str(network.cell_list) + '\n'
 
-        with tf.Session() as sess:
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        with tf.Session(config=config) as sess:
             data_x, data_y, block_input, train_flag = self._get_input(sess, pre_block, update_pre_weight)
 
             graph_full, cell_list = self._recode(network.graph, network.cell_list,
-                                                 NAS_CONFIG['nas_main']['repeat_search'])
-            # a pooling layer for last repeat block
+                                                 NAS_CONFIG['nas_main']['repeat_num'])
             graph_full = graph_full + [[]]
-            cell_list = cell_list + [Cell('pooling', 'max', 2)]
+            if NAS_CONFIG['nas_main']['link_node']:
+                # a pooling layer for last repeat block
+                cell_list = cell_list + [Cell('pooling', 'max', 2)]
+            else:
+                cell_list = cell_list + [Cell('id', 'max', 1)]
             logits = self._inference(block_input, graph_full, cell_list, train_flag)
 
             precision, log = self._eval(sess, logits, data_x, data_y, train_flag)
