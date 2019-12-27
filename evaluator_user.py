@@ -228,19 +228,12 @@ class Evaluator:
 
     def _pad(self, inputs, layer):
         # padding
-        a = int(layer.shape[1])
-        b = int(inputs.shape[1])
-        pad = abs(a - b)
-        if layer.shape[1] > inputs.shape[1]:
-            tmp = tf.pad(inputs, [[0, 0], [0, pad], [0, pad], [0, 0]])
-            inputs = tf.concat([tmp, layer], 3)
-        elif layer.shape[1] < inputs.shape[1]:
-            tmp = tf.pad(layer, [[0, 0], [0, pad], [0, pad], [0, 0]])
-            inputs = tf.concat([inputs, tmp], 3)
-        else:
-            inputs = tf.concat([inputs, layer], 3)
-
-        return inputs
+        a = tf.shape(layer)[1]
+        b = tf.shape(inputs)[1]
+        pad = tf.abs(tf.subtract(a, b))
+        output = tf.where(tf.greater(a, b), tf.concat([tf.pad(inputs, [[0, 0], [0, pad], [0, pad], [0, 0]]), layer], 3),
+                          tf.concat([inputs, tf.pad(layer, [[0, 0], [0, pad], [0, pad], [0, 0]])], 3))
+        return output
 
     def evaluate(self, network, pre_block=[], is_bestNN=False, update_pre_weight=False):
         '''Method for evaluate the given network.
