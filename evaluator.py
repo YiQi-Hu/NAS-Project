@@ -7,6 +7,7 @@ import copy
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.client import timeline
 
 from base import Cell, NetworkItem
 from info_str import NAS_CONFIG
@@ -16,9 +17,9 @@ from data import cifar10
 
 class DataSet:
 
-    def __init__(self):
-        self.IMAGE_SIZE = 32
-        self.NUM_CLASSES = 10
+    def __init__(self, image_size=32, num_class=10):
+        self.IMAGE_SIZE = image_size
+        self.NUM_CLASSES = num_class
         self.NUM_EXAMPLES_FOR_TRAIN = 40000
         self.NUM_EXAMPLES_FOR_EVAL = 10000
         self.task = "cifar-10"
@@ -126,24 +127,24 @@ class DataSet:
 
 class Evaluator:
     def __init__(self):
+        image_size = 32
+        num_class = 10
+        self.data_set = DataSet(image_size, num_class)
+        # don't change the parameters below
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-        # Global constants describing the CIFAR-10 data set.
-        self.IMAGE_SIZE = 32
-        self.NUM_CLASSES = 10
-        self.NUM_EXAMPLES_FOR_TRAIN = 40000
-        self.NUM_EXAMPLES_FOR_EVAL = 10000
-        # Constants describing the training process.
-        # Initial learning rate.
-        self.INITIAL_LEARNING_RATE = 0.025
-        self.batch_size = 50
-        self.weight_decay = 0.0003
-        self.momentum_rate = 0.9
-        self.model_path = './model'
-        self.train_num = 0
         self.block_num = 0
         self.log = ''
-        self.train_data, self.train_label, self.valid_data, self.valid_label, \
-        self.test_data, self.test_label = DataSet().inputs()
+        self.model_path = "./model"
+        # Initial learning rate.
+
+        # change the value of parameters below
+        self.batch_size = 50
+        self.input_shape = [self.batch_size, image_size, image_size, 3]
+        self.output_shape = [self.batch_size, num_class]
+        self.train_data, self.train_label, self.valid_data, self.valid_label, self.test_data, self.test_label = self.data_set.inputs()
+        self.INITIAL_LEARNING_RATE = 0.025
+        self.weight_decay = 0.0003
+        self.momentum_rate = 0.9
 
     def set_epoch(self, e):
         self.epoch = e
@@ -216,25 +217,24 @@ class Evaluator:
 
         return layer
 
-    def _makeconv(self, inputs, hplist, node, train_flag):
+    def _makeconv(self, x, hplist, node, train_flag):
         """Generates a convolutional layer according to information in hplist
         Args:
-        inputs: inputing data.
+        x: inputing data.
         hplist: hyperparameters for building this layer
         node: number of this cell
         Returns:
         tensor.
         """
         with tf.variable_scope('block' + str(self.block_num) + 'conv' + str(node)) as scope:
-            inputdim = inputs.shape[3]
+            inputdim = x.shape[3]
             kernel = self._get_variable(
                 'weights', shape=[hplist.kernel_size, hplist.kernel_size, inputdim, hplist.filter_size])
-            conv = tf.nn.conv2d(inputs, kernel, [1, 1, 1, 1], padding='SAME')
+            x = self._activation_layer(hplist.activation, x, scope)
+            x = tf.nn.conv2d(x, kernel, [1, 1, 1, 1], padding='SAME')
             biases = self._get_variable('biases', hplist.filter_size)
-            bn = self._batch_norm(tf.nn.bias_add(conv, biases), train_flag)
-            conv_layer = self._activation_layer(hplist.activation, bn, scope)
-
-        return conv_layer
+            x = self._batch_norm(tf.nn.bias_add(x, biases), train_flag)
+        return x
 
     def _makesep_conv(self, inputs, hplist, node, train_flag):
         with tf.variable_scope('block' + str(self.block_num) + 'conv' + str(node)) as scope:
@@ -311,7 +311,7 @@ class Evaluator:
                 weights = self._get_variable('weights', shape=[inputs.shape[-1], neural_num])
                 biases = self._get_variable('biases', [neural_num])
                 mul = tf.matmul(inputs, weights) + biases
-                if neural_num == self.NUM_CLASSES:
+                if neural_num == self.output_shape[-1]:
                     local3 = self._activation_layer('', mul, scope)
                 else:
                     local3 = self._activation_layer(hplist[2], mul, scope)
@@ -345,7 +345,7 @@ class Evaluator:
             Accuracy'''
         assert self.train_num >= self.batch_size
         tf.reset_default_graph()
-        self.block_num = len(pre_block) * NAS_CONFIG['nas_main']['repeat_search']
+        self.block_num = len(pre_block)
 
         # print("-" * 20, network.id, "-" * 20)
         # print(network.graph, network.cell_list, Network.pre_block)
@@ -354,24 +354,24 @@ class Evaluator:
             self.log = self.log + str(block.graph) + str(block.cell_list) + '\n'
         self.log = self.log + str(network.graph) + str(network.cell_list) + '\n'
 
+
         with tf.Session() as sess:
             data_x, data_y, block_input, train_flag = self._get_input(sess, pre_block, update_pre_weight)
 
-            for _ in range(NAS_CONFIG['nas_main']['repeat_search'] - 1):
-                graph_full = network.graph + [[]]
-                cell_list = network.cell_list + [Cell('pooling', 'max', 1)]
-                block_input = self._inference(block_input, graph_full, cell_list, train_flag)
-                self.block_num += 1
+            graph_full, cell_list = self._recode(network.graph, network.cell_list,
+                                                 NAS_CONFIG['nas_main']['repeat_search'])
             # a pooling layer for last repeat block
-            graph_full = network.graph + [[]]
-            cell_list = network.cell_list + [Cell('pooling', 'max', 2)]
+            graph_full = graph_full + [[]]
+            cell_list = cell_list + [Cell('pooling', 'max', 2)]
             logits = self._inference(block_input, graph_full, cell_list, train_flag)
 
             logits = tf.nn.dropout(logits, keep_prob=1.0)
-            logits = self._makedense(logits, ('', [self.NUM_CLASSES], ''))
+            logits = self._makedense(logits, ('', [self.output_shape[-1]], ''))
 
-            precision, saver, log = self._eval(sess, data_x, data_y, logits, train_flag)
+            precision, log = self._eval(sess, data_x, data_y, logits, train_flag)
             self.log += log
+
+            saver = tf.train.Saver(tf.global_variables())
 
             if is_bestNN:  # save model
                 saver.save(sess, os.path.join(
@@ -382,41 +382,35 @@ class Evaluator:
 
     def retrain(self, pre_block):
         tf.reset_default_graph()
-        assert self.train_num >= self.batch_size
-        self.block_num = len(pre_block) * NAS_CONFIG['nas_main']['repeat_search'] + 1
+        self.train_num = 50000
+        self.block_num = len(pre_block)
 
         retrain_log = "-" * 20 + "retrain" + "-" * 20 + '\n'
 
-        with tf.Session() as sess:
-            data_x, labels, logits, train_flag = self._get_input(sess, [])
+        data_x, labels, block_input, train_flag = self._get_input('', [])
+        for block in pre_block:
+            self.block_num += 1
+            cell_list = []
+            for cell in block.cell_list:
+                if cell.type == 'conv':
+                    cell_list.append(Cell(cell.type, cell.filter_size * 2, cell.kernel_size, cell.activation))
+                else:
+                    cell_list.append(cell)
+            # repeat search
+            graph_full, cell_list = self._recode(block.graph, block.cell_list, NAS_CONFIG['nas_main']['repeat_search'])
+            # add pooling layer only in last repeat block
+            cell_list.append(Cell('pooling', 'max', 2))
+            graph_full.append([])
+            retrain_log = retrain_log + str(graph_full) + str(cell_list) + '\n'
+            block_input = self._inference(block_input, graph_full, cell_list, train_flag)
 
-            for block in pre_block:
-                graph = block.graph + [[]]
-                cell_list = []
-                for cell in block.cell_list:
-                    if cell.type == 'conv':
-                        cell_list.append(
-                            Cell(cell.type, cell.filter_size * 2, cell.kernel_size, cell.activation))
-                    else:
-                        cell_list.append(cell)
-                cell_list.append(Cell('pooling', 'max', 1))
-                # repeat search
-                for _ in range(NAS_CONFIG['nas_main']['repeat_search'] - 1):
-                    retrain_log = retrain_log + str(graph) + str(cell_list) + '\n'
-                    logits = self._inference(logits, graph, cell_list, train_flag)
-                    self.block_num += 1
-                # add pooling layer only in last repeat block
-                cell_list[-1] = Cell('pooling', 'max', 2)
-                retrain_log = retrain_log + str(graph) + str(cell_list) + '\n'
-                logits = self._inference(logits, graph, cell_list, train_flag)
-                self.block_num += 1
+        logits = tf.nn.dropout(block_input, keep_prob=1.0)
+        # softmax
+        logits = self._makedense(logits, ('', [256, self.output_shape[-1]], 'relu'))
 
-            logits = tf.nn.dropout(logits, keep_prob=1.0)
-            # softmax
-            logits = self._makedense(logits, ('', [256, self.NUM_CLASSES], 'relu'))
-
-            precision, _, log = self._eval(sess, data_x, labels, logits, train_flag, retrain=True)
-            retrain_log += log
+        sess = tf.Session()
+        precision, log = self._eval(sess, data_x, labels, logits, train_flag, retrain=True)
+        retrain_log += log
 
         NAS_LOG << ('eva', retrain_log)
         return float(precision)
@@ -440,13 +434,22 @@ class Evaluator:
                 block_input = tf.stop_gradient(block_input, name="stop_gradient")
         # if it's the first block
         else:
-            data_x = tf.placeholder(
-                tf.float32, [self.batch_size, self.IMAGE_SIZE, self.IMAGE_SIZE, 3], name='input')
-            data_y = tf.placeholder(
-                tf.int32, [self.batch_size, self.NUM_CLASSES], name="label")
+            data_x = tf.placeholder(tf.float32, self.input_shape, name='input')
+            data_y = tf.placeholder(tf.int32, self.output_shape, name="label")
             train_flag = tf.placeholder(tf.bool, name='train_flag')
             block_input = tf.identity(data_x)
         return data_x, data_y, block_input, train_flag
+
+    def _recode(self, graph_full, cell_list, repeat_num):
+        new_graph = [] + graph_full
+        new_cell_list = [] + cell_list
+        add = 0
+        for i in range(repeat_num - 1):
+            new_cell_list += cell_list
+            add += len(graph_full)
+            for sub_list in graph_full:
+                new_graph.append([x + add for x in sub_list])
+        return new_graph, new_cell_list
 
     def _eval(self, sess, data_x, labels, logits, train_flag, retrain=False):
         global_step = tf.Variable(
@@ -455,7 +458,6 @@ class Evaluator:
         loss = self._loss(labels, logits)
         train_op = self._train_op(global_step, loss)
 
-        saver = tf.train.Saver(tf.global_variables())
         sess.run(tf.global_variables_initializer())
 
         if retrain:
@@ -463,7 +465,7 @@ class Evaluator:
                 (np.array(self.train_data), np.array(self.valid_data)), axis=0).tolist()
             self.train_label = np.concatenate(
                 (np.array(self.train_label), np.array(self.valid_label)), axis=0).tolist()
-            max_steps = (self.NUM_EXAMPLES_FOR_TRAIN + self.NUM_EXAMPLES_FOR_EVAL) // self.batch_size
+            max_steps = len(list(self.train_label)) // self.batch_size
             test_data = copy.deepcopy(self.test_data)
             test_label = copy.deepcopy(self.test_label)
             num_iter = len(test_label) // self.batch_size
@@ -471,7 +473,7 @@ class Evaluator:
             max_steps = self.train_num // self.batch_size
             test_data = copy.deepcopy(self.valid_data)
             test_label = copy.deepcopy(self.valid_label)
-            num_iter = self.NUM_EXAMPLES_FOR_EVAL // self.batch_size
+            num_iter = len(self.valid_label) // self.batch_size
 
         log = ''
         cost_time = 0
@@ -489,7 +491,7 @@ class Evaluator:
                 _, loss_value, acc = sess.run([train_op, loss, accuracy],
                                               feed_dict={data_x: batch_x, labels: batch_y, train_flag: True})
                 if np.isnan(loss_value):
-                    return [-1], saver, log
+                    return -1, log
                 # sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" % (step, max_steps, loss_value, acc))
             # sys.stdout.write("\n")
 
@@ -507,22 +509,21 @@ class Evaluator:
 
             # early stop
             if ep > 5 and not retrain:
-                if precision[ep] < 1.2 / self.NUM_CLASSES:
+                if precision[ep] < 1.2 / DataSet().NUM_CLASSES:
                     precision = [-1]
                     break
-                if 2 * precision[ep] - precision[ep - 5] - precision[ep - 1] < 0.001 / self.NUM_CLASSES:
+                if 2 * precision[ep] - precision[ep - 5] - precision[ep - 1] < 0.001 / DataSet().NUM_CLASSES:
                     precision = precision[:ep]
                     log += 'early stop at %d epoch\n' % ep
                     break
 
             cost_time += (float(time.time() - start_time)) / self.epoch
-            log += 'epoch %d: precision = %.3f, cost time %.3f\n' % (
-                ep, precision[ep], float(time.time() - start_time))
+            log += 'epoch %d: precision = %.3f, cost time %.3f\n' % (ep, precision[ep], float(time.time() - start_time))
             # print('precision = %.3f, cost time %.3f' %
             #       (precision[ep], float(time.time() - start_time)))
 
-        target = self._cal_multi_target(precision[-1], cost_time)
-        return target, saver, log
+        # target = self._cal_multi_target(precision[-1], cost_time)
+        return precision[-1], log
 
     def _cal_accuracy(self, logits, labels):
         """
@@ -533,8 +534,7 @@ class Evaluator:
             Returns:
                 Target tensor of type float.
         """
-        correct_prediction = tf.equal(
-            tf.argmax(logits, 1), tf.argmax(labels, 1))
+        correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(labels, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         return accuracy
 
@@ -553,33 +553,35 @@ class Evaluator:
         return loss
 
     def _train_op(self, global_step, loss):
-        lr = tf.train.cosine_decay(self.INITIAL_LEARNING_RATE, global_step)
+        num_batches_per_epoch = self.train_num / self.batch_size
+        decay_steps = int(num_batches_per_epoch * self.epoch)
+        lr = tf.train.cosine_decay(self.INITIAL_LEARNING_RATE, global_step, decay_steps, 0.0001)
 
         # Build a Graph that trains the model with one batch of examples and
         # updates the model parameters.
         opt = tf.train.MomentumOptimizer(lr, self.momentum_rate, name='Momentum' + str(self.block_num),
                                          use_nesterov=True)
-        train_op = opt.minimize(loss, global_step=global_step)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            train_op = opt.minimize(loss, global_step=global_step)
         return train_op
 
     def _stats_graph(self):
         graph = tf.get_default_graph()
-        # flops = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.float_operation())
+        flops = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.float_operation())
         params = tf.profiler.profile(graph, options=tf.profiler.ProfileOptionBuilder.trainable_variables_parameter())
-        return 1, params.total_parameters
+        return flops.total_float_ops, params.total_parameters
 
     def _cal_multi_target(self, precision, time):
         flops, model_size = self._stats_graph()
         return precision + 1 / time + 1 / flops + 1 / model_size
 
     def set_data_size(self, num):
-        if num > self.NUM_EXAMPLES_FOR_TRAIN or num < 0:
-            num = self.NUM_EXAMPLES_FOR_TRAIN
-            self.train_num = self.NUM_EXAMPLES_FOR_TRAIN
+        if num > DataSet().NUM_EXAMPLES_FOR_TRAIN or num < 0:
+            num = DataSet().NUM_EXAMPLES_FOR_TRAIN
             print('Warning! Data size has been changed to',
                   num, ', all data is loaded.')
-        else:
-            self.train_num = num
+        self.train_num = num
         # print('************A NEW ROUND************')
         self.max_steps = self.train_num // self.batch_size
         return
@@ -588,8 +590,8 @@ class Evaluator:
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
-    eval.set_data_size(5000)
-    eval.set_epoch(1)
+    eval.set_data_size(10000)
+    eval.set_epoch(10)
     # graph_full = [[1], [2], [3], []]
     # cell_list = [Cell('conv', 64, 5, 'relu'), Cell('pooling', 'max', 3), Cell('conv', 64, 5, 'relu'),
     #              Cell('pooling', 'max', 3)]
@@ -604,10 +606,10 @@ if __name__ == '__main__':
     network2 = NetworkItem(1, graph_full, cell_list, "")
     e = eval.evaluate(network1, is_bestNN=True)
     print(e)
-    eval.set_data_size(500)
+    eval.set_data_size(10000)
     e = eval.evaluate(network2, [network1], is_bestNN=True)
     print(e)
-    eval.set_epoch(2)
+    eval.set_epoch(5)
     print(eval.retrain([network1, network2]))
     # eval.add_data(5000)
     # print(eval._toposort([[1, 3, 6, 7], [2, 3, 4], [3, 5, 7, 8], [
@@ -630,4 +632,3 @@ if __name__ == '__main__':
     # e = eval.evaluate(network3, is_bestNN=True)
     # e=eval.train(network.graph_full,cellist)
     # print(e)
-    eval.retrain(pre_block)
