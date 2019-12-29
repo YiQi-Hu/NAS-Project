@@ -353,7 +353,7 @@ class Evaluator:
             data_x, data_y, block_input, train_flag = self._get_input(sess, pre_block, update_pre_weight)
 
             graph_full, cell_list = self._recode(network.graph, network.cell_list,
-                                                 NAS_CONFIG['nas_main']['repeat_search'])
+                                                 NAS_CONFIG['nas_main']['repeat_num'])
             # a pooling layer for last repeat block
             graph_full = graph_full + [[]]
             cell_list = cell_list + [Cell('pooling', 'max', 2)]
@@ -391,7 +391,7 @@ class Evaluator:
                 else:
                     cell_list.append(cell)
             # repeat search
-            graph_full, cell_list = self._recode(block.graph, block.cell_list, NAS_CONFIG['nas_main']['repeat_search'])
+            graph_full, cell_list = self._recode(block.graph, block.cell_list, NAS_CONFIG['nas_main']['repeat_num'])
             # add pooling layer only in last repeat block
             cell_list.append(Cell('pooling', 'max', 2))
             graph_full.append([])

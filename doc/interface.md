@@ -137,7 +137,7 @@
 + init_data_size (int, > 0) 初始添加数据量
 + data_increase_scale (float, > 1) 数据以指数增长时，底数的大小
 + add_data_for_confirm_train (int, -1 or > 0) 固定当前block网络结构前的训练所添加的数据量
-+ repeat_search (int, >= 1) 搜得block中的结构重复堆叠的次数
++ repeat_num (int, >= 1) 搜得block中的结构重复堆叠的次数
 
 ### Method
 
