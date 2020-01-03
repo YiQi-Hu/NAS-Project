@@ -61,9 +61,11 @@ class Sampler:
         and sample the operation configuration.
         No Args.
         Retruns:
+        
             1. cell (1d Cell list)
             2. graph_full (2d int list, as NetworkItem.graph_full)
             3. table (1d int list, depending on dimension)
+        
         """
 
         table = self.opt.sample()

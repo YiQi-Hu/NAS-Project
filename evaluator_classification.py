@@ -209,6 +209,8 @@ class Evaluator:
             layer = self._makeconv(inputs, cell, node, train_flag)
         elif cell.type == 'pooling':
             layer = self._makepool(inputs, cell)
+        elif cell.type == 'id':
+            layer = tf.identity(inputs)
         elif cell.type == 'sep_conv':
             layer = self._makesep_conv(inputs, cell, node, train_flag)
         # TODO add any other new operations here
@@ -368,8 +370,9 @@ class Evaluator:
             saver = tf.train.Saver(tf.global_variables())
 
             if is_bestNN:  # save model
-                saver.save(sess, os.path.join(
-                    self.model_path, 'model' + str(network.id)))
+                if not os.path.exists(os.path.join(self.model_path)):
+                    os.makedirs(os.path.join(self.model_path))
+                saver.save(sess, os.path.join(self.model_path, 'model' + str(network.id)))
 
         NAS_LOG << ('eva', self.log)
         return precision
@@ -413,6 +416,7 @@ class Evaluator:
         '''Get input for _inference'''
         # if it got previous blocks
         if len(pre_block) > 0:
+            assert os.path.exists(os.path.join(self.model_path, 'model' + str(pre_block[-1].id) + '.meta'))
             new_saver = tf.train.import_meta_graph(
                 os.path.join(self.model_path, 'model' + str(pre_block[-1].id) + '.meta'))
             new_saver.restore(sess, os.path.join(
@@ -514,9 +518,6 @@ class Evaluator:
 
             # early stop
             if ep > 5 and not retrain:
-                if precision[ep] < 1.2 / DataSet().NUM_CLASSES:
-                    precision = [-1]
-                    break
                 if 2 * precision[ep] - precision[ep - 5] - precision[ep - 1] < 0.001 / DataSet().NUM_CLASSES:
                     precision = precision[:ep]
                     log += 'early stop at %d epoch\n' % ep

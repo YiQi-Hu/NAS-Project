@@ -6,7 +6,7 @@ import collections
 _cur_ver_dir = os.getcwd()
 
 # NAS configuration dic object
-_nas_config_path = os.path.join(_cur_ver_dir, 'nas_config.json')
+_nas_config_path = os.path.join(_cur_ver_dir, '../nas_config.json')
 
 NAS_CONFIG = json.load(open(_nas_config_path, encoding='utf-8'), object_pairs_hook=collections.OrderedDict)
 
