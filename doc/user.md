@@ -177,7 +177,7 @@ def _makesep_conv(self, inputs, hplist, node):
   + _block\_num_ 堆叠网络块数量
   + _add\_data\_per\_round_ 每一轮竞赛增加数据大小
   + _add\_data\_for\_winner_ 竞赛胜利者的训练数据集大小 (-1代表使用全部数据)
-  + _repeat\_search_ 模块重复次数
+  + _repeat\_num_ 模块重复次数
 + enum 穷举模块参数
   + _depth_ 枚举的网络结构的深度
   + _width_ 枚举的网络结构的支链个数

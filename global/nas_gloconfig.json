@@ -60,7 +60,7 @@
         "graph": {
             "depth": 6,
             "width": 0,
-            "max_branch_depth": 0
+            "max_depth": 0
         },
         "skipping_max_dist": 6,
         "skipping_max_num": 3,

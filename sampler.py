@@ -29,10 +29,13 @@ class Sampler:
         self._crosslayer_dis = NAS_CONFIG['spl']['skip_max_dist'] + 1  # dis control
         self._cross_node_number = NAS_CONFIG['spl']['skip_max_num']
         self._graph_part_invisible_node = self.graph_part_add_invisible_node()
+        self._tmp_flag = 0
+        self._graph_part_invisible_node_flag = [0 for i in range(len(self._graph_part_invisible_node))]
+        self._find_main_chain(self._graph_part_invisible_node)
+        # print(self._graph_part_invisible_node_flag)
         self._crosslayer = self._get_crosslayer()
         # Read parameter table to get operation dictionary in stage(block_id)
         self._setting = self._init_setting(block_id)
-
         self._dic_index = self._init_dict()  # check
         # Set parameters of optimization module based on the above results
         self.__region, self.__type = self._opt_parameters()
@@ -86,10 +89,6 @@ class Sampler:
                 if type(_setting_tmp[key][op][0]) is list:
                     _setting_tmp[key][op] = _setting_tmp[key][op][block_id]
 
-        #TODO del(pjs)  del pooling in config
-        if self._pattern == "Block":
-            del _setting_tmp['pooling']
-
         return _setting_tmp
 
     def graph_part_add_invisible_node(self):
@@ -102,6 +101,33 @@ class Sampler:
         graph_part_tmp.append([])
         return graph_part_tmp
 
+    def _find_main_chain(self, graph):
+        q = Queue()
+        q.put([0, 0])
+        ma = 0
+        while q.empty() is False:
+            f = q.get()
+            ma = max(f[1], ma)
+            for i in self._graph_part_invisible_node[f[0]]:
+                q.put([i, f[1]+1])
+
+        self._graph_part_invisible_node_flag[0] = 1
+        self.dfs(0, 0, ma)
+
+        return
+
+    def dfs(self, node_id, cnt, ma):
+        if cnt == ma:
+            self._tmp_flag = 1
+        if self._tmp_flag == 1:
+            return
+        for i in self._graph_part_invisible_node[node_id]:
+            if self._graph_part_invisible_node_flag[i] == 0 and self._tmp_flag == 0:
+                self._graph_part_invisible_node_flag[i] = 1
+                self.dfs(i, cnt+1, ma)
+                if self._tmp_flag == 0:
+                    self._graph_part_invisible_node_flag[i] = 0
+
     def _get_crosslayer(self):
         """
         utilizing breadth-first search to set the possible cross layer
@@ -109,7 +135,10 @@ class Sampler:
         """
         cl = []
         for i in range(self._node_number):
-            cl.append(self._bfs(i))
+            if self._graph_part_invisible_node_flag[i] == 1:
+                cl.append(self._bfs(i))
+            else:
+                cl.append([])
         return cl
 
     def _bfs(self, node_id):
@@ -119,6 +148,7 @@ class Sampler:
         v = []
         for i in range(self._node_number + 1):
             v.append(0)
+        v[node_id] = 1
 
         while q.empty() is False:
             f = q.get()
@@ -127,22 +157,23 @@ class Sampler:
                     res_list.append(f[0])
                 else:
                     continue
-
             # for j in self._graph_part[f[0]]:
             for j in self._graph_part_invisible_node[f[0]]:
-                if v[j] == 0:
-                    q.put([j, f[1] + 1])
-                    v[j] = 1
+                if self._graph_part_invisible_node_flag[j] == 1:
+                    if v[j] == 0:
+                        q.put([j, f[1] + 1])
+                        v[j] = 1
 
         return res_list
     #
     def _region_cross_type(self, __region_tmp, __type_tmp, i):
         region_tmp = copy.copy(__region_tmp)
         type_tmp = copy.copy(__type_tmp)
-        for j in range(self._cross_node_number):
 
-            region_tmp.append([0, len(self._crosslayer[i])])
-            type_tmp.append(2)
+        for j in range(self._cross_node_number):
+            if self._graph_part_invisible_node_flag[i] == 1:
+                region_tmp.append([0, len(self._crosslayer[i])])
+                type_tmp.append(2)
 
         return region_tmp, type_tmp
 
@@ -178,7 +209,10 @@ class Sampler:
         graph_part_sample = copy.deepcopy(self._graph_part)
         for num in range(self._node_number):
             l = r
-            r = l + len(self._dic_index) + self._cross_node_number
+            r = l + len(self._dic_index)
+            if self._graph_part_invisible_node_flag[num] == 1:
+                r = r + self._cross_node_number
+
             p_node = self._p_table[l:r]  # Take the search space of a node
             # print(p_node)
             node_cross_tmp = list(set(copy.deepcopy(p_node[len(self._dic_index):])))
@@ -211,6 +245,7 @@ class Sampler:
         cnt = 1
         num = 1
         for key in self._setting:
+
             for k in self._setting[key]:
                 tmp = len(self._setting[key][k]) - 1
                 dic[key + ' ' + k] = (cnt, cnt + tmp, num)
@@ -248,7 +283,9 @@ class Sampler:
                 pooling_cnt = i
         for num in range(self._node_number):  # Take the search space of a node
             l = r
-            r = l + len(self._dic_index) + self._cross_node_number
+            r = l + len(self._dic_index)
+            if self._graph_part_invisible_node_flag[num] == 1:
+                r = r + self._cross_node_number
             p_node = self._p_table[l:r]  # Sample value of the current node
 
             if len(ops[num]) != 1:
@@ -274,7 +311,7 @@ class Sampler:
 if __name__ == '__main__':
     # os.chdir("../")
     graph_part = [[1], [2], [3, 7, 9], [4], [5], [6], [], [8], [5], [10], [11], [6]]
-    # graph_part = [[1], [2], [3], [4], [5], [6], []]
+    # graph_part = [[1, 4], [2], [3], [], [5], [3]]
 
     # network.init_sample(self.__pattern, block_num, self.spl_setting, self.skipping_max_dist, self.ops_space)
 

@@ -93,7 +93,7 @@ class Test_static(unittest.TestCase):
             self.assertTrue(i >= 0)
         for i in NAS_CONFIG['eva']['learing_rate']:
             self.assertTrue(i > 0.0)
-        self.assertTrue(NAS_CONFIG['eva']['repeat_search'] >= 0)
+        self.assertTrue(NAS_CONFIG['eva']['repeat_num'] >= 0)
 
     def test_int_opt(self):
         self._judge_int(NAS_CONFIG['opt']['sample_size'])
