@@ -1,6 +1,6 @@
 """
 All basic data structure in this file.
-PLEASE DO NOT USE 'from .base import *' !!!
+PLEASE DO NOT USE \'from .base import \*\' !!!
 """
 from info_str import NAS_CONFIG
 
@@ -46,20 +46,6 @@ class Cell(tuple):
             cell_type: string, type of cell defined in configuration
         Returns:
             format: tuple, keys order
-        Example:
-            NAS_CONFIG['space'] = {
-                "conv": {
-                    "filter_size": [[...], ...],
-                    "kernel_size": [...],
-                    activation:[...]
-                },
-                "pooling":{
-                    ...
-                }, ...
-            }
-            Cell.get_format("conv") 
-            // Maybe return ("kernel_size", "activation", "filter_size")
-            conv_cell = Cell("conv", 3, "relu", 48)
         """
         return cls.__keys_index[cell_type]
 

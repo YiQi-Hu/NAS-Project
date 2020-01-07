@@ -50,8 +50,7 @@ class Enumerater:
         """
         The main function of generating network topology.
         No Args.
-        Retruns:
-            1. pool (1d Network list)
+        Retruns: pool (1d Network list)
         """
         pool = _read_pool(self._pickle_name)
 

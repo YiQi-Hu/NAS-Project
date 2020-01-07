@@ -12,7 +12,7 @@ import traceback
 from base import Network, NetworkItem
 from enumerater import Enumerater
 from utils import Communication, list_swap, DataSize, _epoch_ctrl
-from evaluator import Evaluator
+from evaluator_classification import Evaluator
 from sampler import Sampler
 
 from info_str import NAS_CONFIG

@@ -16,3 +16,5 @@ logs/
 
 *.py.*
 pcache/
+
+doc/build/
