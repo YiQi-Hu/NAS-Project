@@ -77,7 +77,7 @@ class Communication:
         self.tables = []
         self.round = 0
         self.tw_count = NAS_CONFIG['nas_main']['num_opt_best'] - NAS_CONFIG['nas_main']['num_gpu']
-        for gpu in range(1, NAS_CONFIG['nas_main']['num_gpu']):
+        for gpu in range(NAS_CONFIG['nas_main']['num_gpu']):
             self.idle_gpuq.put(gpu)
 
     def wake_up_train_winner(self, res):

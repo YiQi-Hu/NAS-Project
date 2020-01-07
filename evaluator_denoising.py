@@ -486,11 +486,12 @@ class Evaluator:
             log: string, log to be write and saved
         """
         # TODO shuffle
-        logits = tf.nn.dropout(logits, keep_prob=1.0)
-        logits = self._makeconv(logits, Cell('conv', 3, 3, 'relu'), "l", train_flag)
+        # logits = tf.nn.dropout(logits2, keep_prob=1.0)
+        noise = tf.layers.conv2d(logits, 3, 3, padding='same', name="l", use_bias=False)
+        pred = data_x - noise
         global_step = tf.Variable(0, trainable=False, name='global_step' + str(self.block_num))
-        accuracy = self._cal_accuracy(logits, data_y)
-        loss = self._loss(logits, data_y)
+        accuracy = self._cal_accuracy(pred, data_y)
+        loss = self._loss(pred, data_y)
         train_op = self._train_op(global_step, loss)
 
         sess.run(tf.global_variables_initializer())
@@ -504,15 +505,15 @@ class Evaluator:
                     np.float32) / 255.0
                 batch_y = self.train_label[step * self.batch_size:(step + 1) * self.batch_size].astype(
                     np.float32) / 255.0
-                _, loss_value, acc = sess.run([train_op, loss, accuracy],
-                                              feed_dict={data_x: batch_x, data_y: batch_y, train_flag: True})
+                _, loss_value, acc, ans_show = sess.run([train_op, loss, accuracy, pred],
+                                                        feed_dict={data_x: batch_x, data_y: batch_y, train_flag: True})
                 if np.isnan(loss_value):
                     return -1, log
                 sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" % (step, max_steps, loss_value, acc))
             sys.stdout.write("\n")
 
             # evaluation step
-            for i in range(len(self.test_label)):
+            for i in range(20):
                 batch_x = self.test_data[i].astype(np.float32) / 255.0
                 batch_x = batch_x[np.newaxis, ...]
                 batch_y = self.test_label[i].astype(np.float32) / 255.0
@@ -520,8 +521,7 @@ class Evaluator:
                 l, psnr = sess.run([loss, accuracy],
                                    feed_dict={data_x: batch_x, data_y: batch_y, train_flag: False})
                 psnr_sum += psnr / len(self.test_label)
-                sys.stdout.write("\r>> test %d/%d loss %.4f acc %.4f" % (i, len(self.test_label), l, psnr))
-            sys.stdout.write("\n")
+                print("test %d/%d loss %.4f acc %.4f" % (i, len(self.test_label), l, psnr))
 
         target = self._cal_multi_target(psnr_sum)
         return target, log
@@ -554,17 +554,12 @@ class Evaluator:
 
     def _train_op(self, global_step, loss):
         # TODO change here for learning rate and optimizer
-        num_batches_per_epoch = self.train_num / self.batch_size
-        decay_steps = int(num_batches_per_epoch * self.epoch)
-        lr = tf.train.cosine_decay(self.INITIAL_LEARNING_RATE, global_step, decay_steps, 0.0001)
-
         # Build a Graph that trains the model with one batch of examples and
         # updates the model parameters.
-        opt = tf.train.MomentumOptimizer(lr, 0.9, name='Momentum' + str(self.block_num),
-                                         use_nesterov=True)
+        opt = tf.train.AdamOptimizer(0.001, name='Momentum' + str(self.block_num))
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
-            train_op = opt.minimize(loss, global_step=global_step)
+            train_op = opt.minimize(loss)
         return train_op
 
     def _cal_multi_target(self, precision):
@@ -583,12 +578,20 @@ class Evaluator:
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
-    eval.set_data_size(50000)
-    eval.set_epoch(10)
+    eval.set_data_size(-1)
+    eval.set_epoch(50)
 
-    graph_full = [[1, 3], [2, 3], [3], [4]]
-    cell_list = [Cell('conv', 24, 3, 'relu'), Cell('conv', 32, 3, 'relu'), Cell('conv', 24, 3, 'relu'),
-                 Cell('conv', 32, 3, 'relu')]
+    graph_full = [[1]]
+    cell_list = [Cell('conv', 128, 3, 'relu')]
+    for i in range(2, 19):
+        graph_full.append([i])
+        cell_list.append(Cell('conv', 64, 3, 'relu'))
+    graph_full.append([])
+    cell_list.append(Cell('conv', 64, 3, 'relu'))
+
+    # graph_full = [[1, 3], [2, 3], [3], [4]]
+    # cell_list = [Cell('conv', 128, 3, 'relu'), Cell('conv', 32, 3, 'relu'), Cell('conv', 24, 3, 'relu'),
+    #              Cell('conv', 32, 3, 'relu')]
     network1 = NetworkItem(0, graph_full, cell_list, "")
     network2 = NetworkItem(1, graph_full, cell_list, "")
     e = eval.evaluate(network1, is_bestNN=True)

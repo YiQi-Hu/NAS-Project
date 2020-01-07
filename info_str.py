@@ -127,7 +127,7 @@ MF_TEMP = {
             'eva': eva
         }
     },
-    'evaluator_template': {
+    'evaluator_denoising': {
         '_eval': {
             'eva': eva
         },
