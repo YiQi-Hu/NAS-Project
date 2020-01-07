@@ -17,8 +17,8 @@ class DataSet:
     def inputs(self):
         '''
         Method for load data
-                Returns:
-                  train_data, train_label, valid_data, valid_label, test_data, test_label
+
+        :return: train_data, train_label, valid_data, valid_label, test_data, test_label
         '''
         return train_data, train_label, test_data, test_label
 
@@ -237,13 +237,13 @@ class Evaluator:
 
     def evaluate(self, network, pre_block=[], is_bestNN=False, update_pre_weight=False):
         '''Method for evaluate the given network.
-        Args:
-            network: NetworkItem()
-            pre_block: The pre-block structure, every block has two parts: graph_part and cell_list of this block.
-            is_bestNN: Symbol for indicating whether the evaluating network is the best network of this round, default False.
-            update_pre_weight: Symbol for indicating whether to update previous blocks' weight, default by False.
-        Returns:
-            Accuracy'''
+        
+        :param network: NetworkItem
+        :param pre_block: The pre-block structure, every block has two parts: graph_part and cell_list of this block.
+        :param is_bestNN: Symbol for indicating whether the evaluating network is the best network of this round.
+        :param update_pre_weight: Symbol for indicating whether to update previous blocks' weight.
+        :return: accuracy, float
+        '''
         assert self.train_num >= self.batch_size
         tf.reset_default_graph()
         self.block_num = len(pre_block)

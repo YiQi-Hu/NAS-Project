@@ -23,29 +23,17 @@ class NetworkItem(object):
         self.score = 0
 
 class Cell(tuple):
-    """class Cell inheirt from tuple
-    Attributes:
-        1. cell_type (string, 'conv' or 'pooling')
-    Example:
-        conv_cell = Cell('conv', 48, 7, 'relu')
-        pooling_cell = Cell('pooling', 'avg', 9)
-        print(conv_cell.type) # 'conv'
-        print(pooling_cell.type) # 'pooling'
-        print(conv_cell) # ('conv', 48, 7, 'relu')
-        print(pooling_cell) # ('pooling', 'avg', 9)
-    """
     __keys_index = {}
     __SPACE_CONFIG = NAS_CONFIG['spl']['space']
-    for key in __SPACE_CONFIG.keys():
-        __keys_index[key] = tuple(__SPACE_CONFIG[key].keys())
+    for _key in __SPACE_CONFIG.keys():
+        __keys_index[_key] = tuple(__SPACE_CONFIG[_key].keys())
     
     @classmethod
     def get_format(cls, cell_type):
         """Get keys order of cell according to cell's type.
-        Args:
-            cell_type: string, type of cell defined in configuration
-        Returns:
-            format: tuple, keys order
+        
+        :param cell_type: string, type of cell defined in configuration
+        :return: tuple, keys order
         """
         return cls.__keys_index[cell_type]
 

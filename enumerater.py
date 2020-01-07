@@ -32,9 +32,6 @@ def _save_pool(path, pool):
 class Enumerater:
     """Summary of class here.
         Generate adjacency of network topology.
-        Attributes:
-            parameters of enumerater module
-                are given by folder 'parameters'.
     """
 
     def __init__(self):
@@ -49,8 +46,8 @@ class Enumerater:
     def enumerate(self):
         """
         The main function of generating network topology.
-        No Args.
-        Retruns: pool (1d Network list)
+
+        :retrun: 1d Network list
         """
         pool = _read_pool(self._pickle_name)
 
