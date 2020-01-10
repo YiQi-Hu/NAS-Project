@@ -27,7 +27,7 @@ class Feature:
     def __init__(self, graph):
         self.graph = graph
 
-    def feature_links(self):
+    def _feature_links(self):
         # 从邻接矩阵中提取所有的支链，每一条支链有五个特征，编号，起点，终点，长度，节点编号
         g = self.graph
         link_set = []
@@ -56,9 +56,9 @@ class Feature:
 
         return link_set, endpoint_link_num_set, node_link_num_set
 
-    def feature_nodes(self):
+    def _feature_nodes(self):
         # 对每一个节点提取特征
-        link_set, endpointLinkNumSet, nodeLinkNumSet = self.feature_links()
+        link_set, endpointLinkNumSet, nodeLinkNumSet = self._feature_links()
 
         node_num = len(self.graph)
         feature_num = 25
@@ -317,7 +317,7 @@ class Predictor:
         graphs_orders = []
         for g in graphs:
             g_mat = self._list2mat(g)
-            links, _, _ = Feature(g_mat).feature_links()
+            links, _, _ = Feature(g_mat)._feature_links()
             order = self._get_new_order(links, len(g_mat))
             graph_mat = self._get_new_mat(order, g)
             graphs_mat.append(graph_mat)
