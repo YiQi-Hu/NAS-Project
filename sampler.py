@@ -59,11 +59,11 @@ class Sampler:
         Get table based on the optimization module sampling,
         update table in Sampler,
         and sample the operation configuration.
-        No Args.
-        Retruns:
-            1. cell (1d Cell list)
-            2. graph_full (2d int list, as NetworkItem.graph_full)
-            3. table (1d int list, depending on dimension)
+        
+        :param cell: 1d Cell list
+        :param graph_full: 2d int list, as NetworkItem.graph_full
+        :param table: 1d int list, depending on dimension
+        :return: None.
         """
 
         table = self.opt.sample()
@@ -73,10 +73,10 @@ class Sampler:
     def update_opt_model(self, table, score):
         """
         Optimization of sampling space based on Evaluation and optimization method.
-        Args:
-            1. table (1d int list, depending on dimension)
-            2. score（float, 0 ~ 1.0)
-        No returns.
+        
+        :param table: 1d int list, depending on dimension
+        :param score: float, 0 ~ 1.0
+        :returns: None.
         """
         self.opt.update_model(table, score)  # here "-" represent that we minimize the loss
 
@@ -263,13 +263,6 @@ class Sampler:
             pickle.dump(j.cell_list, fp)
 
     def ops2table(self, ops, table_tmp):
-        """
-        set the table under the output in predictor
-        the output in predictor looks like:
-        [['64', '7'], ['pooling'], ['64', '3'], ['256', '3'], ['1024', '1'],
-        ['1024', '1'], ['1024', '3'], ['1024', '3'], ['1024', '3'], ['512', '1'],
-        ['128', '5'], ['64', '3'], ['1024', '1'], ['1024', '1'], ['256', '3']]
-        """
         self._p_table = copy.deepcopy(table_tmp)
         table = []
         l = 0

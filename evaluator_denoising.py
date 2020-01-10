@@ -6,24 +6,176 @@ from base import Cell, NetworkItem
 from info_str import NAS_CONFIG
 from utils import NAS_LOG
 
+from tqdm import tqdm
+from glob import glob
+import cv2
+import random
+import sys
+
+DATA_AUG_TIMES = 3
+
 
 class DataSet:
     # TODO for dataset changing please rewrite this class's "inputs" function and "process" function
 
     def __init__(self):
-        self.data_path = "./data"
+        self.data_path = "/home/amax/PycharmProjects/ViDeNN/Spartial-CNN/data/"
         return
 
-    def inputs(self):
+    def add_noise(self):
+        imgs_path = glob(self.data_path + "pristine_images/*.bmp")
+        num_of_samples = len(imgs_path)
+        imgs_path_train = imgs_path[:int(num_of_samples * 0.7)]
+        imgs_path_test = imgs_path[int(num_of_samples * 0.7):]
+
+        sigma_train = np.linspace(0, 50, int(num_of_samples * 0.7) + 1)
+        for i in tqdm(range(int(num_of_samples * 0.7)), desc="[*] Creating original-noisy train set..."):
+            img_path = imgs_path_train[i]
+            img_file = os.path.basename(img_path).split('.bmp')[0]
+            sigma = sigma_train[i]
+            img_original = cv2.imread(img_path)
+            img_noisy = self.gaussian_noise(sigma, img_original)
+
+            cv2.imwrite(self.data_path + "train/noisy/" + img_file + ".png", img_noisy)
+            cv2.imwrite(self.data_path + "train/original/" + img_file + ".png", img_original)
+
+        for i in tqdm(range(int(num_of_samples * 0.3)), desc="[*] Creating original-noisy test set..."):
+            img_path = imgs_path_test[i]
+            img_file = os.path.basename(img_path).split('.bmp')[0]
+            sigma = np.random.randint(0, 50)
+
+            img_original = cv2.imread(img_path)
+            img_noisy = self.gaussian_noise(sigma, img_original)
+
+            cv2.imwrite(self.data_path + "test/noisy/" + img_file + ".png", img_noisy)
+            cv2.imwrite(self.data_path + "test/original/" + img_file + ".png", img_original)
+
+    def gaussian_noise(self, sigma, image):
+        gaussian = np.random.normal(0, sigma, image.shape)
+        noisy_image = image + gaussian
+        noisy_image = np.clip(noisy_image, 0, 255)
+        noisy_image = noisy_image.astype(np.uint8)
+        return noisy_image
+
+    def inputs(self, pat_size=50, stride=100, batch_size=64):
         '''
         Method for load data
 
         :return: train_data, train_label, valid_data, valid_label, test_data, test_label
         '''
-        return train_data, train_label, test_data, test_label
+        noisy_eval_files = glob(self.data_path + 'test/noisy/*.png')
+        noisy_eval_files = sorted(noisy_eval_files)
+        test_data = np.array([cv2.imread(img) for img in noisy_eval_files])
 
-    def process(self, x):
-        return x
+        eval_files = glob(self.data_path + 'test/original/*.png')
+        eval_files = sorted(eval_files)
+        test_label = np.array([cv2.imread(img) for img in eval_files])
+        if os.path.exists(self.data_path + "train/img_noisy_pats.npy"):
+            train_data = np.load(self.data_path + "train/img_noisy_pats.npy")
+            train_label = np.load(self.data_path + "train/img_clean_pats.npy")
+            train_data = train_data.astype(np.float32)
+            train_label = train_label.astype(np.float32)
+            return train_data, train_label, test_data, test_label
+        if not os.path.exists(self.data_path + "train/noisy/") or not os.listdir(self.data_path + "train/noisy/"):
+            self.add_noise()
+
+        global DATA_AUG_TIMES
+        count = 0
+        filepaths = glob(
+            self.data_path + "train/original/" + '/*.png')  # takes all the paths of the png files in the train folder
+        filepaths.sort(key=lambda x: int(os.path.basename(x)[:-4]))  # order the file list
+        filepaths_noisy = glob(self.data_path + "train/noisy/" + '/*.png')
+        filepaths_noisy.sort(key=lambda x: int(os.path.basename(x)[:-4]))
+        print("[*] Number of training samples: %d" % len(filepaths))
+        scales = [1, 0.8]
+
+        # calculate the number of patches
+        for i in range(len(filepaths)):
+            img = cv2.imread(filepaths[i])
+            for s in range(len(scales)):
+                newsize = (int(img.shape[0] * scales[s]), int(img.shape[1] * scales[s]))
+                img_s = cv2.resize(img, newsize, interpolation=cv2.INTER_CUBIC)
+                im_h = img_s.shape[0]
+                im_w = img_s.shape[1]
+                for x in range(0, (im_h - pat_size), stride):
+                    for y in range(0, (im_w - pat_size), stride):
+                        count += 1
+
+        origin_patch_num = count * DATA_AUG_TIMES
+
+        if origin_patch_num % batch_size != 0:
+            numPatches = (origin_patch_num // batch_size + 1) * batch_size  # round
+        else:
+            numPatches = origin_patch_num
+        print("[*] Number of patches = %d, batch size = %d, total batches = %d" % \
+              (numPatches, batch_size, numPatches / batch_size))
+
+        # data matrix 4-D
+        train_label = np.zeros((numPatches, pat_size, pat_size, 3), dtype="uint8")  # clean patches
+        train_data = np.zeros((numPatches, pat_size, pat_size, 3), dtype="uint8")  # noisy patches
+
+        count = 0
+        # generate patches
+        for i in range(len(filepaths)):
+            img = cv2.imread(filepaths[i])
+            img_noisy = cv2.imread(filepaths_noisy[i])
+            for s in range(len(scales)):
+                newsize = (int(img.shape[0] * scales[s]), int(img.shape[1] * scales[s]))
+                img_s = cv2.resize(img, newsize, interpolation=cv2.INTER_CUBIC)
+                img_s_noisy = cv2.resize(img_noisy, newsize, interpolation=cv2.INTER_CUBIC)
+                img_s = np.reshape(np.array(img_s, dtype="uint8"),
+                                   (img_s.shape[0], img_s.shape[1], 3))  # extend one dimension
+                img_s_noisy = np.reshape(np.array(img_s_noisy, dtype="uint8"),
+                                         (img_s_noisy.shape[0], img_s_noisy.shape[1], 3))  # extend one dimension
+
+                for j in range(DATA_AUG_TIMES):
+                    im_h = img_s.shape[0]
+                    im_w = img_s.shape[1]
+                    for x in range(0, im_h - pat_size, stride):
+                        for y in range(0, im_w - pat_size, stride):
+                            a = random.randint(0, 7)
+                            train_label[count, :, :, :] = self.process(
+                                img_s[x:x + pat_size, y:y + pat_size, :], a)
+                            train_data[count, :, :, :] = self.process(
+                                img_s_noisy[x:x + pat_size, y:y + pat_size, :], a)
+                            count += 1
+        # pad the batch
+        if count < numPatches:
+            to_pad = numPatches - count
+            train_label[-to_pad:, :, :, :] = train_label[:to_pad, :, :, :]
+            train_data[-to_pad:, :, :, :] = train_data[:to_pad, :, :, :]
+
+        train_data = train_data.astype(np.float32)
+        return train_data.astype(np.float32), train_label.astype(np.float32), test_data, test_label
+
+    def process(self, image, mode):
+        if mode == 0:
+            # original
+            return image
+        elif mode == 1:
+            # flip up and down
+            return np.flipud(image)
+        elif mode == 2:
+            # rotate counterwise 90 degree
+            return np.rot90(image)
+        elif mode == 3:
+            # rotate 90 degree and flip up and down
+            image = np.rot90(image)
+            return np.flipud(image)
+        elif mode == 4:
+            # rotate 180 degree
+            return np.rot90(image, k=2)
+        elif mode == 5:
+            # rotate 180 degree and flip
+            image = np.rot90(image, k=2)
+            return np.flipud(image)
+        elif mode == 6:
+            # rotate 270 degree
+            return np.rot90(image, k=3)
+        elif mode == 7:
+            # rotate 270 degree and flip
+            image = np.rot90(image, k=3)
+            return np.flipud(image)
 
 
 class Evaluator:
@@ -35,10 +187,12 @@ class Evaluator:
         self.model_path = "./model"
 
         # change the value of parameters below
-        self.batch_size = 50
-        self.input_shape = []
-        self.output_shape = []
+        self.input_shape = [None, None, None, 3]
+        self.output_shape = [None, None, None, 3]
+        self.batch_size = 64
         self.train_data, self.train_label, self.test_data, self.test_label = DataSet().inputs()
+
+        self.INITIAL_LEARNING_RATE = 0.025
         return
 
     def set_epoch(self, e):
@@ -101,6 +255,8 @@ class Evaluator:
             layer = self._makeconv(inputs, cell, node, train_flag)
         elif cell.type == 'pooling':
             layer = self._makepool(inputs, cell)
+        elif cell.type == 'id':
+            layer = tf.identity(inputs)
         elif cell.type == 'sep_conv':
             layer = self._makesep_conv(inputs, cell, node, train_flag)
         # TODO add any other new operations here
@@ -315,7 +471,7 @@ class Evaluator:
                 new_graph.append([x + add for x in sub_list])
         return new_graph, new_cell_list
 
-    def _eval(self, sess, logits, data_x, data_y, *args, **kwargs):
+    def _eval(self, sess, logits, data_x, data_y, train_flag):
         # TODO change here to run training step and evaluation step
         """
         The actual training process, including the definination of loss and train optimizer
@@ -329,17 +485,45 @@ class Evaluator:
             saver: Tensorflow Saver class
             log: string, log to be write and saved
         """
-        logits = tf.nn.dropout(logits, keep_prob=1.0)
-        logits = self._makedense(logits, ('', [self.output_shape[-1]], ''))
+        # TODO shuffle
+        # logits = tf.nn.dropout(logits2, keep_prob=1.0)
+        noise = tf.layers.conv2d(logits, 3, 3, padding='same', name="l", use_bias=False)
+        pred = data_x - noise
         global_step = tf.Variable(0, trainable=False, name='global_step' + str(self.block_num))
-        accuracy = self._cal_accuracy(logits, data_y)
-        loss = self._loss(logits, data_y)
+        accuracy = self._cal_accuracy(pred, data_y)
+        loss = self._loss(pred, data_y)
         train_op = self._train_op(global_step, loss)
 
         sess.run(tf.global_variables_initializer())
 
         log = ""
+        psnr_sum = 0
+        max_steps = self.train_num // self.batch_size
+        for _ in range(self.epoch):
+            for step in range(max_steps):
+                batch_x = self.train_data[step * self.batch_size:(step + 1) * self.batch_size].astype(
+                    np.float32) / 255.0
+                batch_y = self.train_label[step * self.batch_size:(step + 1) * self.batch_size].astype(
+                    np.float32) / 255.0
+                _, loss_value, acc, ans_show = sess.run([train_op, loss, accuracy, pred],
+                                                        feed_dict={data_x: batch_x, data_y: batch_y, train_flag: True})
+                if np.isnan(loss_value):
+                    return -1, log
+                sys.stdout.write("\r>> train %d/%d loss %.4f acc %.4f" % (step, max_steps, loss_value, acc))
+            sys.stdout.write("\n")
 
+            # evaluation step
+            for i in range(20):
+                batch_x = self.test_data[i].astype(np.float32) / 255.0
+                batch_x = batch_x[np.newaxis, ...]
+                batch_y = self.test_label[i].astype(np.float32) / 255.0
+                batch_y = batch_y[np.newaxis, ...]
+                l, psnr = sess.run([loss, accuracy],
+                                   feed_dict={data_x: batch_x, data_y: batch_y, train_flag: False})
+                psnr_sum += psnr / len(self.test_label)
+                print("test %d/%d loss %.4f acc %.4f" % (i, len(self.test_label), l, psnr))
+
+        target = self._cal_multi_target(psnr_sum)
         return target, log
 
     def _cal_accuracy(self, logits, labels):
@@ -352,6 +536,8 @@ class Evaluator:
                 Target tensor of type float.
         """
         # TODO change here for the way of calculating target
+        mse = tf.losses.mean_squared_error(labels=labels * 255.0, predictions=logits * 255.0)
+        accuracy = 10.0 * (tf.log(255.0 ** 2 / mse) / tf.log(10.0))
         return accuracy
 
     def _loss(self, logits, labels):
@@ -363,14 +549,22 @@ class Evaluator:
             Loss tensor of type float.
           """
         # TODO change here for the way of calculating loss
+        loss = (1.0 / self.batch_size) * tf.nn.l2_loss(logits - labels)
         return loss
 
     def _train_op(self, global_step, loss):
         # TODO change here for learning rate and optimizer
+        # Build a Graph that trains the model with one batch of examples and
+        # updates the model parameters.
+        opt = tf.train.AdamOptimizer(0.001, name='Momentum' + str(self.block_num))
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            train_op = opt.minimize(loss)
         return train_op
 
-    def _cal_multi_target(self, precision, time):
+    def _cal_multi_target(self, precision):
         # TODO change here for target calculating
+        target = precision
         return target
 
     def set_data_size(self, num):
@@ -384,12 +578,20 @@ class Evaluator:
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     eval = Evaluator()
-    eval.set_data_size(50000)
-    eval.set_epoch(10)
+    eval.set_data_size(-1)
+    eval.set_epoch(50)
 
-    graph_full = [[1, 3], [2, 3], [3], [4]]
-    cell_list = [Cell('conv', 24, 3, 'relu'), Cell('conv', 32, 3, 'relu'), Cell('conv', 24, 3, 'relu'),
-                 Cell('conv', 32, 3, 'relu')]
+    graph_full = [[1]]
+    cell_list = [Cell('conv', 128, 3, 'relu')]
+    for i in range(2, 19):
+        graph_full.append([i])
+        cell_list.append(Cell('conv', 64, 3, 'relu'))
+    graph_full.append([])
+    cell_list.append(Cell('conv', 64, 3, 'relu'))
+
+    # graph_full = [[1, 3], [2, 3], [3], [4]]
+    # cell_list = [Cell('conv', 128, 3, 'relu'), Cell('conv', 32, 3, 'relu'), Cell('conv', 24, 3, 'relu'),
+    #              Cell('conv', 32, 3, 'relu')]
     network1 = NetworkItem(0, graph_full, cell_list, "")
     network2 = NetworkItem(1, graph_full, cell_list, "")
     e = eval.evaluate(network1, is_bestNN=True)

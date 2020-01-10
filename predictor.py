@@ -385,11 +385,10 @@ class Predictor:
     def predictor(self, pre_block, graph_full):
         '''
         Method for predicting block's operation
-        Args:
-            pre_block:Previous block Networkitem_list
-            graph_full:Current block Networkitem
-        return:
-            Operation of each node in the current block,including size and filters
+        
+        :param pre_block: Previous block Networkitem_list
+        :param graph_full: Current block Networkitem
+        :return: Operation of each node in the current block,including size and filters
         '''
         graph_list = []
         if pre_block:
@@ -409,10 +408,10 @@ class Predictor:
         '''
         Retrain the predictor model with networks that
         get high accuracy on the validation set
-        Args:
-            graph_full: a Network Topology
-            cell_list: Class Cell()'s list
-        no Returns
+        
+        :param graph_full: a Network Topology
+        :param cell_list: Cell list
+        :returns: None.
         '''
         x_train = []
         y_train = []

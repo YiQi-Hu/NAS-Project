@@ -12,11 +12,12 @@
     "init_data_size": 1600,
     "data_increase_scale": 1.5,
     "add_data_for_confirm_train": 100,
-    "repeat_search": 1,
+    "repeat_num": 1,
     "subp_eva_debug": 0,
     "subp_pred_debug": 0,
     "eva_debug": 0,
-    "ops_debug": 0
+    "ops_debug": 0,
+    "link_node": false
   },
   "enum":{
     "depth": 3,
