@@ -6,9 +6,7 @@ NAS-Project
 
    base
    enumerater
-   evaluator_classification
-   evaluator_denoising
-   evaluator_user
+   evaluator
    info_str
    nas
    optimizer
