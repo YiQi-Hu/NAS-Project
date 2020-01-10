@@ -6,7 +6,7 @@ import collections
 _cur_ver_dir = os.getcwd()
 
 # NAS configuration dic object
-_nas_config_path = os.path.join(_cur_ver_dir, '../nas_config.json')
+_nas_config_path = os.path.join(_cur_ver_dir, 'nas_config.json')
 
 NAS_CONFIG = json.load(open(_nas_config_path, encoding='utf-8'), object_pairs_hook=collections.OrderedDict)
 
@@ -83,7 +83,7 @@ MF_TEMP = {
             'eva_ing': eva_ing,
             'eva_error': eva_error
         },
-        'algo': {
+        '_algo': {
             'start_game': start_game_tem,
             'config_ing': config_ing,
             'round_over': round_over,
@@ -127,7 +127,7 @@ MF_TEMP = {
             'eva': eva
         }
     },
-    'evaluator_denoising': {
+    'evaluator_template': {
         '_eval': {
             'eva': eva
         },
