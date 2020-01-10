@@ -84,6 +84,10 @@ class Sampler:
         _setting_tmp = collections.OrderedDict()
         _setting_tmp = copy.deepcopy(NAS_CONFIG['spl']['space'])
 
+        # if 'pooling' in _setting_tmp and self._pattern == 'Block':
+        if NAS_CONFIG['spl']['pool_switch'] == '0' and 'pooling' in NAS_CONFIG['space']:
+            del _setting_tmp['pooling']
+
         for key in _setting_tmp:
             for op in _setting_tmp[key]:
                 if type(_setting_tmp[key][op][0]) is list:
