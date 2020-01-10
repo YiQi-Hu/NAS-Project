@@ -28,7 +28,7 @@ class Sampler:
         self._pattern = NAS_CONFIG['nas_main']['pattern']  #  Parameter setting based on search method
         self._crosslayer_dis = NAS_CONFIG['spl']['skip_max_dist'] + 1  # dis control
         self._cross_node_number = NAS_CONFIG['spl']['skip_max_num']
-        self._graph_part_invisible_node = self._graph_part_add_invisible_node()
+        self._graph_part_invisible_node = self.graph_part_add_invisible_node()
         self._tmp_flag = 0
         self._graph_part_invisible_node_flag = [0 for i in range(len(self._graph_part_invisible_node))]
         self._find_main_chain(self._graph_part_invisible_node)
@@ -59,11 +59,11 @@ class Sampler:
         Get table based on the optimization module sampling,
         update table in Sampler,
         and sample the operation configuration.
-        No Args.
-        Retruns:
-            1. cell (1d Cell list)
-            2. graph_full (2d int list, as NetworkItem.graph_full)
-            3. table (1d int list, depending on dimension)
+        
+        :param cell: 1d Cell list
+        :param graph_full: 2d int list, as NetworkItem.graph_full
+        :param table: 1d int list, depending on dimension
+        :return: None.
         """
 
         table = self.opt.sample()
@@ -73,19 +73,16 @@ class Sampler:
     def update_opt_model(self, table, score):
         """
         Optimization of sampling space based on Evaluation and optimization method.
-        Args:
-            1. table (1d int list, depending on dimension)
-            2. score（float, 0 ~ 1.0)
-        No returns.
+        
+        :param table: 1d int list, depending on dimension
+        :param score: float, 0 ~ 1.0
+        :returns: None.
         """
         self.opt.update_model(table, score)  # here "-" represent that we minimize the loss
 
     def _init_setting(self, block_id):
         _setting_tmp = collections.OrderedDict()
         _setting_tmp = copy.deepcopy(NAS_CONFIG['spl']['space'])
-
-        if NAS_CONFIG['spl']['pool_switch'] == 0 and 'pooling' in _setting_tmp:
-            del _setting_tmp['pooling']
 
         for key in _setting_tmp:
             for op in _setting_tmp[key]:
@@ -94,7 +91,7 @@ class Sampler:
 
         return _setting_tmp
 
-    def _graph_part_add_invisible_node(self):
+    def graph_part_add_invisible_node(self):
         graph_part_tmp = []
         for i in self._graph_part:
             if not i:
@@ -115,11 +112,11 @@ class Sampler:
                 q.put([i, f[1]+1])
 
         self._graph_part_invisible_node_flag[0] = 1
-        self._dfs(0, 0, ma)
+        self.dfs(0, 0, ma)
 
         return
 
-    def _dfs(self, node_id, cnt, ma):
+    def dfs(self, node_id, cnt, ma):
         if cnt == ma:
             self._tmp_flag = 1
         if self._tmp_flag == 1:
@@ -127,7 +124,7 @@ class Sampler:
         for i in self._graph_part_invisible_node[node_id]:
             if self._graph_part_invisible_node_flag[i] == 0 and self._tmp_flag == 0:
                 self._graph_part_invisible_node_flag[i] = 1
-                self._dfs(i, cnt+1, ma)
+                self.dfs(i, cnt+1, ma)
                 if self._tmp_flag == 0:
                     self._graph_part_invisible_node_flag[i] = 0
 
@@ -266,13 +263,6 @@ class Sampler:
             pickle.dump(j.cell_list, fp)
 
     def ops2table(self, ops, table_tmp):
-        """
-        set the table under the output in predictor
-        the output in predictor looks like:
-        [['64', '7'], ['pooling'], ['64', '3'], ['256', '3'], ['1024', '1'],
-        ['1024', '1'], ['1024', '3'], ['1024', '3'], ['1024', '3'], ['512', '1'],
-        ['128', '5'], ['64', '3'], ['1024', '1'], ['1024', '1'], ['256', '3']]
-        """
         self._p_table = copy.deepcopy(table_tmp)
         table = []
         l = 0
