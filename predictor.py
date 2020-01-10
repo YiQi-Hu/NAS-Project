@@ -397,7 +397,7 @@ class Predictor:
         graph_list.append(graph_full)
         graphs_mat, graphs_orders = self._trans(graph_list)
         new_graph = self._graph_concat(graphs_mat)
-        inputs = Feature(new_graph).feature_nodes()
+        inputs = Feature(new_graph)._feature_nodes()
         inputs = self._padding(inputs, MAX_NETWORK_LENGTH)
         class_list = self._predict(inputs)
         ops = self._class_id_2_parameter(graphs_orders[-1],
@@ -422,7 +422,7 @@ class Predictor:
             y_train.append(k)
         graphs_mat, _ = self._trans(graph_full)
         for graph in graphs_mat:
-            x = Feature(graph).feature_nodes()
+            x = Feature(graph)._feature_nodes()
             x = self._padding(x, MAX_NETWORK_LENGTH)
             x_train.append(x)
         x_train = np.array(x_train)
