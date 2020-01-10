@@ -85,7 +85,7 @@ class Sampler:
         _setting_tmp = copy.deepcopy(NAS_CONFIG['spl']['space'])
 
         # if 'pooling' in _setting_tmp and self._pattern == 'Block':
-        if NAS_CONFIG['spl']['pool_switch'] == '0' and 'pooling' in NAS_CONFIG['space']:
+        if NAS_CONFIG['spl']['pool_switch'] == 0 and 'pooling' in _setting_tmp:
             del _setting_tmp['pooling']
 
         for key in _setting_tmp:
