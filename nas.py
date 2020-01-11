@@ -12,7 +12,7 @@ import traceback
 from base import Network, NetworkItem
 from enumerater import Enumerater
 from utils import Communication, list_swap, DataSize, _epoch_ctrl
-from evaluator_classification import Evaluator
+from evaluator import Evaluator
 from sampler import Sampler
 
 from info_str import NAS_CONFIG
@@ -331,12 +331,12 @@ def _confirm_train(eva, com, best_nn, best_index, ds, process_pl):
 def _rm_other_model(network_item):
     if MAIN_CONFIG['eva_debug']:
         return
-    models = os.listdir(NAS_CONFIG['eva']['model_path'])
+    models = os.listdir('model')
     NAS_LOG << ("model_save", str(network_item.id))
     models = [model for model in models
               if not re.search("model" + str(network_item.id), model)]
     for model in models:
-        os.remove(os.path.join(NAS_CONFIG['eva']['model_path'], model))
+        os.remove(os.path.join('model', model))
 
 
 def _global_train(net_pl, com, pro_pl, eva_winner):
@@ -368,7 +368,7 @@ def _train_winner(eva, net_pl, com, ds, pro_pl, round):
 
     if MAIN_CONFIG['pattern'] == "Block":
         _assign_task(net_pl, com, round, batch_num=MAIN_CONFIG['num_gpu'], block_winner=True)
-        com.net_pool = net_pl;
+        com.net_pool = net_pl
         com.round = round
         com.tw_count = NAS_CONFIG['nas_main']['num_opt_best'] - NAS_CONFIG['nas_main']['num_gpu']
         _do_task(pro_pl, com, eva)
@@ -454,7 +454,7 @@ def _init_npool_sampler(netpool, block_num):
     return
 
 
-def algo(block_num, eva, com, ds, npool_tem, process_pool):
+def _algo(block_num, eva, com, ds, npool_tem, process_pool):
     """evaluate all the networks asynchronously inside one round and synchronously between rounds
 
     :param block_num:
@@ -484,23 +484,6 @@ def algo(block_num, eva, com, ds, npool_tem, process_pool):
     return network_item
 
 
-def _subp_retrain(eva, pre_blk, gpuq):
-    ngpu = gpuq.get()
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(ngpu)
-    if MAIN_CONFIG['eva_debug']:
-        score = random.uniform(0, 0.1)
-    else:
-        score = eva.retrain(pre_blk)
-    gpuq.put(ngpu)
-    return score
-
-
-def _retrain(eva, com, process_pool):
-    _epoch_ctrl(eva, stage="retrain")
-    score = process_pool.apply(_subp_retrain, (eva, Network.pre_block, com.idle_gpuq))
-    return score
-
-
 class Nas:
     def __init__(self, pool):
         NAS_LOG << "init_ing"
@@ -517,19 +500,18 @@ class Nas:
         for i in range(MAIN_CONFIG["block_num"]):
             NAS_LOG << ('search_blk', i + 1, MAIN_CONFIG["block_num"])
             start_block = time.time()
-            network_item = algo(i, self.eva, self.com, self.ds, network_pool_tem, self.pool)
+            network_item = _algo(i, self.eva, self.com, self.ds, network_pool_tem, self.pool)
             Network.pre_block.append(network_item)
             NAS_LOG << ('search_blk_end', time.time() - start_block)
         NAS_LOG << ('nas_end', time.time() - start_search)
         for block in Network.pre_block:
             NAS_LOG << ('pre_block', str(block.graph), str(block.cell_list))
-        start_retrain = time.time()
-        retrain_score = _retrain(self.eva, self.com, self.pool)
-        NAS_LOG << ('retrain_end', retrain_score, time.time() - start_retrain)
-        return Network.pre_block, retrain_score
+        return Network.pre_block
 
 
 if __name__ == '__main__':
-    pool = Pool(processes=MAIN_CONFIG["num_gpu"])
+    pool = Pool(processes=MAIN_CONFIG["num_gpu"], maxtasksperchild=1)
     nas = Nas(pool)
     nas.run()
+    pool.close()
+    pool.join()
