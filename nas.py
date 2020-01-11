@@ -12,7 +12,7 @@ import traceback
 from base import Network, NetworkItem
 from enumerater import Enumerater
 from utils import Communication, list_swap, DataSize, _epoch_ctrl
-from evaluator import Evaluator
+from evaluator_classification import Evaluator
 from sampler import Sampler
 
 from info_str import NAS_CONFIG
@@ -486,6 +486,11 @@ def _algo(block_num, eva, com, ds, npool_tem, process_pool):
 
 class Nas:
     def __init__(self, pool):
+        """
+        Initialize the main module.
+
+        :param Pool pool: processes pool
+        """
         NAS_LOG << "init_ing"
         self.enu = Enumerater()
         self.eva = Evaluator()
@@ -494,6 +499,12 @@ class Nas:
         self.pool = pool
 
     def run(self):
+        """
+        Run the NAS algorithm and get the best neural network.
+
+        :return: the best neural network.
+        :rtype: 1D list of NetworkItem (defined in base.py)
+        """
         NAS_LOG << 'enuming'
         network_pool_tem = self.enu.enumerate()
         start_search = time.time()
