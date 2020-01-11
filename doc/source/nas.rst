@@ -2,6 +2,6 @@ nas module
 ==========
 
 .. automodule:: nas
-   :members:
+   :members: Nas
    :undoc-members:
    :show-inheritance:

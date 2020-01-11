@@ -90,13 +90,13 @@ class Evaluator:
 
     def _make_layer(self, inputs, cell, node, train_flag):
         '''Method for constructing and calculating cell in tensorflow
-        Args:
-                inputs: the input tensor of this operation
-                cell: Class Cell(), hyper parameters for building this layer
-                node: int, the index of this operation
-                train_flag: boolean, indicating whether this is a training process or not
-        Returns:
-                layer: tensor.'''
+        
+        :param Tensor inputs: the input of this operation
+        :param Cell cell: hyper parameters for building this layer
+        :param int node: the index of this operation
+        :param boolean train_flag: indicating whether this is a training process or not
+        :return: tensor
+        '''
         if cell.type == 'conv':
             layer = self._makeconv(inputs, cell, node, train_flag)
         elif cell.type == 'pooling':
@@ -319,15 +319,13 @@ class Evaluator:
         # TODO change here to run training step and evaluation step
         """
         The actual training process, including the definination of loss and train optimizer
-        Args:
-            sess: tensorflow session
-            logits: output tensor of the model, 2-D tensor of shape [self.batch_size, self.NUM_CLASS]
-            data_x: input image
-            data_y: input label, 2-D tensor of shape [self.batch_size, self.NUM_CLASS]
-        Returns:
-            targets: float, the optimization target, could be the accuracy or the combination of both time and accuracy, etc
-            saver: Tensorflow Saver class
-            log: string, log to be write and saved
+        
+        :param Session sess: tensorflow session
+        :param Tensor logits: output of the model, 2-D tensor of shape [self.batch_size, self.NUM_CLASS]
+        :param data_x: input image
+        :param data_y: input label, 2-D tensor of shape [self.batch_size, self.NUM_CLASS]
+        :returns: Optimization targets, saver, and log. The targets could be the accuracy or the combination of both time and accuracy, etc
+        :rtype: tuple (float, Saver, str)
         """
         logits = tf.nn.dropout(logits, keep_prob=1.0)
         logits = self._makedense(logits, ('', [self.output_shape[-1]], ''))
